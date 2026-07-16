@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-07-16 (later still) — autonomy: agentic ChatGPT surface chosen
+
+**DONE**
+- Danny chose **agentic ChatGPT / Codex with repo access** as the content surface
+  (not plain paste-the-JSON). AUTONOMY.md §2 updated: stored Danny's refined quiz
+  prompt as canonical, documented Codex write-scope boundary (`content/inbox/`
+  only, no commit/push, no code/canon/approved) so Codex and the daily Claude run
+  never collide, and flagged the hard prerequisite that `main` must carry the
+  `gradientfall/` tree (Codex clones the default branch).
+
+**BLOCKING / NEEDS DANNY**
+- **Merge PR #1 to main** (https://github.com/danieltalbert/danieltalbert/pull/1).
+  Until then `main` is just the README and any Codex run clones an empty repo.
+
+**NEXT UP** — unchanged: Phase 1, Godot scaffold in `gradientfall/game/` first.
+
+---
+
 ## 2026-07-16 (later) — Phase 0 addendum: autonomy setup
 
 **DONE**
