@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-07-16 (later still, cont.) — first pipeline round-trip ✅
+
+**DONE**
+- Agentic ChatGPT delivered Batch 01 (Bootstrap NPCs) to `content/inbox/npcs/`.
+  Validator passed 12/12 clean. Reviewed for voice/canon: excellent — correct
+  role mix, ML woven as character not vocabulary (Sir Nearest = nearest-neighbor,
+  Nessa Fold's seam proverb = generalization, Cedric's sheep clusters), punny
+  surnames matching the Maxwell Pool convention, Mayor cameos, purple-glow
+  rumors handled per canon. Approved essentially untouched.
+- Merged to `content/approved/npcs/bootstrap_townsfolk.json`. Bootstrap now has
+  13 dialogued NPCs (mayor + 12). Full set validates: 22 entries, 0 errors.
+- **The pipeline works end to end.** External generation → inbox → validate →
+  review → approved, proven with real content.
+
+**NEXT UP** — unchanged: Phase 1, Godot scaffold. Bootstrap's cast is now ready
+to drop into the town whenever the dialogue system lands.
+
+---
+
 ## 2026-07-16 (later still) — autonomy: agentic ChatGPT surface chosen
 
 **DONE**
