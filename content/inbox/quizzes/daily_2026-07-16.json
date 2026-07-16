@@ -1,0 +1,282 @@
+[
+  {
+    "id": "quiz_ml_basics_ui8uwi",
+    "topic": "ml_basics",
+    "difficulty": 1,
+    "question": "In a dataset for predicting house prices, which value is the label?",
+    "choices": [
+      "The number of bedrooms",
+      "The postal code",
+      "The final sale price",
+      "The floor area"
+    ],
+    "answer_index": 2,
+    "explanation": "The label is the outcome the model should predict. Here, house details are input features, while the final sale price is the target label."
+  },
+  {
+    "id": "quiz_ml_basics_tixuzb",
+    "topic": "ml_basics",
+    "difficulty": 1,
+    "question": "A model predicts whether an email is spam or not spam. What kind of task is this?",
+    "choices": [
+      "Binary classification",
+      "Regression",
+      "Clustering",
+      "Dimensionality reduction"
+    ],
+    "answer_index": 0,
+    "explanation": "Binary classification chooses between two categories. Spam and not spam are the two possible class labels."
+  },
+  {
+    "id": "quiz_ml_basics_j3hcs3",
+    "topic": "ml_basics",
+    "difficulty": 1,
+    "question": "Which example describes supervised learning?",
+    "choices": [
+      "Grouping songs by similarity without named groups",
+      "Compressing features without using a target",
+      "Searching randomly for patterns in unlabeled data",
+      "Learning from photos labeled cat or dog"
+    ],
+    "answer_index": 3,
+    "explanation": "Supervised learning uses examples paired with known answers. The cat and dog labels teach the model which output should match each photo."
+  },
+  {
+    "id": "quiz_ml_basics_vfu8n6",
+    "topic": "ml_basics",
+    "difficulty": 1,
+    "question": "Which task is an example of clustering?",
+    "choices": [
+      "Forecasting tomorrow's temperature",
+      "Grouping customers by purchasing patterns without predefined groups",
+      "Predicting the price of a used bicycle",
+      "Classifying a review as positive or negative"
+    ],
+    "answer_index": 1,
+    "explanation": "Clustering finds groups in unlabeled data. It can place customers with similar purchasing patterns together without being told group names."
+  },
+  {
+    "id": "quiz_ml_basics_eegh6n",
+    "topic": "ml_basics",
+    "difficulty": 2,
+    "question": "After a model is trained, what is it called when the model produces a prediction for a new example?",
+    "choices": [
+      "Feature engineering",
+      "Inference",
+      "Data annotation",
+      "Regularization"
+    ],
+    "answer_index": 1,
+    "explanation": "Inference is the stage where a trained model is applied to new input to produce a prediction. Training is the earlier learning stage."
+  },
+  {
+    "id": "quiz_ml_basics_c7g3hk",
+    "topic": "ml_basics",
+    "difficulty": 2,
+    "question": "Which statement correctly distinguishes a learning algorithm from a trained model?",
+    "choices": [
+      "They always mean exactly the same thing",
+      "A model cleans data, while an algorithm only stores it",
+      "An algorithm is a label, while a model is a feature",
+      "An algorithm learns from data, while a trained model is the learned result used for predictions"
+    ],
+    "answer_index": 3,
+    "explanation": "A learning algorithm is the procedure that fits patterns or parameters. The trained model is the result that can then make predictions."
+  },
+  {
+    "id": "quiz_ml_basics_jwmas0",
+    "topic": "ml_basics",
+    "difficulty": 2,
+    "question": "In a typical tabular machine learning dataset, what does one row represent?",
+    "choices": [
+      "One observation or example",
+      "One complete learning algorithm",
+      "Every possible target value",
+      "The definition of a feature"
+    ],
+    "answer_index": 0,
+    "explanation": "A row usually represents one observation, such as one customer or one house. Columns hold that observation's features and sometimes its label."
+  },
+  {
+    "id": "quiz_ml_basics_x9n8yb",
+    "topic": "ml_basics",
+    "difficulty": 2,
+    "question": "A model performs well on both its training examples and new unseen examples. What ability does this show?",
+    "choices": [
+      "It has memorized every possible input",
+      "It has removed the need for data",
+      "It generalizes well",
+      "It has converted classification into clustering"
+    ],
+    "answer_index": 2,
+    "explanation": "Generalization means using patterns learned from training data to perform well on examples the model did not train on."
+  },
+  {
+    "id": "quiz_ml_basics_aoag1u",
+    "topic": "ml_basics",
+    "difficulty": 3,
+    "question": "Why is a simple baseline model useful in a machine learning project?",
+    "choices": [
+      "It guarantees the final model is unbiased",
+      "It replaces the need to evaluate other models",
+      "It makes every dataset perfectly balanced",
+      "It provides a reference score that more complex models should improve upon"
+    ],
+    "answer_index": 3,
+    "explanation": "A baseline sets a meaningful reference point, such as always predicting the most common class. A complex model should beat that reference to justify its added complexity."
+  },
+  {
+    "id": "quiz_ml_basics_43wxz6",
+    "topic": "ml_basics",
+    "difficulty": 3,
+    "question": "A weather model often predicts probabilities near 0.80 for rain. What would good calibration mean for those predictions?",
+    "choices": [
+      "Every day with a prediction above 0.50 must be rainy",
+      "The model's training accuracy must be exactly 80%",
+      "Rain occurs on about 80% of days assigned probabilities near 0.80",
+      "The average amount of rain must be 0.80 inches"
+    ],
+    "answer_index": 2,
+    "explanation": "Calibration connects predicted probabilities to observed frequencies. Among many cases predicted near 80%, roughly 80% should actually be rainy."
+  },
+  {
+    "id": "quiz_ml_basics_65cl5p",
+    "topic": "ml_basics",
+    "difficulty": 3,
+    "question": "In a classification model, what is a decision boundary?",
+    "choices": [
+      "The list of labels removed before training",
+      "The dividing surface between regions assigned to different classes",
+      "The maximum number of rows allowed in a dataset",
+      "The point when training must always stop"
+    ],
+    "answer_index": 1,
+    "explanation": "A decision boundary separates regions of feature space where the classifier predicts different classes. It may be a line, curve, plane, or more complex surface."
+  },
+  {
+    "id": "quiz_ml_basics_5mg531",
+    "topic": "ml_basics",
+    "difficulty": 3,
+    "question": "Why can two learning methods trained on the same dataset make different predictions?",
+    "choices": [
+      "They can use different assumptions and learn different patterns from the data",
+      "Identical training data forces all trained models to be identical",
+      "Only the spelling of the label names controls predictions",
+      "Different predictions prove that neither method was trained"
+    ],
+    "answer_index": 0,
+    "explanation": "Learning methods differ in their structure, assumptions, and fitting process. Those differences can produce distinct models even from the same examples."
+  },
+  {
+    "id": "quiz_ml_basics_5e8d82",
+    "topic": "ml_basics",
+    "difficulty": 4,
+    "question": "Which quantity is usually a hyperparameter rather than a parameter learned during fitting?",
+    "choices": [
+      "The chosen number of neighbors in a k-nearest neighbors model",
+      "A fitted coefficient in linear regression",
+      "A learned weight in a neural network",
+      "A split threshold learned by a decision tree"
+    ],
+    "answer_index": 0,
+    "explanation": "The number of neighbors is normally chosen outside the fitting process. Coefficients, weights, and learned split thresholds are parameters estimated from training data."
+  },
+  {
+    "id": "quiz_ml_basics_89cyzq",
+    "topic": "ml_basics",
+    "difficulty": 4,
+    "question": "What does the term inductive bias mean in machine learning?",
+    "choices": [
+      "Random label noise that remains after cleaning",
+      "An exact copy of every training example",
+      "Assumptions a learning method uses to generalize beyond observed examples",
+      "A guarantee that training and test error will be zero"
+    ],
+    "answer_index": 2,
+    "explanation": "Inductive bias is the set of assumptions that guides learning beyond the observed data, such as preferring simpler functions or nearby points with similar labels."
+  },
+  {
+    "id": "quiz_ml_basics_izf8g8",
+    "topic": "ml_basics",
+    "difficulty": 4,
+    "question": "Why can the curse of dimensionality make distance-based learning harder as the number of features grows?",
+    "choices": [
+      "All features automatically become independent",
+      "The dataset gains new training rows on its own",
+      "Every pairwise distance becomes exactly zero",
+      "The space becomes sparse, so useful distance comparisons often require much more data"
+    ],
+    "answer_index": 3,
+    "explanation": "High-dimensional space grows rapidly and available examples become sparse. Distances can become less informative unless the dataset grows substantially."
+  },
+  {
+    "id": "quiz_ml_basics_1sxz25",
+    "topic": "ml_basics",
+    "difficulty": 4,
+    "question": "What is irreducible error in a prediction problem?",
+    "choices": [
+      "Error caused only by a programming mistake",
+      "Residual uncertainty that even the best model using the available inputs cannot eliminate",
+      "Training error that always disappears with a larger model",
+      "A test error gap that more training epochs must remove"
+    ],
+    "answer_index": 1,
+    "explanation": "Irreducible error is uncertainty remaining in the target given the available features. Improving the model alone cannot remove that portion of error."
+  },
+  {
+    "id": "quiz_ml_basics_zmznkf",
+    "topic": "ml_basics",
+    "difficulty": 5,
+    "question": "Which situation matches the standard definition of covariate shift between training and deployment?",
+    "choices": [
+      "The target relationship changes while the input distribution stays fixed",
+      "Only target frequencies change while feature distributions within each target class stay the same",
+      "The input distribution changes while the target relationship given the inputs stays the same",
+      "The input distribution and target relationship both change between training and deployment"
+    ],
+    "answer_index": 2,
+    "explanation": "Under covariate shift, the distribution of inputs changes, but the conditional relationship from inputs to targets is assumed to remain stable."
+  },
+  {
+    "id": "quiz_ml_basics_1f89my",
+    "topic": "ml_basics",
+    "difficulty": 5,
+    "question": "What change most directly describes concept drift in a deployed prediction system?",
+    "choices": [
+      "The input distribution changes while its relationship to the target stays fixed",
+      "The relationship between inputs and the target changes over time",
+      "The decision threshold is changed while the data-generating relationship stays fixed",
+      "The model is retrained on new samples drawn from the same stable distribution"
+    ],
+    "answer_index": 1,
+    "explanation": "Concept drift occurs when the relationship the model is trying to learn changes over time, so old patterns may no longer predict the target reliably."
+  },
+  {
+    "id": "quiz_ml_basics_gsvt6w",
+    "topic": "ml_basics",
+    "difficulty": 5,
+    "question": "What is the central lesson of the No Free Lunch result for machine learning?",
+    "choices": [
+      "No single learning algorithm is best across all possible problems",
+      "Learning algorithms cannot improve on random guessing",
+      "All algorithms perform identically on every real dataset",
+      "The simplest model always outperforms a complex one"
+    ],
+    "answer_index": 0,
+    "explanation": "Averaged across all possible problems, no learner has a universal advantage. Success depends on assumptions that fit the structure of the particular task."
+  },
+  {
+    "id": "quiz_ml_basics_kuer6j",
+    "topic": "ml_basics",
+    "difficulty": 5,
+    "question": "Which statement best describes the bias-variance tradeoff?",
+    "choices": [
+      "Bias and variance must always decrease together as model complexity rises",
+      "Variance means only that the labels contain random noise",
+      "Bias is caused only by having unequal class sizes",
+      "More flexibility can reduce systematic bias but increase sensitivity to the particular training sample"
+    ],
+    "answer_index": 3,
+    "explanation": "Flexible models can capture richer patterns and lower bias, but their fitted predictions may vary more across training samples. Good model selection balances these tendencies."
+  }
+]

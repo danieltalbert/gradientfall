@@ -4,7 +4,7 @@
 the checkboxes here and the journal in DEVLOG.md. A phase is DONE only when its
 "definition of done" passes and the game runs clean from the editor.*
 
-**Current phase: 1 — Vertical Slice (not started)**
+**Current phase: 1 — Vertical Slice (in progress)**
 
 ---
 
@@ -19,7 +19,7 @@ the checkboxes here and the journal in DEVLOG.md. A phase is DONE only when its
 ## Phase 1 — Vertical Slice (Datasedge Meadows, end-to-end)
 Prove every system small, then scale outward. One region done completely.
 
-- [ ] Godot 4 project scaffold (`gradientfall/game/`), folder conventions, autoloads
+- [x] Godot 4 project scaffold (`gradientfall/game/`), folder conventions, autoloads *(boot verified headless in Godot 4.7.1: clean import, ContentDB loads 22 entries, zero errors)*
 - [ ] Third-person character controller: walk/run/jump/camera (feel pass included)
 - [ ] Terrain: Datasedge Meadows heightmap terrain + procedural grass/trees, region border vistas toward future regions
 - [ ] Cel-shaded look dev v1: toon shader, sky, day/night cycle, wind grass

@@ -4,6 +4,87 @@
 
 ---
 
+## 2026-07-16 (live session) — tag protocol + scaffold verified & committed
+
+**DONE**
+- **Scheduled run #1's scaffold verified and committed by this live session**:
+  headless import + boot in Godot 4.7.1 — clean import, "scaffold boot OK",
+  ContentDB loads 22 entries across 7 types, zero errors. ROADMAP annotation
+  upgraded from "boot unverified" to verified. (Scheduled runs have no git in
+  their sandbox; live sessions sweep, verify, and commit their work — this is
+  now the expected rhythm.)
+- **Tag protocol** (Danny's design): Claude and ChatGPT coordinate through
+  folder state, no waiting in either direction. Briefs restructured into
+  `docs/briefs/queue/` (waiting) and `docs/briefs/done/` (approved);
+  batch_01 moved to done/. AUTONOMY.md §1 documents the protocol.
+- Claude's schedule prompt v2 (AUTONOMY.md §3): queue top-up is now
+  **unconditional step 3** — every run ends with ≥3 unclaimed briefs queued.
+  (Run #1 legitimately skipped brief-writing under the old conditional
+  wording — Danny caught the starvation gap.)
+- ChatGPT's schedule prompt v2 (AUTONOMY.md §2): self-directing worker —
+  claims the lowest-numbered unclaimed brief in queue/, executes it, and only
+  falls back to the quiz job when the queue is fully claimed. Quiz filenames
+  now carry a random suffix so many runs per day never collide.
+- Queue seeded with 3 briefs: batch_02 Bootstrap quests, batch_03 meadow
+  items, batch_04 meadow monsters.
+
+**NEEDS DANNY**
+- Update the **Claude scheduled task's prompt** to AUTONOMY.md §3 v2 (it was
+  created from another session; this one can't reach it).
+- Update the **ChatGPT scheduled task's prompt** to AUTONOMY.md §2 v2.
+- Merge PR #1 (still the prerequisite for agentic runs cloning `main`).
+
+**NEXT UP** — unchanged: Phase 1 milestone 2, third-person character controller.
+
+---
+
+## 2026-07-16 (scheduled run #1) — Phase 1 milestone 1: Godot scaffold
+
+*First autonomous daily run. Inbox: empty (nothing to process; batch_01 was
+already merged last session). Milestone built: Godot 4 project scaffold.*
+
+**DONE**
+- `game/` created: `project.godot` (Godot 4.3 features, Forward+, 3 autoloads
+  registered), `icon.svg` (code-authored perceptron sigil), `.gitignore`
+  (`.godot/`), `README.md` (folder conventions), placeholder dirs for
+  player/world/ui.
+- Autoloads, fully typed GDScript:
+  - `EventBus` — global signal hub (region/player/quest/inventory/quiz signals).
+  - `GameState` — session state with `SAVE_VERSION = 1` and `to_save_dict()`,
+    so every system built from here targets the versioned save shape (rule 5).
+  - `ContentDB` — loads `../content/approved/` JSON at boot, id-indexed by the
+    7 content types, enforces id prefixes + duplicate detection, reports load
+    errors. Decision: editor/debug runs read the repo folder directly via
+    `globalize_path`; export packing deferred to the save/load milestone.
+- Boot scene `scenes/main/main.tscn` + `src/main/main.gd`: sky, sun, ground
+  plane, camera; prints scaffold/ContentDB status to output on run.
+- Static verification (no Godot in this environment): all `res://` references
+  resolve, tscn load_steps/resource ids consistent, ContentDB load logic
+  mirrored in Python loads all 22 approved entries, GDScript brace/indent
+  smoke-lint clean, validator PASS (22 entries, 0 errors).
+
+**HALF-FORMED**
+- Nothing mid-flight. Scaffold is self-contained.
+
+**NEEDS DANNY (boot + commit)**
+- **This run could not launch Godot or reach git** (the automation sandbox
+  mounts only `gradientfall/`, no `.git`, no editor). Per the contract this is
+  flagged instead of claimed: open `game/project.godot` in Godot 4.3+, confirm
+  the output panel shows "scaffold boot OK" + "ContentDB: loaded 22 entries"
+  with zero errors, then commit everything **including the generated `.uid`
+  files** as `Gradientfall: Phase 1 scaffold — project, autoloads, boot scene`.
+- ROADMAP box is ticked with a "(boot unverified)" annotation — strip the
+  annotation once you've seen it boot clean.
+
+**NEXT UP**
+- Phase 1 milestone 2: third-person character controller (walk/run/jump/camera,
+  feel pass) — Kern's first steps in the meadow.
+- No new brief needed: `docs/briefs/batch_01_bootstrap_npcs.md` is done and
+  merged; the next batch (starter quests/items/monsters/quizzes) should wait
+  until the quest/combat systems exist to consume them.
+
+---
+
 ## 2026-07-16 (later still, cont.) — first pipeline round-trip ✅
 
 **DONE**

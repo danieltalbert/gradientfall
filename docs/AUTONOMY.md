@@ -5,20 +5,30 @@ this file is the canonical copy of each prompt so they survive any conversation.
 
 ---
 
-## 1. ChatGPT — batch kickoff (run whenever a new brief appears)
+## 1. The brief queue — how the two AIs play tag
 
-Paste the **entire contents** of the newest file in `docs/briefs/` into ChatGPT.
-Briefs are fully self-contained (assignment, canon, schema, worked example).
-Save ChatGPT's JSON output as:
+Briefs are the unit of work handed to ChatGPT. They live in two folders:
 
 ```
-gradientfall/content/inbox/<type>/<brief-name>.json     (e.g. npcs/batch_01.json)
+docs/briefs/queue/   briefs waiting to be executed (numbered batch_NN_*.md)
+docs/briefs/done/    briefs whose output has been approved
 ```
 
-That's the whole job. The next Claude session validates, reviews, and merges.
-If ChatGPT wraps the JSON in ``` fences or adds commentary, ask it to "output
-the raw JSON array only" — or just save it anyway; the validator will complain
-precisely.
+The folder state IS the coordination — no messages pass between the AIs:
+
+- **Claude** (every scheduled run, unconditionally): after processing the
+  inbox, move briefs whose batches were approved into `done/`, then write new
+  fully self-contained briefs into `queue/` until **at least 3 unclaimed
+  briefs** are waiting. Never end a run with an empty queue — content can bank
+  indefinitely, and ChatGPT must never starve.
+- **ChatGPT** (every scheduled run): claim the lowest-numbered unclaimed brief
+  in `queue/` and execute it (see §2). A brief is *claimed* when a file
+  matching its `batch_NN` number exists under `content/inbox/`.
+- Manual mode still works: paste any queued brief into any model, save the
+  output to the inbox path named at the top of the brief.
+
+Briefs are fully self-contained (assignment, canon ids, schema, worked
+example, exact output path) — executable cold, with no other context.
 
 ## 2. ChatGPT (agentic / Codex) — standing scheduled task
 
@@ -37,10 +47,21 @@ and surfaces the result as a branch/PR.
    This boundary is what keeps agentic ChatGPT and the daily Claude run from
    colliding: ChatGPT proposes (inbox), Claude disposes (approved + commit).
 
-Quiz questions are the evergreen task — the game needs ~400, duplicates are
-auto-rejected by ID and cheap to discard, so this is safe to run daily forever
-without a fresh brief. Canonical scheduled-task prompt (as chosen by Danny):
+**Canonical scheduled-task prompt (v2 — the self-directing worker).** This
+replaces the quiz-only v1 prompt; update the ChatGPT scheduled task to this:
 
+> You are the content generator for "Gradientfall" (folder `gradientfall/` in
+> the repo). Each run, do exactly one job, chosen like this:
+>
+> **First, check the brief queue.** Look in `gradientfall/docs/briefs/queue/`
+> for files named `batch_NN_*.md`. A brief is UNCLAIMED if no file whose name
+> contains its `batch_NN` number exists anywhere under
+> `gradientfall/content/inbox/`. If any briefs are unclaimed, execute the
+> lowest-numbered one exactly as written — each brief is fully self-contained
+> and states its own output path. Save the output there and stop.
+>
+> **If every queued brief is claimed, run the fallback quiz job:**
+>
 > You write quiz content for "Gradientfall," a fantasy game that teaches machine
 > learning to beginners and intermediates.
 >
@@ -72,14 +93,22 @@ without a fresh brief. Canonical scheduled-task prompt (as chosen by Danny):
 > all 20 IDs and question texts are unique, and avoid duplicating existing
 > approved or inbox quiz questions.
 >
-> Save the raw JSON array to content/inbox/quizzes/daily_YYYY-MM-DD.json using
-> the current America/Los_Angeles date. Modify no other project files, do not
-> commit or push, and return the raw JSON array only with no markdown fences or
+> Save the raw JSON array to
+> content/inbox/quizzes/daily_YYYY-MM-DD_XXXX.json, where YYYY-MM-DD is the
+> current America/Los_Angeles date and XXXX is 4 random lowercase
+> alphanumerics (so multiple same-day runs never collide). Never overwrite an
+> existing file.
+>
+> **Rules for every run, either job:** write only under
+> `gradientfall/content/inbox/`. Modify no other project files, do not commit
+> or push, and output the raw JSON array only — no markdown fences, no
 > commentary.
 
 The daily Claude run picks up whatever inbox files exist, validates, reviews,
 and merges — so even if the rotation logic slips or a duplicate sneaks through,
-the repo side catches it.
+the repo side catches it. ChatGPT can run as often as Danny likes: runs are
+independent, briefs bank in the queue, outputs bank in the inbox, and nothing
+ever waits on Claude.
 
 ## 3. Claude (new session) — build the autonomous schedule
 
@@ -96,13 +125,18 @@ Paste this into a fresh Claude Code session in the danieltalbert repo:
 > 2. Process `content/inbox/`: run
 >    `python gradientfall/tools/validate_content.py --inbox`; review passing
 >    entries for tone/canon/fun; merge keepers to `content/approved/`; delete
->    rejects with a one-line reason in the devlog.
-> 3. Advance the roadmap: pick the next unchecked milestone in the current
+>    rejects with a one-line reason in the devlog. Move briefs whose batches
+>    are now approved from `docs/briefs/queue/` to `docs/briefs/done/`.
+> 3. Top up the brief queue — UNCONDITIONALLY, every run, even if the inbox
+>    was empty: write new fully self-contained briefs into `docs/briefs/queue/`
+>    (numbered batch_NN, following the template in `docs/CONTENT_PIPELINE.md`
+>    and the quality bar of `done/batch_01_bootstrap_npcs.md`) until at least
+>    3 unclaimed briefs are waiting. ChatGPT executes these on its own
+>    schedule and must never run out of work; content banks indefinitely, so
+>    queue ahead of what the engine can consume — quests, items, monsters,
+>    POIs, lore for upcoming regions are all fair game.
+> 4. Advance the roadmap: pick the next unchecked milestone in the current
 >    phase and build it. ONE milestone per run maximum — depth over breadth.
-> 4. If the next content batch is needed, write a fully self-contained brief
->    into `docs/briefs/` (follow the template in `docs/CONTENT_PIPELINE.md`
->    and the quality bar of `batch_01_bootstrap_npcs.md`) and flag it in the
->    devlog so I can run it through ChatGPT.
 > 5. End clean per the iron rules in `gradientfall/CLAUDE.md`: validator
 >    passes, ROADMAP checkboxes and a dated DEVLOG entry updated in the same
 >    commit as the work, everything committed. Never leave a half-wired state.

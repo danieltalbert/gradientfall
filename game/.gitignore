@@ -1,0 +1,3 @@
+# Godot editor cache / imported artifacts — never committed.
+.godot/
+*.tmp
