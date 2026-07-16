@@ -1,0 +1,24 @@
+[
+  {
+    "id": "npc_mayor_maxwell",
+    "name": "Mayor Maxwell Pool",
+    "region": "datasedge_meadows",
+    "role": "quest_giver",
+    "personality": ["pompous", "kind", "silly"],
+    "description": "Bootstrap's beloved, slightly self-important mayor. Claims his family has 'reduced the town's problems to their most important features' for nine generations. Wears a chain of office made of polished data shards.",
+    "dialogue": {
+      "greeting": [
+        "Ah! The Vaultborn! Bootstrap welcomes you — officially, and with moderate ceremony.",
+        "Kern! Just the sturdy individual I hoped to see."
+      ],
+      "idle": [
+        "A mayor's job is simple: take a hundred complaints and pool them down to the three that matter.",
+        "My great-grandfather founded this town with nothing but a shovel and an unreasonable confidence interval.",
+        "If you see anything glowing purple out in the fields, do NOT poke it. That's how we lost the last mayor."
+      ],
+      "farewell": [
+        "Off you go! Do try to come back in one piece — the paperwork otherwise is dreadful."
+      ]
+    }
+  }
+]

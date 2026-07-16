@@ -1,0 +1,26 @@
+{
+  "$id": "npc.schema.json",
+  "title": "Gradientfall NPC",
+  "type": "object",
+  "required": ["id", "name", "region", "role", "personality", "description", "dialogue"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^npc_[a-z0-9_]+$" },
+    "name": { "type": "string", "minLength": 2, "maxLength": 50 },
+    "region": { "type": "string", "enum": ["datasedge_meadows", "gradient_peaks", "latent_forest", "overfit_swamp", "tensor_desert", "frozen_cache", "backprop_foundry", "convolution_coast", "parameter_city", "corpus_citadel"] },
+    "role": { "type": "string", "enum": ["quest_giver", "vendor", "scholar", "royalty", "hermit", "flavor", "innkeeper", "smith", "fisher", "guard", "child"] },
+    "personality": { "type": "array", "minItems": 1, "maxItems": 3, "items": { "type": "string", "enum": ["silly", "serious", "crazy", "weird", "normal", "helpful", "grumpy", "shy", "pompous", "kind"] } },
+    "description": { "type": "string", "minLength": 20, "maxLength": 400 },
+    "dialogue": {
+      "type": "object",
+      "required": ["greeting", "idle"],
+      "additionalProperties": false,
+      "properties": {
+        "greeting": { "type": "array", "minItems": 1, "maxItems": 6, "items": { "type": "string", "minLength": 2, "maxLength": 240 } },
+        "idle": { "type": "array", "minItems": 2, "maxItems": 10, "items": { "type": "string", "minLength": 2, "maxLength": 240 } },
+        "farewell": { "type": "array", "maxItems": 6, "items": { "type": "string", "minLength": 2, "maxLength": 240 } }
+      }
+    },
+    "vendor_stock": { "type": "array", "maxItems": 20, "items": { "type": "string", "pattern": "^item_[a-z0-9_]+$" } }
+  }
+}

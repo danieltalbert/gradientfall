@@ -1,0 +1,18 @@
+[
+  {
+    "id": "mon_stray_glitchling",
+    "name": "Stray Glitchling",
+    "regions": ["datasedge_meadows"],
+    "tier": "fodder",
+    "hearts": 1.5,
+    "attack": 0.5,
+    "behavior": "swarm",
+    "spawn": { "time_of_day": "any", "weather": "any" },
+    "variants": ["golden", "night"],
+    "drops": [
+      { "item_id": "item_data_shard", "chance": 0.8 }
+    ],
+    "ml_flavor": "Noisy data points that wandered off from any known distribution — outliers with legs.",
+    "description": "A knee-high wobble of mismatched pixels that bumbles through the meadow grass. Mostly harmless, endlessly curious, and prone to charging at anything shiny — including Bit, who does not appreciate it."
+  }
+]

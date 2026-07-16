@@ -1,0 +1,43 @@
+[
+  {
+    "id": "item_iris_petal",
+    "name": "Iris Petal",
+    "category": "flora",
+    "rarity": "common",
+    "value": 4,
+    "description": "A soft petal from the meadow irises of Datasedge. Scholars swear each one's measurements tell you exactly which of three families it belongs to.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_meadow_honey",
+    "name": "Meadow Honey",
+    "category": "material",
+    "rarity": "common",
+    "value": 6,
+    "description": "Golden honey from Datasedge hives. The bees visit every iris in perfect rotation, which the beekeeper insists is 'a sampling strategy.'",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_data_shard",
+    "name": "Data Shard",
+    "category": "material",
+    "rarity": "common",
+    "value": 3,
+    "description": "A glittering fragment left behind when a monster dissolves. Warm to the touch, faintly humming with whatever it used to know.",
+    "found_in": ["datasedge_meadows", "gradient_peaks", "latent_forest", "overfit_swamp", "tensor_desert", "frozen_cache", "backprop_foundry", "convolution_coast", "parameter_city", "corpus_citadel"]
+  },
+  {
+    "id": "item_travelers_tonic",
+    "name": "Traveler's Tonic",
+    "category": "consumable",
+    "rarity": "common",
+    "value": 18,
+    "description": "Bootstrap's classic remedy: iris petals steeped in meadow honey. Tastes like a warm afternoon. Restores two hearts.",
+    "craftable": true,
+    "recipe": [
+      { "item_id": "item_iris_petal", "qty": 2 },
+      { "item_id": "item_meadow_honey", "qty": 1 }
+    ],
+    "stats": { "hearts_restored": 2 }
+  }
+]

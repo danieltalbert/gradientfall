@@ -1,0 +1,16 @@
+{
+  "$id": "quiz.schema.json",
+  "title": "Gradientfall Quiz Question",
+  "type": "object",
+  "required": ["id", "topic", "difficulty", "question", "choices", "answer_index", "explanation"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^quiz_[a-z0-9_]+$" },
+    "topic": { "type": "string", "enum": ["ml_basics", "data", "models", "training", "evaluation", "neural_networks", "overfitting", "nlp_llms", "computer_vision", "reinforcement", "ethics_alignment"] },
+    "difficulty": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "question": { "type": "string", "minLength": 10, "maxLength": 300 },
+    "choices": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "type": "string", "minLength": 1, "maxLength": 120 } },
+    "answer_index": { "type": "integer", "minimum": 0, "maximum": 3 },
+    "explanation": { "type": "string", "minLength": 20, "maxLength": 400 }
+  }
+}

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "poi_whispering_well",
+    "name": "The Whispering Well",
+    "region": "datasedge_meadows",
+    "kind": "buried_cache",
+    "description": "An old stone well east of Bootstrap that hums faintly at dusk. Villagers toss Tokens in for luck; something at the bottom has been keeping count, and it rounds in your favor if you ask nicely.",
+    "reward_items": ["item_data_shard"],
+    "reward_tokens": 25,
+    "bit_sense": true
+  }
+]
