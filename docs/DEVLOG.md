@@ -4,6 +4,22 @@
 
 ---
 
+## 2026-07-16 (later) — Phase 0 addendum: autonomy setup
+
+**DONE**
+- `docs/AUTONOMY.md`: canonical prompts for (1) ChatGPT batch kickoff, (2) a
+  standing ChatGPT scheduled task generating daily quiz batches, (3) the prompt
+  Danny pastes into a fresh Claude session to build the recurring schedule.
+- Batch 01 brief rewritten fully self-contained (schema + worked example inline)
+  so Danny pastes one thing. All future briefs follow this standard.
+- Danny's local model is 14B → retired from the pipeline by mutual agreement.
+- Branch pushed to GitHub; PR opened to bring stale `main` current (it only had
+  the README; all Neural Quest + Gradientfall work was local to this branch).
+
+**NEXT UP** — unchanged: Phase 1, Godot scaffold in `gradientfall/game/` first.
+
+---
+
 ## 2026-07-16 — Phase 0: Foundation
 
 **DONE**
