@@ -28,6 +28,13 @@
 - Queue seeded with 3 briefs: batch_02 Bootstrap quests, batch_03 meadow
   items, batch_04 meadow monsters.
 
+**DONE (addendum)**
+- ChatGPT's first daily quiz batch arrived mid-session (20 ml_basics questions).
+  Validator 20/20; accuracy-reviewed question by question — all correct, good
+  difficulty spread and balanced answer positions. Merged to
+  `approved/quizzes/ml_basics_2026-07-16.json`. Full content set: 42 entries,
+  0 errors. Both directions of the pipeline have now run for real.
+
 **NEEDS DANNY**
 - Update the **Claude scheduled task's prompt** to AUTONOMY.md §3 v2 (it was
   created from another session; this one can't reach it).
