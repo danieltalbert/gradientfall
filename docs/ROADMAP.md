@@ -25,7 +25,7 @@ Prove every system small, then scale outward. One region done completely.
 
 - [x] Godot 4 project scaffold (`gradientfall/game/`), folder conventions, autoloads *(boot verified headless in Godot 4.7.1: clean import, ContentDB loads 22 entries, zero errors)*
 - [x] Third-person character controller: walk/run/jump/camera (feel pass included) *(boot verified clean in Godot 4.7.1 after class-cache re-import; hands-on feel-tune still welcome at the phase gate)*
-- [ ] Terrain: Datasedge Meadows heightmap terrain + procedural grass/trees, region border vistas toward future regions
+- [x] Terrain: Datasedge Meadows heightmap terrain + procedural grass/trees, region border vistas toward future regions *(480×480 m procedural heightmap w/ town flat + carved millpond, 34k wind-swayed grass, iris flats, tree copses, 4-direction border vistas; built & eyes-verified via screenshots in a live session, 5 palette/lighting iterations. NOTE: still default lighting — the cel-shade pass below is what makes it "pretty")*
 - [ ] Cel-shaded look dev v1: toon shader, sky, day/night cycle, wind grass
 - [ ] Bit the fairy: follow behavior, look-at naming, hint lines
 - [ ] Combat v1: sword (combo, dodge, block), enemy AI (melee + ranged), hearts, data-shard death VFX

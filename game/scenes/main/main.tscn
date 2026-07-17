@@ -1,13 +1,17 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://src/world/meadow_terrain.gd" id="3_terrain"]
+[ext_resource type="Script" path="res://src/world/meadow_flora.gd" id="4_flora"]
+[ext_resource type="Script" path="res://src/world/border_vistas.gd" id="5_vistas"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
-sky_top_color = Color(0.35, 0.55, 0.85, 1)
-sky_horizon_color = Color(0.78, 0.86, 0.92, 1)
-ground_bottom_color = Color(0.2, 0.28, 0.2, 1)
-ground_horizon_color = Color(0.65, 0.75, 0.6, 1)
+sky_top_color = Color(0.25, 0.48, 0.88, 1)
+sky_horizon_color = Color(0.74, 0.85, 0.95, 1)
+ground_bottom_color = Color(0.25, 0.32, 0.22, 1)
+ground_horizon_color = Color(0.66, 0.76, 0.62, 1)
+sun_angle_max = 40.0
 
 [sub_resource type="Sky" id="sky"]
 sky_material = SubResource("sky_mat")
@@ -15,44 +19,19 @@ sky_material = SubResource("sky_mat")
 [sub_resource type="Environment" id="env"]
 background_mode = 2
 sky = SubResource("sky")
-
-[sub_resource type="PlaneMesh" id="ground_mesh"]
-size = Vector2(64, 64)
-
-[sub_resource type="StandardMaterial3D" id="ground_mat"]
-albedo_color = Color(0.38, 0.54, 0.31, 1)
-roughness = 1.0
-
-[sub_resource type="BoxShape3D" id="ground_col"]
-size = Vector3(64, 1, 64)
-
-[sub_resource type="StandardMaterial3D" id="stone_mat"]
-albedo_color = Color(0.62, 0.6, 0.55, 1)
-roughness = 0.95
-
-[sub_resource type="BoxMesh" id="step1_mesh"]
-size = Vector3(2, 0.5, 2)
-
-[sub_resource type="BoxShape3D" id="step1_col"]
-size = Vector3(2, 0.5, 2)
-
-[sub_resource type="BoxMesh" id="step2_mesh"]
-size = Vector3(2, 1.2, 2)
-
-[sub_resource type="BoxShape3D" id="step2_col"]
-size = Vector3(2, 1.2, 2)
-
-[sub_resource type="BoxMesh" id="step3_mesh"]
-size = Vector3(2, 2.2, 2)
-
-[sub_resource type="BoxShape3D" id="step3_col"]
-size = Vector3(2, 2.2, 2)
-
-[sub_resource type="BoxMesh" id="pillar_mesh"]
-size = Vector3(1.6, 6, 1.6)
-
-[sub_resource type="BoxShape3D" id="pillar_col"]
-size = Vector3(1.6, 6, 1.6)
+tonemap_mode = 2
+tonemap_exposure = 1.05
+glow_enabled = true
+glow_intensity = 0.35
+glow_bloom = 0.04
+fog_enabled = true
+fog_light_color = Color(0.72, 0.82, 0.9, 1)
+fog_density = 0.0004
+fog_sky_affect = 0.04
+adjustment_enabled = true
+adjustment_brightness = 1.02
+adjustment_contrast = 1.05
+adjustment_saturation = 1.08
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -61,60 +40,21 @@ script = ExtResource("1_main")
 environment = SubResource("env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 12, 0)
+transform = Transform3D(0.866025, -0.35, 0.356624, 0, 0.713817, 0.700335, -0.5, -0.606507, 0.618178, 0, 60, 0)
+light_energy = 1.55
+light_color = Color(1, 0.95, 0.8, 1)
 shadow_enabled = true
+directional_shadow_max_distance = 220.0
 
-[node name="Ground" type="StaticBody3D" parent="."]
+[node name="World" type="Node3D" parent="."]
 
-[node name="GroundMesh" type="MeshInstance3D" parent="Ground"]
-mesh = SubResource("ground_mesh")
-surface_material_override/0 = SubResource("ground_mat")
+[node name="Terrain" type="StaticBody3D" parent="World"]
+script = ExtResource("3_terrain")
 
-[node name="GroundCol" type="CollisionShape3D" parent="Ground"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
-shape = SubResource("ground_col")
+[node name="Flora" type="Node3D" parent="World"]
+script = ExtResource("4_flora")
 
-[node name="TestSteps" type="Node3D" parent="."]
-
-[node name="Step1" type="StaticBody3D" parent="TestSteps"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.25, 0)
-
-[node name="Step1Mesh" type="MeshInstance3D" parent="TestSteps/Step1"]
-mesh = SubResource("step1_mesh")
-surface_material_override/0 = SubResource("stone_mat")
-
-[node name="Step1Col" type="CollisionShape3D" parent="TestSteps/Step1"]
-shape = SubResource("step1_col")
-
-[node name="Step2" type="StaticBody3D" parent="TestSteps"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0.6, 0)
-
-[node name="Step2Mesh" type="MeshInstance3D" parent="TestSteps/Step2"]
-mesh = SubResource("step2_mesh")
-surface_material_override/0 = SubResource("stone_mat")
-
-[node name="Step2Col" type="CollisionShape3D" parent="TestSteps/Step2"]
-shape = SubResource("step2_col")
-
-[node name="Step3" type="StaticBody3D" parent="TestSteps"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12, 1.1, 0)
-
-[node name="Step3Mesh" type="MeshInstance3D" parent="TestSteps/Step3"]
-mesh = SubResource("step3_mesh")
-surface_material_override/0 = SubResource("stone_mat")
-
-[node name="Step3Col" type="CollisionShape3D" parent="TestSteps/Step3"]
-shape = SubResource("step3_col")
-
-[node name="Pillar" type="StaticBody3D" parent="TestSteps"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6, 3, -4)
-
-[node name="PillarMesh" type="MeshInstance3D" parent="TestSteps/Pillar"]
-mesh = SubResource("pillar_mesh")
-surface_material_override/0 = SubResource("stone_mat")
-
-[node name="PillarCol" type="CollisionShape3D" parent="TestSteps/Pillar"]
-shape = SubResource("pillar_col")
+[node name="Vistas" type="Node3D" parent="World"]
+script = ExtResource("5_vistas")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.2, 3)

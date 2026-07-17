@@ -4,6 +4,45 @@
 
 ---
 
+## 2026-07-17 (live session) — Phase 1 milestone 3: Datasedge Meadows terrain
+
+**DONE (built + eyes-verified this session, per GDD §10)**
+- `src/world/meadow_terrain.gd`: 480×480 m procedural heightmap (fbm rolling
+  + macro undulation), one `get_height()` all systems trust; Bootstrap town
+  site blended flat, millpond carved east, foothills rising toward the peaks
+  vista (north), fall toward the sea (west). ArrayMesh + baked vertex colors
+  (grass/dry-gold/slope-rock/pond-sand), trimesh collision from the same mesh.
+  Two-pass build (heights, then normals from neighbors) → 480m in ~250 ms.
+- `assets/shaders/grass_wind.gdshader`: two-band wind sway, root→tip gradient,
+  distance-collapse so far blades vanish (no speckle carpet), sRGB-correct.
+- `src/world/meadow_flora.gd`: 34k MultiMesh grass, 700 irises in the canon
+  western flats (setosa/versicolor/virginica bloom colors — the real Iris
+  families, seeded for the future compendium), 69 trees in 12 collision-bearing
+  copses. Deterministic seeds.
+- `src/world/border_vistas.gd`: the BOTW "something's out there" horizon —
+  Gradient Peaks (unshaded haze silhouettes) north, Latent Forest tree-wall
+  east, Convolution sea west, southern downs. Fog does the depth work.
+- `main.tscn`/`main.gd`: real world assembled; Kern spawns on terrain facing
+  Bootstrap; TestSteps retired. **Screenshot dev-mode** added
+  (`-- --screenshot=DIR`) so live sessions capture PNGs from 4 angles — this
+  is the standing tool for eyes-on verification of visual milestones.
+- Iterated visuals 5 passes on real screenshots: fixed washed-out ground
+  (vertex colors were being read as linear — set `vertex_color_is_srgb` +
+  shader linearize), killed white blade-splat on distant slopes (collapse all
+  axes, not just Y), softened mountains to unshaded pastel, tuned palette.
+
+**HONEST STATE (told Danny in chat)**
+- This is default Godot lighting, NOT the speced cel-shading — that's the NEXT
+  milestone and it's the big visual leap. Character is still the placeholder
+  capsule; no town built yet; trees/props are simple. Terrain is the stage,
+  not the finished set. Danny recalibrated: expect "beautiful stylized," not
+  literal photoreal BOTW (code-generated, no purchased art).
+
+**NEXT UP** — milestone 4: cel-shaded look-dev v1 (toon shader + rim light,
+richer sky, day/night cycle). The pass that makes the meadow read as Zelda.
+
+---
+
 ## 2026-07-17 (live session) — visual bar elevated by Danny
 
 **DONE**
