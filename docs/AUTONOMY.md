@@ -53,6 +53,14 @@ replaces the quiz-only v1 prompt; update the ChatGPT scheduled task to this:
 > You are the content generator for "Gradientfall" (folder `gradientfall/` in
 > the repo). Each run, do exactly one job, chosen like this:
 >
+> **Before generating anything**, read `gradientfall/docs/GDD.md` sections
+> 1–7 (what this game is) and, if your brief names a region, that region's
+> section in `gradientfall/docs/WORLDBOOK.md` — they give you the world's
+> full context. The brief always defines your exact output; on any conflict,
+> follow the brief. Your responsibilities vs Claude's are listed in
+> `gradientfall/docs/AUTONOMY.md` §4: you produce content into
+> `gradientfall/content/inbox/` and never touch anything else.
+>
 > **First, check the brief queue.** Look in `gradientfall/docs/briefs/queue/`
 > for files named `batch_NN_*.md`. A brief is UNCLAIMED if no file whose name
 > contains its `batch_NN` number exists anywhere under
@@ -120,8 +128,13 @@ Paste this into a fresh Claude Code session in the danieltalbert repo:
 > `gradientfall/docs/DEVLOG.md`.
 >
 > Schedule one run per day. Each run must, in order:
-> 1. Read `gradientfall/CLAUDE.md`, `docs/DEVLOG.md` (latest entry), and
->    `docs/ROADMAP.md` (current phase).
+> 1. Read `gradientfall/CLAUDE.md`, `docs/DEVLOG.md` (latest entry),
+>    `docs/ROADMAP.md` (current phase), and the sections of
+>    `docs/WORLDBOOK.md` relevant to today's work. The WORLDBOOK is the
+>    master specification — regions, campaign, dungeons, bosses, quest
+>    chains, and content budgets are already designed; build what it says
+>    rather than inventing. Your responsibilities vs ChatGPT's are listed in
+>    `docs/AUTONOMY.md` §4.
 > 2. Process `content/inbox/`: run
 >    `python gradientfall/tools/validate_content.py --inbox`; review passing
 >    entries for tone/canon/fun; merge keepers to `content/approved/`; delete
@@ -131,12 +144,21 @@ Paste this into a fresh Claude Code session in the danieltalbert repo:
 >    was empty: write new fully self-contained briefs into `docs/briefs/queue/`
 >    (numbered batch_NN, following the template in `docs/CONTENT_PIPELINE.md`
 >    and the quality bar of `done/batch_01_bootstrap_npcs.md`) until at least
->    3 unclaimed briefs are waiting. ChatGPT executes these on its own
->    schedule and must never run out of work; content banks indefinitely, so
->    queue ahead of what the engine can consume — quests, items, monsters,
->    POIs, lore for upcoming regions are all fair game.
+>    3 unclaimed briefs are waiting. Target the largest gaps in the WORLDBOOK
+>    Part III content budgets, prioritizing the active phase's regions;
+>    content banks indefinitely, so queue ahead of what the engine can
+>    consume. Update the budget table's progress ticks as batches merge.
 > 4. Advance the roadmap: pick the next unchecked milestone in the current
->    phase and build it. ONE milestone per run maximum — depth over breadth.
+>    phase and build it to the WORLDBOOK's specification. ONE milestone per
+>    run maximum — depth over breadth. Campaign content (main quests, shrine
+>    flashbacks, dungeons, bosses, Echo) is authored by you directly, never
+>    delegated to briefs.
+> 4b. Phase gates: when a phase's definition of done is met, make its
+>    version-bump commit, write a loud "PHASE GATE — Danny, please playtest"
+>    devlog entry, and spend the NEXT TWO runs on content review, brief
+>    queueing, and polish backlog instead of new engine milestones. If Danny
+>    has left no feedback after those two runs, proceed into the next phase —
+>    the project never stalls waiting.
 > 5. End clean per the iron rules in `gradientfall/CLAUDE.md`: validator
 >    passes, ROADMAP checkboxes and a dated DEVLOG entry updated in the same
 >    commit as the work, everything committed. Never leave a half-wired state.
@@ -148,11 +170,39 @@ Paste this into a fresh Claude Code session in the danieltalbert repo:
 Danny reviews by playing the game and reading the newest DEVLOG entry — steer
 by replying to any scheduled run or editing ROADMAP.md priorities.
 
-## Division of labor (summary)
+## 4. Division of labor — the two lists
+
+**Claude's tasks** (scheduled runs + live sweep sessions):
+1. All engine code: GDScript systems, scenes, shaders, terrain, procgen, UI,
+   audio — every ROADMAP milestone, built to the WORLDBOOK's specification.
+2. All campaign content: the ~25 main quests, shrine flashbacks, dungeon and
+   boss implementations, Echo's finale (canon-critical, never delegated).
+3. Content pipeline gatekeeping: validate inbox, review for voice/canon/fun,
+   merge to `approved/`, reject with reasons, move finished briefs to `done/`.
+4. Brief authorship: keep ≥3 unclaimed briefs queued, targeting the largest
+   gaps in WORLDBOOK Part III budgets for the active phase.
+5. Documentation truth: DEVLOG every run, ROADMAP checkboxes, WORLDBOOK budget
+   ticks, version-bump commits at phase completions.
+6. Verification: boot-test whenever the environment has Godot; live sessions
+   sweep, verify, and commit scheduled runs' work.
+
+**ChatGPT's tasks** (agentic scheduled runs, `content/inbox/` write scope ONLY):
+1. Execute the lowest-numbered unclaimed brief in `docs/briefs/queue/`:
+   side quests, NPC dialogue, items, monsters, POIs, lore books — per the
+   brief's inline schema, canon, and output path.
+2. Fallback when queue is fully claimed: daily quiz batches (rotating topics,
+   collision-proof filenames) toward the 400-question bank.
+3. Read `docs/GDD.md` §1–7 and the relevant WORLDBOOK region section before
+   generating; the brief always wins on conflicts.
+4. Never: commit, push, touch code, touch `approved/`, touch docs, invent
+   canon (new named locations/characters beyond the brief's scope).
+
+**Danny's tasks:** keep the two schedules running · merge PRs · playtest at
+phase gates (recommended, not required — gates don't block) · final review.
 
 | Who | Does | Never does |
 |---|---|---|
-| Claude (scheduled + live sessions) | Engine code, canon, briefs, review/merge, docs | Ships unreviewed inbox content |
-| ChatGPT / Codex (agentic, repo access) | Bulk content → `content/inbox/` ONLY | Commit/push, code, canon, `approved/`, roadmap |
-| Danny | Playtests, steers, merges PRs (incl. Codex's inbox PRs), runs briefs | Anything he doesn't feel like doing |
-| Local 14B model | Retired from consideration (validator tax exceeds savings) | — |
+| Claude | Engine, campaign canon, briefs, review/merge, docs, verification | Ships unreviewed inbox content |
+| ChatGPT / Codex | Brief execution + quiz bank → `content/inbox/` ONLY | Commit/push, code, canon, `approved/`, docs |
+| Danny | Schedules, PR merges, phase-gate playtests, final review | Anything he doesn't feel like doing |
+| Local 14B model | Retired (validator tax exceeds savings) | — |

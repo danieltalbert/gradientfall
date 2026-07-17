@@ -8,6 +8,10 @@ memory of past conversations.
 1. `docs/DEVLOG.md` — last entry says exactly where things stand and what's next
 2. `docs/ROADMAP.md` — current phase + checkboxes
 3. `docs/GDD.md` — the locked design (changes need Danny's sign-off)
+4. `docs/WORLDBOOK.md` — the master specification: every region, campaign
+   chapter, dungeon, boss, quest chain, and content budget. Build what it
+   says; don't invent what it already specifies. (`docs/AUTONOMY.md` §4 says
+   who does what.)
 
 ## The iron rules
 1. **Never commit a half-wired state.** Every session ends with: game runs clean

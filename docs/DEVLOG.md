@@ -4,6 +4,33 @@
 
 ---
 
+## 2026-07-16 (live session) — WORLDBOOK: the master specification
+
+**DONE**
+- `docs/WORLDBOOK.md` — the complete game designed in advance so autonomous
+  runs execute a spec instead of improvising: full campaign (9 chapters, 9
+  Memory Shrines with abilities + revelations, spoiler-complete backstory,
+  3-stage Echo finale with two endings), all 10 regions in detail (identity,
+  sites, towns, named key NPCs, dungeon + its teaching mechanic, world bosses,
+  named side-quest chains, monster themes, materials, dataset tie-ins),
+  content budget tables (141 side quests / 84 NPCs / 80 monsters / 275 items /
+  275 POIs / 38 lore / 400 quizzes), and naming/voice rules for all generators.
+- AUTONOMY.md §4: explicit two-list division of labor (Claude / ChatGPT /
+  Danny), per Danny's request.
+- Both daily prompts upgraded to v3: read GDD+WORLDBOOK first; Claude builds
+  to spec, authors campaign content directly, ticks budgets, and observes
+  **phase gates** (loud playtest flag + 2 content/polish runs, then proceed —
+  autonomy never stalls). CLAUDE.md read-first list now includes WORLDBOOK.
+
+**NEEDS DANNY**
+- Paste the v3 prompts into both scheduled tasks (canonical in AUTONOMY.md
+  §2/§3 — also given directly in chat).
+- Merge PR #1. Playtest at phase gates when flagged (recommended, not blocking).
+
+**NEXT UP** — Phase 1 milestone 2: third-person character controller.
+
+---
+
 ## 2026-07-16 (live session) — tag protocol + scaffold verified & committed
 
 **DONE**
