@@ -169,6 +169,11 @@ rushed, trimmed, or marked done at 'good enough for programmer art').
   you stare" — full photorealism is explicitly NOT the target (code-only
   assets fail hardest at it), but geometric/atmospheric richness is pushed
   to modern-AAA density.
+- **The governing principle (Danny, 2026-07-17):** the player's *feeling* is
+  the metric — it must feel as close to real life / BOTW as possible at all
+  times. Raw counts don't matter; the illusion does. Spend cleverness on
+  whatever trick (instancing, wrapping, shader fakery, haze) makes the world
+  FEEL infinite, dense, and alive from where the player stands.
 - **Hardware decree (Danny):** min spec is a high-end GPU (RTX 5080 class).
   Spend the budget: TAA, SSAO, SDFGI real-time GI, 4k soft shadows,
   hundreds of thousands of instanced blades/leaves. Never optimize for weak

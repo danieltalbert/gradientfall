@@ -4,6 +4,24 @@
 
 ---
 
+## 2026-07-17 (live session) — richness pass #3: real mountains
+
+**DONE (eyes-verified)**
+- Gradient Peaks vista rebuilt: `_build_peak_mesh()` — radial ring meshes
+  with per-bearing noise (spurs/gullies), craggy jitter, altitude+slope
+  vertex colors (slate rock, dark gullies, snow above a wandering snowline),
+  generated normals, toon_soft + SDFGI lighting, fog haze. The triangle
+  cutouts are gone; the north horizon reads as an actual snow range.
+- GDD §10: added Danny's governing principle — the player's FEELING is the
+  metric; illusion/optimization is the craft (his "billions of blades" =
+  perceptual infinity, confirmed aligned).
+
+**REMAINING VISUAL BACKLOG** — neon-lime terrain band at the mountain feet
+(grazing-angle light greens, again), snow coverage slightly generous, sea
+plane pale; then Kern's model. Danny's verdict pending on the overall look.
+
+---
+
 ## 2026-07-17 (live session) — visual richness pass #2: THE FIDELITY JUMP
 
 *Danny raised the bar: naturalistic fidelity ("real grass, real trees, every
