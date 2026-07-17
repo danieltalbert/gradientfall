@@ -29,7 +29,7 @@ func _peak_material(shade: float) -> StandardMaterial3D:
 	# color (fog still applies) is exactly the BOTW horizon look.
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(0.44, 0.5, 0.66).lerp(Color(0.58, 0.63, 0.76), shade)
+	mat.albedo_color = Color(0.29, 0.35, 0.5).lerp(Color(0.44, 0.5, 0.64), shade)
 	return mat
 
 

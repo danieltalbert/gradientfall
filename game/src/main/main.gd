@@ -64,11 +64,11 @@ func _capture_screens(dir: String) -> void:
 		{"name": "meadow_west_sea", "yaw": deg_to_rad(115.0)},
 		{"name": "meadow_east_forest", "yaw": deg_to_rad(-65.0)},
 	]
-	for i in 30:  # let terrain, shadows, and glow settle
+	for i in 110:  # let terrain, shadows, TAA, and SDFGI converge
 		await get_tree().process_frame
 	for shot in shots:
 		rig.rotation.y = shot["yaw"]
-		for i in 8:
+		for i in 25:
 			await get_tree().process_frame
 		var img: Image = get_viewport().get_texture().get_image()
 		var path: String = dir.path_join(String(shot["name"]) + ".png")
@@ -81,7 +81,7 @@ func _capture_screens(dir: String) -> void:
 		for tod in [{"n": "tod_dawn", "h": 6.2}, {"n": "tod_noon", "h": 13.0},
 				{"n": "tod_dusk", "h": 17.8}, {"n": "tod_night", "h": 22.0}]:
 			cycle.set_hour(tod["h"])
-			for i in 10:
+			for i in 30:
 				await get_tree().process_frame
 			var img2: Image = get_viewport().get_texture().get_image()
 			var path2: String = dir.path_join(String(tod["n"]) + ".png")

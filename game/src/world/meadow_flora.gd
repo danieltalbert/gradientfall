@@ -10,7 +10,9 @@ extends Node3D
 ## collision. Instance colors carry all variation; zero textures.
 
 const SCATTER_SEED: int = 20260717
-const GRASS_COUNT: int = 108000
+const FIELD_COUNT: int = 400000  # fine blades in the camera-following tile
+const FIELD_TILE: float = 130.0
+const GRASS_COUNT: int = 36000   # taller accent tufts, whole-map, mid-distance
 const BLADES_PER_CLUMP: int = 9
 const IRIS_COUNT: int = 700
 const DAISY_COUNT: int = 1200
@@ -25,15 +27,77 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 func _ready() -> void:
 	var start_ms: int = Time.get_ticks_msec()
 	_rng.seed = SCATTER_SEED
+	_build_fine_field()
 	_scatter_grass()
 	_scatter_irises()
 	_scatter_daisies()
 	_scatter_pebbles()
 	_plant_copses()
-	print("MeadowFlora: %d grass, %d irises, %d daisies, %d pebbles in %d ms." % [
-		GRASS_COUNT, IRIS_COUNT, DAISY_COUNT, PEBBLE_COUNT,
+	print("MeadowFlora: %d field blades + %d tufts, %d irises, %d daisies, %d pebbles in %d ms." % [
+		FIELD_COUNT, GRASS_COUNT, IRIS_COUNT, DAISY_COUNT, PEBBLE_COUNT,
 		Time.get_ticks_msec() - start_ms,
 	])
+
+
+## The infinite fine-grass carpet: one MultiMesh of thin 3-segment blades on
+## identity transforms scattered in a flat tile; the grass_field shader wraps
+## them around the camera, plants them on the heightmap, and animates gusts.
+## Buffer is written directly (12 floats/instance) — 400k via set_instance_*
+## would take seconds; this takes tens of milliseconds.
+func _build_fine_field() -> void:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var w: float = 0.016
+	var h1: float = 0.24
+	var h2: float = 0.45
+	var lean: float = 0.05
+	var p: Array[Vector3] = [
+		Vector3(-w, 0.0, 0.0), Vector3(w, 0.0, 0.0),
+		Vector3(-w * 0.55, h1, lean * 0.4), Vector3(w * 0.55, h1, lean * 0.4),
+		Vector3(0.0, h2, lean),
+	]
+	var uvy: Array[float] = [0.0, 0.0, h1 / h2, h1 / h2, 1.0]
+	var order: Array[int] = [0, 1, 2, 1, 3, 2, 2, 3, 4]
+	for i in order:
+		st.set_uv(Vector2(0.5, uvy[i]))
+		st.set_normal(Vector3.UP)
+		st.add_vertex(p[i])
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://assets/shaders/grass_field.gdshader")
+	mat.set_shader_parameter("height_map", _terrain.height_texture)
+	mat.set_shader_parameter("terrain_size", MeadowTerrain.SIZE)
+	mat.set_shader_parameter("water_level", _terrain.water_level)
+	mat.set_shader_parameter("tile", FIELD_TILE)
+	st.set_material(mat)
+	var mesh: ArrayMesh = st.commit()
+
+	var mm: MultiMesh = MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = FIELD_COUNT
+	var buf: PackedFloat32Array = PackedFloat32Array()
+	buf.resize(FIELD_COUNT * 12)
+	var half_tile: float = FIELD_TILE * 0.5
+	var idx: int = 0
+	for i in FIELD_COUNT:
+		buf[idx] = 1.0
+		buf[idx + 3] = _rng.randf_range(-half_tile, half_tile)
+		buf[idx + 5] = 1.0
+		buf[idx + 10] = 1.0
+		buf[idx + 11] = _rng.randf_range(-half_tile, half_tile)
+		idx += 12
+	mm.buffer = buf
+
+	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+	mmi.name = "FineField"
+	mmi.multimesh = mm
+	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Blades relocate to wherever the camera is — cull against the whole map.
+	mmi.custom_aabb = AABB(
+		Vector3(-MeadowTerrain.SIZE * 0.5, -60.0, -MeadowTerrain.SIZE * 0.5),
+		Vector3(MeadowTerrain.SIZE, 140.0, MeadowTerrain.SIZE)
+	)
+	add_child(mmi)
 
 
 func _ground_ok(x: float, z: float, h: float) -> bool:
@@ -263,7 +327,7 @@ func _scatter_pebbles() -> void:
 	pebble.radial_segments = 6
 	pebble.rings = 3
 	var mat: ShaderMaterial = ShaderMaterial.new()
-	mat.shader = load("res://assets/shaders/toon.gdshader")
+	mat.shader = load("res://assets/shaders/toon_soft.gdshader")
 	mat.set_shader_parameter("rim_amount", 0.1)
 	var mm: MultiMesh = MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -293,9 +357,9 @@ func _scatter_pebbles() -> void:
 
 func _plant_copses() -> void:
 	var variants: Array[ArrayMesh] = [
-		_build_tree_mesh(2.6, 1.9, Color(0.29, 0.46, 0.22)),
-		_build_tree_mesh(3.4, 2.3, Color(0.25, 0.42, 0.19)),
-		_build_tree_mesh(2.1, 1.5, Color(0.36, 0.5, 0.2)),
+		_build_tree_mesh(2.6, 1.9, Color(0.38, 0.55, 0.26)),
+		_build_tree_mesh(3.4, 2.3, Color(0.33, 0.5, 0.23)),
+		_build_tree_mesh(2.1, 1.5, Color(0.45, 0.58, 0.24)),
 	]
 	var trunk_shape: CylinderShape3D = CylinderShape3D.new()
 	trunk_shape.radius = 0.35
@@ -339,54 +403,93 @@ func _plant_copses() -> void:
 	print("MeadowFlora: %d trees across %d copses." % [planted, copses.size()])
 
 
-## Low-poly tree: tapered trunk + two stacked faceted foliage blobs.
+## Realistic-fidelity tree: tapered trunk + 4-5 angled boughs (all wearing
+## the procedural bark shader's grooves), crowned with ~850 individual leaf
+## quads distributed through ellipsoid clouds at the crown and bough ends —
+## every leaf flutters independently in the leaf shader's wind.
 func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> ArrayMesh:
 	var st: SurfaceTool = SurfaceTool.new()
+
+	# --- Surface 0: wood ---
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var trunk: CylinderMesh = CylinderMesh.new()
-	trunk.top_radius = 0.22
+	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.34
 	trunk.height = trunk_h
-	trunk.radial_segments = 6
-	trunk.rings = 1
-	var crown_a: SphereMesh = SphereMesh.new()
-	crown_a.radius = crown_r
-	crown_a.height = crown_r * 1.5
-	crown_a.radial_segments = 7
-	crown_a.rings = 4
-	var crown_b: SphereMesh = SphereMesh.new()
-	crown_b.radius = crown_r * 0.62
-	crown_b.height = crown_r
-	crown_b.radial_segments = 6
-	crown_b.rings = 3
-
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_color(Color(0.4, 0.3, 0.22))
+	trunk.radial_segments = 12
+	trunk.rings = 3
 	st.append_from(trunk, 0, Transform3D(Basis.IDENTITY, Vector3(0.0, trunk_h * 0.5, 0.0)))
+
+	var clusters: Array = [
+		{"c": Vector3(0.0, trunk_h + crown_r * 0.45, 0.0), "r": crown_r},
+	]
+	var bough_count: int = _rng.randi_range(4, 5)
+	for b in bough_count:
+		var yaw: float = TAU * float(b) / float(bough_count) + _rng.randf_range(-0.4, 0.4)
+		var pitch: float = deg_to_rad(_rng.randf_range(30.0, 55.0))
+		var attach_h: float = trunk_h * _rng.randf_range(0.55, 0.92)
+		var blen: float = _rng.randf_range(1.2, 2.0) * (crown_r / 2.0)
+		var dir: Vector3 = Vector3(
+			cos(yaw) * sin(pitch), cos(pitch), sin(yaw) * sin(pitch)
+		).normalized()
+		var bough: CylinderMesh = CylinderMesh.new()
+		bough.top_radius = 0.045
+		bough.bottom_radius = 0.11
+		bough.height = blen
+		bough.radial_segments = 7
+		bough.rings = 1
+		var up: Vector3 = Vector3.UP
+		var axis: Vector3 = up.cross(dir).normalized()
+		var basis: Basis = Basis(axis, up.angle_to(dir)) if axis.length_squared() > 0.001 else Basis.IDENTITY
+		var attach: Vector3 = Vector3(0.0, attach_h, 0.0)
+		st.append_from(bough, 0, Transform3D(basis, attach + dir * blen * 0.5))
+		clusters.append({"c": attach + dir * blen, "r": crown_r * _rng.randf_range(0.4, 0.55)})
 	var mesh: ArrayMesh = st.commit()
 
+	# --- Surface 1: ~850 individual leaves across the cluster clouds ---
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_color(crown_col)
-	st.append_from(crown_a, 0, Transform3D(Basis.IDENTITY, Vector3(0.0, trunk_h + crown_r * 0.55, 0.0)))
-	st.append_from(crown_b, 0, Transform3D(
-		Basis.IDENTITY, Vector3(crown_r * 0.35, trunk_h + crown_r * 1.25, crown_r * 0.2)
-	))
+	var total_weight: float = 0.0
+	for cl in clusters:
+		total_weight += pow(cl["r"], 3.0)
+	for i in 1000:
+		var pick: float = _rng.randf() * total_weight
+		var cluster: Dictionary = clusters[0]
+		for cl in clusters:
+			pick -= pow(cl["r"], 3.0)
+			if pick <= 0.0:
+				cluster = cl
+				break
+		var r: float = cluster["r"] * pow(_rng.randf(), 0.33)
+		var theta: float = _rng.randf_range(0.0, TAU)
+		var phi: float = acos(_rng.randf_range(-1.0, 1.0))
+		var pos: Vector3 = cluster["c"] + Vector3(
+			r * sin(phi) * cos(theta), r * cos(phi) * 0.75, r * sin(phi) * sin(theta)
+		)
+		var s: float = _rng.randf_range(0.26, 0.4)
+		var lyaw: Basis = Basis(Vector3.UP, _rng.randf_range(0.0, TAU))
+		var tilt: Basis = Basis(Vector3.RIGHT, _rng.randf_range(-1.1, 1.1))
+		var lb: Basis = lyaw * tilt
+		var bx: Vector3 = lb.x * s * 0.5
+		var by: Vector3 = lb.y * s
+		var ph: float = _rng.randf()
+		var corners: Array[Vector3] = [pos - bx, pos + bx, pos + bx + by, pos - bx + by]
+		var uvs: Array[Vector2] = [
+			Vector2(0.0, 0.0), Vector2(1.0, 0.0), Vector2(1.0, 1.0), Vector2(0.0, 1.0)
+		]
+		var quad_order: Array[int] = [0, 1, 2, 0, 2, 3]
+		for q in quad_order:
+			st.set_uv(uvs[q])
+			st.set_uv2(Vector2(ph, 0.0))
+			st.set_normal((lb.z).normalized())
+			st.add_vertex(corners[q])
 	mesh = st.commit(mesh)
 
-	# SurfaceTool.append_from does NOT carry set_color into appended vertices,
-	# so trunk/crown color rides the toon shader's albedo_tint per surface
-	# (each surface is a single flat color anyway) rather than vertex color.
-	var toon: Shader = load("res://assets/shaders/toon.gdshader")
 	var bark: ShaderMaterial = ShaderMaterial.new()
-	bark.shader = toon
-	bark.set_shader_parameter("use_srgb_vertex", false)
-	bark.set_shader_parameter("albedo_tint", Color(0.4, 0.3, 0.22))
-	bark.set_shader_parameter("rim_amount", 0.12)
+	bark.shader = load("res://assets/shaders/bark.gdshader")
 	var leaf: ShaderMaterial = ShaderMaterial.new()
-	leaf.shader = toon
-	leaf.set_shader_parameter("use_srgb_vertex", false)
-	leaf.set_shader_parameter("albedo_tint", crown_col)
-	leaf.set_shader_parameter("rim_amount", 0.4)
-	leaf.set_shader_parameter("rim_width", 0.66)
+	leaf.shader = load("res://assets/shaders/leaf_wind.gdshader")
+	leaf.set_shader_parameter("leaf_a", crown_col.darkened(0.25))
+	leaf.set_shader_parameter("leaf_b", crown_col.lightened(0.12))
 	mesh.surface_set_material(0, bark)
 	mesh.surface_set_material(1, leaf)
 	return mesh

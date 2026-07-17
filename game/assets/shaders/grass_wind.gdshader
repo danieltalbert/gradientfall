@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled, diffuse_toon, specular_toon;
+render_mode cull_disabled, diffuse_lambert_wrap, specular_disabled;
 // Wind-blown meadow grass (GDD §10 non-negotiable: living ground cover).
 // Blades are solid low-poly triangles — no textures, per the generated-in-
 // code rule. UV.y is 0 at the root, 1 at the tip: it drives both the sway

@@ -4,6 +4,52 @@
 
 ---
 
+## 2026-07-17 (live session) — visual richness pass #2: THE FIDELITY JUMP
+
+*Danny raised the bar: naturalistic fidelity ("real grass, real trees, every
+aspect"), target hardware RTX 5080-class (decreed in GDD §10 — spend the
+budget, never optimize for weak hardware at the cost of the look). Aim point
+agreed: Ghost of Tsushima × BOTW — naturalistic density, painterly color;
+literal photorealism explicitly off-target (code-only assets fail hardest
+there).*
+
+**DONE (eyes-verified, 2 rounds)**
+- **Infinite fine-grass system** (the Ghost of Tsushima technique):
+  `grass_field.gdshader` + `_build_fine_field()` — 400,000 thin 3-segment
+  blades in ONE MultiMesh whose instances wrap toroidally around the camera
+  in the vertex shader (always dense wherever you stand, zero CPU after
+  boot). Terrain bakes height+slope into an RGF texture (`height_texture`,
+  free — reuses the mesh grid); blades plant themselves via textureLod,
+  die on water/steep/out-of-bounds, and a **gust wave visibly rolls across
+  the field** with per-blade flutter, root AO, tip translucency (BACKLIGHT),
+  gold swathes, and gust shimmer. Buffer written directly: 400k instances in
+  ~98 ms. Old chunky grass reduced to 36k mid-distance accent tufts.
+- **Real trees**: rebuilt generator — tapered trunk + 4–5 angled boughs, all
+  wearing `bark.gdshader` (procedural wandering ridge-and-groove lines +
+  cracks — "lines in the wood"); crown = **1,000 individual leaf quads** per
+  variant across ellipsoid clouds at crown + bough ends; `leaf_wind.gdshader`
+  draws each leaf's pointed-oval silhouette + midrib analytically, flutters
+  leaves individually, bends boughs to the same gust wave as the grass, and
+  lets sun through the canopy (BACKLIGHT).
+- **High-end pipeline ON** (5080 decree): TAA, SSAO (1.6), **SDFGI real-time
+  GI** (5 cascades, 400 m), 4096 directional shadow + soft filter quality 4,
+  4096 atlas, anisotropic 4×. Screenshot mode waits ~110 frames for SDFGI/TAA
+  convergence. Lighting model shifted realistic-ward: terrain/rocks on new
+  `toon_soft.gdshader` (wrapped diffuse, same rim/fill/noise features),
+  tufts off toon banding; character keeps true toon+rim.
+- Color surgery after round 1 (milky/washed): saturated blade+terrain greens,
+  sun energy 1.65/1.8 day keys, saturation 1.16, deeper mountain silhouettes,
+  lighter larger leaves.
+
+**HONEST STATE / NEXT VISUAL TARGETS**
+- The field FINALLY reads as continuous living grass; dusk is genuinely
+  pretty. Biggest remaining offenders: (1) vista mountains are still flat
+  triangle cutouts — need real ridge geometry + snow; (2) Kern is still a
+  capsule; (3) day tone leans cool/sage — one more warmth pass; (4) town
+  site empty (Bootstrap build is its own milestone). Danny judges next.
+
+---
+
 ## 2026-07-17 (live session) — visual richness pass #1 (Danny-directed)
 
 *Danny's direction: iterate on THIS area with him as judge until "good

@@ -24,6 +24,9 @@ const SPAWN_POINT: Vector2 = Vector2(-58.0, -62.0)
 
 var water_level: float = 0.0
 var town_height: float = 0.0
+## R = terrain height, G = surface normal Y — sampled by the grass-field
+## shader so half a million blades can find the ground without CPU work.
+var height_texture: ImageTexture
 
 var _rolling: FastNoiseLite
 var _macro: FastNoiseLite
@@ -97,8 +100,8 @@ func _height_raw(x: float, z: float) -> float:
 
 
 func _vertex_color(x: float, z: float, h: float, normal: Vector3) -> Color:
-	var meadow_light: Color = Color(0.48, 0.63, 0.27)
-	var meadow_deep: Color = Color(0.36, 0.56, 0.23)
+	var meadow_light: Color = Color(0.43, 0.6, 0.22)
+	var meadow_deep: Color = Color(0.31, 0.52, 0.18)
 	var dry_gold: Color = Color(0.7, 0.62, 0.33)
 	var rock: Color = Color(0.5, 0.46, 0.39)
 	var sand: Color = Color(0.76, 0.68, 0.46)
@@ -137,6 +140,8 @@ func _build_mesh_and_collision() -> void:
 		for ix in verts_per_side:
 			heights[iz * verts_per_side + ix] = get_height(-half + ix * STEP, -half + iz * STEP)
 
+	var tex_data: PackedFloat32Array = PackedFloat32Array()
+	tex_data.resize(verts_per_side * verts_per_side * 2)
 	for iz in verts_per_side:
 		for ix in verts_per_side:
 			var x: float = -half + ix * STEP
@@ -151,6 +156,13 @@ func _build_mesh_and_collision() -> void:
 			positions[idx] = Vector3(x, h, z)
 			normals[idx] = n
 			colors[idx] = _vertex_color(x, z, h, n)
+			tex_data[idx * 2] = h
+			tex_data[idx * 2 + 1] = n.y
+
+	var img: Image = Image.create_from_data(
+		verts_per_side, verts_per_side, false, Image.FORMAT_RGF, tex_data.to_byte_array()
+	)
+	height_texture = ImageTexture.create_from_image(img)
 
 	for iz in verts_per_side - 1:
 		for ix in verts_per_side - 1:
@@ -170,7 +182,7 @@ func _build_mesh_and_collision() -> void:
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
 	var mat: ShaderMaterial = ShaderMaterial.new()
-	mat.shader = load("res://assets/shaders/toon.gdshader")
+	mat.shader = load("res://assets/shaders/toon_soft.gdshader")
 	# Ground rim is subtle — hills shouldn't glow, but a faint sky-lit edge on
 	# ridgelines sells the painterly look.
 	mat.set_shader_parameter("rim_amount", 0.12)

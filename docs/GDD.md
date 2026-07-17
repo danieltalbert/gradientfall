@@ -161,11 +161,18 @@ authored sites). Region IDs are canonical and used across all content files.
 Unlimited effort is explicitly authorized — visual milestones are never
 rushed, trimmed, or marked done at 'good enough for programmer art').
 
-- **Reference targets:** *Breath of the Wild* for mood, lighting, and scale
-  (painterly skies, god-rays through trees, wind as a visible presence,
-  vistas that pull you toward the horizon) + *Wizard101* for charm and
-  readability (friendly shape language, saturated palettes, places that feel
-  designed to be lived in). Not photorealism — **stylized done excellently.**
+- **Reference targets** (revised by Danny 2026-07-17): *Ghost of Tsushima* ×
+  *Breath of the Wild* — naturalistic density and fidelity (continuous fine
+  grass, real branching trees with individual fluttering leaves, bark
+  grooves, wind waves rolling visibly across fields) carried by painterly
+  color and light. The goal is "looks real at a glance, feels painted when
+  you stare" — full photorealism is explicitly NOT the target (code-only
+  assets fail hardest at it), but geometric/atmospheric richness is pushed
+  to modern-AAA density.
+- **Hardware decree (Danny):** min spec is a high-end GPU (RTX 5080 class).
+  Spend the budget: TAA, SSAO, SDFGI real-time GI, 4k soft shadows,
+  hundreds of thousands of instanced blades/leaves. Never optimize for weak
+  hardware at the cost of the look.
 - **Non-negotiables, built and then deepened every phase:**
   - Cel/toon shading with rim light on characters; silhouette-first character
     design (Kern, Bit, every monster readable in outline alone)
