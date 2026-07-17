@@ -169,11 +169,13 @@ func _build_mesh_and_collision() -> void:
 	var mesh: ArrayMesh = ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.vertex_color_is_srgb = true  # authored as display colors — without
-	# this the renderer treats them as linear and the meadow washes out pale
-	mat.roughness = 1.0
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://assets/shaders/toon.gdshader")
+	# Ground rim is subtle — hills shouldn't glow, but a faint sky-lit edge on
+	# ridgelines sells the painterly look.
+	mat.set_shader_parameter("rim_amount", 0.12)
+	mat.set_shader_parameter("rim_width", 0.82)
+	mat.set_shader_parameter("fill_amount", 0.12)
 	mesh.surface_set_material(0, mat)
 
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()

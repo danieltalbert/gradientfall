@@ -1,10 +1,11 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://src/world/meadow_terrain.gd" id="3_terrain"]
 [ext_resource type="Script" path="res://src/world/meadow_flora.gd" id="4_flora"]
 [ext_resource type="Script" path="res://src/world/border_vistas.gd" id="5_vistas"]
+[ext_resource type="Script" path="res://src/world/sky_cycle.gd" id="6_sky"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.25, 0.48, 0.88, 1)
@@ -56,5 +57,9 @@ script = ExtResource("4_flora")
 
 [node name="Vistas" type="Node3D" parent="World"]
 script = ExtResource("5_vistas")
+
+[node name="SkyCycle" type="Node" parent="World"]
+script = ExtResource("6_sky")
+hour = 8.5
 
 [node name="Player" parent="." instance=ExtResource("2_player")]

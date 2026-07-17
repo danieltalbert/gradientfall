@@ -1,7 +1,8 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://src/player/camera_rig.gd" id="2_rig"]
+[ext_resource type="Shader" path="res://assets/shaders/toon.gdshader" id="3_toon"]
 
 [sub_resource type="CapsuleShape3D" id="col_capsule"]
 radius = 0.35
@@ -11,9 +12,16 @@ height = 1.7
 radius = 0.32
 height = 1.5
 
-[sub_resource type="StandardMaterial3D" id="body_mat"]
-albedo_color = Color(0.36, 0.44, 0.31, 1)
-roughness = 0.9
+[sub_resource type="ShaderMaterial" id="body_mat"]
+shader = ExtResource("3_toon")
+shader_parameter/use_srgb_vertex = false
+shader_parameter/albedo_boost = 1.0
+shader_parameter/albedo_tint = Color(0.36, 0.44, 0.31, 1)
+shader_parameter/rim_color = Color(0.8, 0.9, 1, 1)
+shader_parameter/rim_amount = 0.55
+shader_parameter/rim_width = 0.6
+shader_parameter/shadow_fill = Color(0.5, 0.62, 0.9, 1)
+shader_parameter/fill_amount = 0.18
 
 [sub_resource type="BoxMesh" id="brow_mesh"]
 size = Vector3(0.26, 0.09, 0.18)

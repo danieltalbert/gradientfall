@@ -54,6 +54,10 @@ func _capture_screens(dir: String) -> void:
 	# Angles chosen to judge the GDD §10 bar: the town-and-pond view, the
 	# Gradient Peaks vista, the sea horizon, and grass up close.
 	var rig: Node3D = _player.get_node("CameraRig")
+	var cycle: SkyCycle = get_node("World/SkyCycle") as SkyCycle
+	if cycle != null:
+		cycle.paused = true
+		cycle.set_hour(8.5)
 	var shots: Array = [
 		{"name": "meadow_southeast_town", "yaw": deg_to_rad(-135.0)},
 		{"name": "meadow_north_peaks", "yaw": deg_to_rad(35.0)},
@@ -70,4 +74,17 @@ func _capture_screens(dir: String) -> void:
 		var path: String = dir.path_join(String(shot["name"]) + ".png")
 		var err: int = img.save_png(path)
 		print("Screenshot %s -> %s" % ["OK" if err == OK else "FAILED", path])
+
+	# Day/night showcase: the same town view across the color script.
+	if cycle != null:
+		rig.rotation.y = deg_to_rad(-135.0)
+		for tod in [{"n": "tod_dawn", "h": 6.2}, {"n": "tod_noon", "h": 13.0},
+				{"n": "tod_dusk", "h": 17.8}, {"n": "tod_night", "h": 22.0}]:
+			cycle.set_hour(tod["h"])
+			for i in 10:
+				await get_tree().process_frame
+			var img2: Image = get_viewport().get_texture().get_image()
+			var path2: String = dir.path_join(String(tod["n"]) + ".png")
+			var err2: int = img2.save_png(path2)
+			print("Screenshot %s -> %s" % ["OK" if err2 == OK else "FAILED", path2])
 	get_tree().quit()

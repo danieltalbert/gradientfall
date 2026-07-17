@@ -4,6 +4,38 @@
 
 ---
 
+## 2026-07-17 (live session) — Phase 1 milestone 4: cel-shaded look-dev
+
+**DONE (built + eyes-verified this session, per GDD §10)**
+- `assets/shaders/toon.gdshader`: reusable cel shader — `diffuse_toon`/
+  `specular_toon` banding + fresnel rim + sky-tinted shadow fill (keeps toon
+  shadows painted, not black), vertex-color albedo with sRGB linearize, plus
+  an `albedo_tint` uniform for meshes without vertex colors. Applied to
+  terrain, trees, and the character; grass shader gained toon render modes.
+- `src/world/sky_cycle.gd` (SkyCycle): day/night cycle — sun arc (east dawn →
+  high noon → west dusk → below at night) + a 7-key color script driving sky
+  gradient, sun color/energy, ambient, and fog. Deterministic by `hour`;
+  runs at day_length=300s in play, pausable for screenshots.
+- Character: rim-lit toon material — Kern now pops off the field with a cool
+  sky-blue edge (GDD §10 "rim light on characters"). Placeholder capsule
+  still, but reads as a character now.
+- `main.gd` screenshot mode extended: captures a 4-time-of-day showcase
+  (dawn/noon/dusk/night) of the town view alongside the 4 angles.
+- Iterated on real screenshots: caught tree crowns rendering white
+  (`SurfaceTool.append_from` drops `set_color` — moved trunk/crown color to
+  the shader's `albedo_tint`); toned night ambient down to moonlight.
+  Verdict on eyes: dusk/dawn skies read genuinely BOTW-ish; the toon pass +
+  rim is the promised leap from "programmer terrain."
+- Fixed a name collision: inner class `Key` shadowed Godot's built-in `Key`
+  enum → renamed `SkyKey`. (Lesson logged: avoid engine-reserved names for
+  inner classes.)
+- Showcase PNGs saved to `docs/progress/` (milestone4_*).
+
+**NEXT UP** — milestone 5: Bit the fairy companion (follow behavior, look-at
+naming, hint lines) — the first character with personality in the world.
+
+---
+
 ## 2026-07-17 (live session) — Phase 1 milestone 3: Datasedge Meadows terrain
 
 **DONE (built + eyes-verified this session, per GDD §10)**

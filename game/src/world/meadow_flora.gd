@@ -259,12 +259,21 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 	))
 	mesh = st.commit(mesh)
 
-	var bark: StandardMaterial3D = StandardMaterial3D.new()
-	bark.albedo_color = Color(0.4, 0.3, 0.22)
-	bark.roughness = 1.0
-	var leaf: StandardMaterial3D = StandardMaterial3D.new()
-	leaf.albedo_color = crown_col
-	leaf.roughness = 1.0
+	# SurfaceTool.append_from does NOT carry set_color into appended vertices,
+	# so trunk/crown color rides the toon shader's albedo_tint per surface
+	# (each surface is a single flat color anyway) rather than vertex color.
+	var toon: Shader = load("res://assets/shaders/toon.gdshader")
+	var bark: ShaderMaterial = ShaderMaterial.new()
+	bark.shader = toon
+	bark.set_shader_parameter("use_srgb_vertex", false)
+	bark.set_shader_parameter("albedo_tint", Color(0.4, 0.3, 0.22))
+	bark.set_shader_parameter("rim_amount", 0.12)
+	var leaf: ShaderMaterial = ShaderMaterial.new()
+	leaf.shader = toon
+	leaf.set_shader_parameter("use_srgb_vertex", false)
+	leaf.set_shader_parameter("albedo_tint", crown_col)
+	leaf.set_shader_parameter("rim_amount", 0.4)
+	leaf.set_shader_parameter("rim_width", 0.66)
 	mesh.surface_set_material(0, bark)
 	mesh.surface_set_material(1, leaf)
 	return mesh
