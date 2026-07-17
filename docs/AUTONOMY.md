@@ -155,9 +155,15 @@ Paste this into a fresh Claude Code session in the danieltalbert repo:
 >    delegated to briefs.
 > 4b. Phase gates: when a phase's definition of done is met, make its
 >    version-bump commit, write a loud "PHASE GATE — Danny, please playtest"
->    devlog entry, and spend the NEXT TWO runs on content review, brief
->    queueing, and polish backlog instead of new engine milestones. If Danny
->    has left no feedback after those two runs, proceed into the next phase —
+>    devlog entry, AND create `gradientfall/PHASE_GATE.md` containing: the
+>    phase completed, a 10-minute playtest checklist (what to launch, what to
+>    try, what to look at), and an empty "## Feedback" section for Danny to
+>    write in. Then spend the NEXT TWO runs on content review, brief queueing,
+>    and polish backlog instead of new engine milestones. Every run, check
+>    PHASE_GATE.md: if Danny wrote feedback under "## Feedback", treat each
+>    point as a priority work item, log it in the devlog, delete the flag
+>    file, and act on the feedback before new milestones. If the file was
+>    deleted or two runs pass with no feedback, proceed into the next phase —
 >    the project never stalls waiting.
 > 5. End clean per the iron rules in `gradientfall/CLAUDE.md`: validator
 >    passes, ROADMAP checkboxes and a dated DEVLOG entry updated in the same
@@ -199,6 +205,24 @@ by replying to any scheduled run or editing ROADMAP.md priorities.
 
 **Danny's tasks:** keep the two schedules running · merge PRs · playtest at
 phase gates (recommended, not required — gates don't block) · final review.
+
+## 5. How Danny finds out about phase gates
+
+1. **Push notification** — a local watcher task (`gradientfall-gate-watcher`,
+   every 3 days at 10:00 while the Claude app is open) checks for
+   `gradientfall/PHASE_GATE.md` and pings Danny's desktop/phone when a gate
+   is waiting. Silent otherwise.
+2. **The flag file** — `gradientfall/PHASE_GATE.md` appears at the repo's
+   gradientfall root when a phase completes: what to launch, a 10-minute
+   playtest checklist, and a "## Feedback" section. Danny writes feedback
+   there (the daily run treats each point as priority work) or deletes the
+   file to wave it through. This file is Danny's steering channel.
+3. **Ambient signals** — the version-bump commit on GitHub, the loud
+   "PHASE GATE" devlog entry, and any live Claude session (just ask "any
+   gates waiting?" — it reads the devlog).
+
+Expected gate cadence (rough): Phase 1 ≈ 2–3 weeks in; later phases every
+3–6 weeks. Six gates total before v1.0.
 
 | Who | Does | Never does |
 |---|---|---|

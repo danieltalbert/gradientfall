@@ -22,10 +22,20 @@
   **phase gates** (loud playtest flag + 2 content/polish runs, then proceed —
   autonomy never stalls). CLAUDE.md read-first list now includes WORLDBOOK.
 
+**DONE (addendum — gate notification)**
+- Phase-gate discovery solved three ways (AUTONOMY.md §5): daily runs now
+  create `gradientfall/PHASE_GATE.md` at each gate (playtest checklist +
+  "## Feedback" section that runs treat as priority work items); a local
+  watcher task (`gradientfall-gate-watcher`, every 3 days) push-notifies
+  Danny when the flag file exists; ambient signals (version-bump commit,
+  devlog headline) remain.
+
 **NEEDS DANNY**
 - Paste the v3 prompts into both scheduled tasks (canonical in AUTONOMY.md
-  §2/§3 — also given directly in chat).
-- Merge PR #1. Playtest at phase gates when flagged (recommended, not blocking).
+  §2/§3 — also given directly in chat). The Claude prompt gained one gate
+  paragraph (step 4b) — re-paste from §3.
+- Merge PR #1. Playtest at phase gates when the watcher pings (recommended,
+  not blocking).
 
 **NEXT UP** — Phase 1 milestone 2: third-person character controller.
 
