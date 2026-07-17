@@ -4,6 +4,25 @@
 
 ---
 
+## 2026-07-17 (live session) — visual bar elevated by Danny
+
+**DONE**
+- Danny's directive (chat, explicit sign-off): visuals must be on par with
+  BOTW/Wizard101 — "a fascinating 3D experience that truly feels immersive" —
+  and unlimited effort is authorized for it. GDD §10 expanded into a full
+  visual mandate: reference targets, non-negotiables checklist (cel shading +
+  rim light, painterly volumetric sky with day/night palettes, wind-blown
+  grass/living ground cover, water with depth+foam, post stack, juice
+  everywhere), and the **verification rule**: headless boots can't see —
+  visible-surface milestones need human eyes (editor run + screenshots in
+  devlog) before they're clean, and scheduled no-Godot runs must flag visual
+  work "unseen." ROADMAP standing rule added: every phase ends with a
+  look-dev/polish pass.
+- Danny confirmed the Claude/ChatGPT dynamic as-is (canon + engine stay with
+  Claude; ChatGPT volume ramps once its v2 prompt is pasted).
+
+---
+
 ## 2026-07-17 (live session) — run #2 swept: boot verified, committed
 
 **DONE**

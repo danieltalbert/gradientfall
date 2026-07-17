@@ -156,12 +156,36 @@ authored sites). Region IDs are canonical and used across all content files.
 
 ## 10. Art & audio direction
 
-- **Look:** BOTW's approach on clean stylized geometry — cel/toon shading, painterly
-  sky and volumetric clouds, wind-blown grass shader, water shaders, bloom, god-rays.
-  Fidelity deepens every phase. Honest constraint acknowledged with Danny: mood and
-  lighting of BOTW, not AAA asset fidelity — everything is generated in code.
-- **Audio:** procedural/chiptune-descended score per region (Neural Quest tradition,
-  matured); SFX generated in-code.
+**Visual quality is a first-class pillar** (elevated by Danny, 2026-07-17:
+"the whole point is a fascinating 3D experience that truly feels immersive."
+Unlimited effort is explicitly authorized — visual milestones are never
+rushed, trimmed, or marked done at 'good enough for programmer art').
+
+- **Reference targets:** *Breath of the Wild* for mood, lighting, and scale
+  (painterly skies, god-rays through trees, wind as a visible presence,
+  vistas that pull you toward the horizon) + *Wizard101* for charm and
+  readability (friendly shape language, saturated palettes, places that feel
+  designed to be lived in). Not photorealism — **stylized done excellently.**
+- **Non-negotiables, built and then deepened every phase:**
+  - Cel/toon shading with rim light on characters; silhouette-first character
+    design (Kern, Bit, every monster readable in outline alone)
+  - Painterly sky: volumetric clouds, full day/night palette shifts (golden
+    hour, blue night, dawn fog), region-distinct color scripts
+  - Living ground cover: wind-blown grass shader, swaying trees, drifting
+    particles (pollen, embers, snow, data-motes near corruption)
+  - Water with depth color, foam edges, and specular sparkle
+  - Post stack: bloom, god-rays, subtle vignette, distance haze for scale
+  - Juice everywhere: squash/stretch, hit-flash, data-shard dissolves,
+    footstep puffs — nothing pops in or out without a transition
+- **Verification rule:** headless boots cannot see. Any milestone with a
+  visible surface is not DONE until human eyes (Danny or a live session
+  running the editor, ideally with screenshots attached to the devlog) have
+  seen it. Scheduled no-Godot runs must flag visual work "unseen" for the
+  next live session. Visuals are standing phase-gate review material — the
+  playtest checklist always includes "does it look and feel right?"
+- **Audio:** procedural/chiptune-descended score per region (Neural Quest
+  tradition, matured); SFX generated in-code; ambience layers (birds, wind,
+  bees, forge-roar) per region as part of the immersion bar.
 
 ## 11. Tone
 

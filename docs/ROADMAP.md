@@ -4,6 +4,10 @@
 the checkboxes here and the journal in DEVLOG.md. A phase is DONE only when its
 "definition of done" passes and the game runs clean from the editor.*
 
+*Standing rule (GDD §10): visual quality is a first-class pillar — every phase
+ends with a look-dev/polish pass, and any milestone with a visible surface
+needs human eyes (not just a headless boot) before its box is ticked clean.*
+
 **Current phase: 1 — Vertical Slice (in progress)**
 
 ---
