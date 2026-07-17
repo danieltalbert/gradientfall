@@ -20,7 +20,7 @@ the checkboxes here and the journal in DEVLOG.md. A phase is DONE only when its
 Prove every system small, then scale outward. One region done completely.
 
 - [x] Godot 4 project scaffold (`gradientfall/game/`), folder conventions, autoloads *(boot verified headless in Godot 4.7.1: clean import, ContentDB loads 22 entries, zero errors)*
-- [ ] Third-person character controller: walk/run/jump/camera (feel pass included)
+- [x] Third-person character controller: walk/run/jump/camera (feel pass included) *(boot verified clean in Godot 4.7.1 after class-cache re-import; hands-on feel-tune still welcome at the phase gate)*
 - [ ] Terrain: Datasedge Meadows heightmap terrain + procedural grass/trees, region border vistas toward future regions
 - [ ] Cel-shaded look dev v1: toon shader, sky, day/night cycle, wind grass
 - [ ] Bit the fairy: follow behavior, look-at naming, hint lines

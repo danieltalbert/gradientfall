@@ -1,0 +1,71 @@
+[gd_scene load_steps=10 format=3]
+
+[ext_resource type="Script" path="res://src/player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://src/player/camera_rig.gd" id="2_rig"]
+
+[sub_resource type="CapsuleShape3D" id="col_capsule"]
+radius = 0.35
+height = 1.7
+
+[sub_resource type="CapsuleMesh" id="body_mesh"]
+radius = 0.32
+height = 1.5
+
+[sub_resource type="StandardMaterial3D" id="body_mat"]
+albedo_color = Color(0.36, 0.44, 0.31, 1)
+roughness = 0.9
+
+[sub_resource type="BoxMesh" id="brow_mesh"]
+size = Vector3(0.26, 0.09, 0.18)
+
+[sub_resource type="StandardMaterial3D" id="brow_mat"]
+albedo_color = Color(0.2, 0.24, 0.18, 1)
+roughness = 0.85
+
+[sub_resource type="SphereMesh" id="mark_mesh"]
+radius = 0.05
+height = 0.1
+
+[sub_resource type="StandardMaterial3D" id="mark_mat"]
+albedo_color = Color(0.95, 0.8, 0.35, 1)
+emission_enabled = true
+emission = Color(0.9, 0.7, 0.2, 1)
+emission_energy_multiplier = 1.4
+
+[node name="Player" type="CharacterBody3D"]
+collision_layer = 2
+collision_mask = 1
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+shape = SubResource("col_capsule")
+
+[node name="Visual" type="Node3D" parent="."]
+
+[node name="Body" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.85, 0)
+mesh = SubResource("body_mesh")
+surface_material_override/0 = SubResource("body_mat")
+
+[node name="Brow" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.38, -0.28)
+mesh = SubResource("brow_mesh")
+surface_material_override/0 = SubResource("brow_mat")
+
+[node name="HandMark" type="MeshInstance3D" parent="Visual"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.38, 0.9, 0)
+mesh = SubResource("mark_mesh")
+surface_material_override/0 = SubResource("mark_mat")
+
+[node name="CameraRig" type="Node3D" parent="."]
+top_level = true
+script = ExtResource("2_rig")
+
+[node name="SpringArm3D" type="SpringArm3D" parent="CameraRig"]
+spring_length = 4.5
+margin = 0.2
+
+[node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D"]
+fov = 70.0
+current = true

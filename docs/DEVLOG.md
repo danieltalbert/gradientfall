@@ -4,6 +4,102 @@
 
 ---
 
+## 2026-07-17 (live session) — run #2 swept: boot verified, committed
+
+**DONE**
+- Run #2's controller boot-verified in Godot 4.7.1. First boot showed parse
+  errors ("Could not find type CameraRig") + missing cam_* actions — NOT a
+  code bug: new scripts' `class_name`s weren't in the editor's global class
+  cache yet. One `--import` scan registered CameraRig/InputSetup/Player;
+  second boot fully clean (ContentDB 62 entries, zero errors). Lesson for
+  live sessions: **always run `--import` before boot-verifying a run that
+  added new script classes.**
+- ROADMAP milestone-2 annotation upgraded to verified. All of run #2's work
+  committed (controller, camera rig, input setup, sun fix, batch_05 brief,
+  approved data-quiz batch).
+- Danny asked who owns visual quality → answered in chat: Claude (all
+  shaders/meshes/lighting/VFX per AUTONOMY §4); ChatGPT only *describes*
+  appearances in content JSON; Danny is the taste authority at phase gates.
+
+**STILL NEEDS DANNY** (carried from run #2's notes below)
+- Re-paste v2/v3 prompts into BOTH scheduled tasks — run #2 found ChatGPT
+  still executing the v1 quiz-only prompt (no filename suffix, ignored 3
+  unclaimed briefs). Canonical text: AUTONOMY.md §2 and §3.
+- Merge PR #1.
+
+---
+
+## 2026-07-17 (scheduled run #2) — Phase 1 milestone 2: Kern walks
+
+*Inbox: one ChatGPT daily quiz batch. Milestone built: third-person character
+controller. Queue topped up to 4 unclaimed briefs.*
+
+**DONE**
+- **Inbox processed:** `daily_2026-07-17.json` (topic: data, rotation correct
+  after ml_basics). Validator 20/20; accuracy-reviewed question by question —
+  all 20 correct, including the advanced ones (MNAR, kappa paradox, out-of-fold
+  target encoding). Difficulty spread exactly 4× each of 1–5; answer positions
+  balanced 5/5/5/5. Merged to `approved/quizzes/data_2026-07-17.json`.
+  Rejections: none. Full content set: 62 entries, 0 errors. Quiz bank 41/400;
+  WORLDBOOK budget line updated.
+- **Milestone 2 — third-person controller** (`src/player/`, `scenes/player/`):
+  - `player.gd` (CharacterBody3D): camera-relative walk/run/sprint,
+    accel/decel split (no ice), BOTW-ish jump arc (floatier rise, heavier
+    fall, early-release cut), coyote time (0.12s) + jump buffer (0.15s),
+    body turns toward travel via lerp_angle, squash/stretch on jump/land
+    (visual-only, skipped for curb-height drops). All tunables are consts.
+  - `camera_rig.gd`: top_level orbit rig — yaw on rig, pitch on SpringArm3D
+    (clamped), smoothed position follow, mouse capture/release (Esc frees,
+    click recaptures), gamepad right-stick look, sprint FOV widen 70→78,
+    arm excludes the player's collider (layer 2) so it never clips Kern.
+  - `input_setup.gd`: input actions registered in code, idempotently
+    (KB+mouse and full gamepad). Decision: kept OUT of project.godot — the
+    Object(...) event blobs are the one part of the project file a no-Godot
+    sandbox can't lint, while plain GDScript is fully checkable; also fits
+    the generated-in-code rule.
+  - `player.tscn`: capsule Kern in a patched-cloak green, brow marker for
+    facing readability, and the canon **glowing hand-mark** as a small
+    emissive sphere (GDD §4). Emits `EventBus.player_spawned`.
+  - `main.tscn`: Player instanced; Ground is now a StaticBody3D with
+    collision; `TestSteps` placeholder blocks (0.5/1.2/2.2 m staircase +
+    pillar) for jump/camera testing — removed when real terrain lands.
+    **Fixed the Sun**: its transform rotated +45° about X, aiming the beam
+    *upward* (lit the world from below — headless boot verification can't
+    see lighting, so run #1's check missed it). Now -45°.
+  - Static verification (no Godot here): scene refs/ids/load_steps
+    consistent, all res:// paths resolve, node parent paths + @onready
+    $paths match the trees, GDScript brace/indent lint clean, every input
+    action used is registered, EventBus signals exist. Validator PASS.
+- **Queue topped up:** wrote `queue/batch_05_meadow_pois.md` (15 Datasedge
+  POIs: Mill, Apiary, Boundary Stones, Vault outer ruins + 11 invented;
+  vista rule enforced; rewards restricted to existing item ids). Queue now
+  4 unclaimed (02 quests, 03 items, 04 monsters, 05 POIs).
+
+**HALF-FORMED**
+- Nothing mid-flight. Controller is self-contained; jump feel numbers await
+  a real hands-on-keyboard pass (Danny or live session) to fine-tune.
+
+**NEEDS DANNY / LIVE SESSION (boot + commit)**
+- **This sandbox has no Godot and no git** (same as run #1): boot is
+  unverified and nothing is committed. Live session: open the editor, expect
+  "scaffold boot OK" + controls line + ContentDB 62 entries with zero errors,
+  walk/jump/sprint around the TestSteps, then commit everything including
+  the editor-generated `.uid` sidecars for the 3 new scripts as
+  `Gradientfall: Phase 1 milestone 2 — third-person controller`. ROADMAP's
+  "(boot unverified)" note comes off after that.
+- **ChatGPT's scheduled task is still running the v1 prompt** — evidence:
+  today's file is `daily_2026-07-17.json` (v2 adds a random suffix), and it
+  ran the fallback quiz job while 3 briefs sat unclaimed in the queue (v2
+  claims briefs first). Re-paste AUTONOMY.md §2 v2. Same for this run's own
+  task prompt (§3 v3) — this run followed the repo docs anyway, per
+  CLAUDE.md's "trust the docs" rule.
+
+**NEXT UP** — Phase 1 milestone 3: Datasedge Meadows terrain (heightmap +
+procedural grass/trees, region border vistas). The TestSteps blocks retire
+when it lands.
+
+---
+
 ## 2026-07-16 (live session) — WORLDBOOK: the master specification
 
 **DONE**

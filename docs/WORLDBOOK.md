@@ -427,7 +427,7 @@ written to fill the largest gaps first for whatever phase is active.
 | **Totals** | **84** | **141** | **80** | **275** | **275** | **38** |
 
 *Side quests include chain parts. Main quests (~25) are Claude-authored
-directly (campaign canon). Quiz bank target: 400 (36/40✅ ml_basics... running).
+directly (campaign canon). Quiz bank target: 400 (41✅ — seed 1, ml_basics 20, data 20; daily batches running).
 
 Quiz difficulty gating: D1–2 anywhere; D3 appears after Shrine 3; D4 after
 Shrine 6; D5 in Citadel/endgame + optional trials.
