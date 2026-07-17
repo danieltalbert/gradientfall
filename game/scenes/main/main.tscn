@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -6,6 +6,8 @@
 [ext_resource type="Script" path="res://src/world/meadow_flora.gd" id="4_flora"]
 [ext_resource type="Script" path="res://src/world/border_vistas.gd" id="5_vistas"]
 [ext_resource type="Script" path="res://src/world/sky_cycle.gd" id="6_sky"]
+[ext_resource type="Script" path="res://src/world/cloud_layer.gd" id="7_clouds"]
+[ext_resource type="Script" path="res://src/world/ambient_motes.gd" id="8_motes"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.25, 0.48, 0.88, 1)
@@ -27,8 +29,14 @@ glow_intensity = 0.35
 glow_bloom = 0.04
 fog_enabled = true
 fog_light_color = Color(0.72, 0.82, 0.9, 1)
-fog_density = 0.0004
+fog_density = 0.00028
 fog_sky_affect = 0.04
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.0012
+volumetric_fog_albedo = Color(0.92, 0.95, 1, 1)
+volumetric_fog_anisotropy = 0.7
+volumetric_fog_length = 160.0
+volumetric_fog_ambient_inject = 0.02
 adjustment_enabled = true
 adjustment_brightness = 1.02
 adjustment_contrast = 1.05
@@ -61,5 +69,11 @@ script = ExtResource("5_vistas")
 [node name="SkyCycle" type="Node" parent="World"]
 script = ExtResource("6_sky")
 hour = 8.5
+
+[node name="Clouds" type="Node3D" parent="World"]
+script = ExtResource("7_clouds")
+
+[node name="Motes" type="GPUParticles3D" parent="World"]
+script = ExtResource("8_motes")
 
 [node name="Player" parent="." instance=ExtResource("2_player")]

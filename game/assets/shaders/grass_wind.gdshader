@@ -30,7 +30,7 @@ void vertex() {
 	// and the GPU skips the overdraw. Scaling ALL axes matters — y alone
 	// leaves bright triangle splats lying on far slopes.
 	float cam_dist = distance(wpos, CAMERA_POSITION_WORLD);
-	VERTEX *= 1.0 - smoothstep(85.0, 125.0, cam_dist);
+	VERTEX *= 1.0 - smoothstep(110.0, 165.0, cam_dist);
 }
 
 void fragment() {

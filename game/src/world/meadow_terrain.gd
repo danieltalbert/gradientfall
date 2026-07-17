@@ -176,6 +176,8 @@ func _build_mesh_and_collision() -> void:
 	mat.set_shader_parameter("rim_amount", 0.12)
 	mat.set_shader_parameter("rim_width", 0.82)
 	mat.set_shader_parameter("fill_amount", 0.12)
+	mat.set_shader_parameter("noise_amount", 0.1)
+	mat.set_shader_parameter("noise_scale", 0.5)
 	mesh.surface_set_material(0, mat)
 
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
@@ -192,11 +194,8 @@ func _build_mesh_and_collision() -> void:
 func _add_pond_water() -> void:
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = Vector2(POND_RADIUS * 2.6, POND_RADIUS * 2.6)
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(0.1, 0.32, 0.46, 0.8)
-	mat.roughness = 0.12
-	mat.metallic = 0.25
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://assets/shaders/water.gdshader")
 	plane.material = mat
 	var water: MeshInstance3D = MeshInstance3D.new()
 	water.name = "PondWater"

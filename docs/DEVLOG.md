@@ -4,6 +4,40 @@
 
 ---
 
+## 2026-07-17 (live session) — visual richness pass #1 (Danny-directed)
+
+*Danny's direction: iterate on THIS area with him as judge until "good
+enough," then codify the approved look as the formula for all regions. His
+bar: BOTW-level visual engagement. Reference shots from him welcome anytime.*
+
+**DONE (all eyes-verified over 2 screenshot rounds)**
+- **Grass 3×**: 108k blades (was 34k), clump-based scatter with per-clump
+  coherent hues (BOTW patchiness), wider blades, fade pushed to 165 m.
+- **Ground clutter**: 1,200 daisies (white/cream/pink patches) + 750
+  half-buried pebbles; terrain albedo gains 2-octave world-space value noise
+  (toon shader `noise_amount`) so ground reads mottled, not putty.
+- **Sky life**: CloudLayer — 16 low-poly cumulus, altitude 240–380, slow
+  drift w/ wraparound, self-tinting day-white → dusk-blush → night-slate.
+- **Air**: AmbientMotes — 240 drifting pollen specks following the player;
+  reads as fireflies at night.
+- **Water v2** (`water.gdshader`): analytic ripple normals, depth-buffer
+  shallow→deep color + animated shore foam ring, toon sun glint.
+- **Volumetric fog**: enabled for god-ray haze — first attempt (density
+  0.006) washed the whole world gray; corrected to 0.0012 w/ minimal ambient
+  inject. Lesson: volumetric fog wash is the fastest way to lose saturation.
+
+**VISUAL BACKLOG (known, next richness passes)**
+- Mountain silhouettes: more jagged variety + snow caps; day version still
+  reads flat gray cardboard. Mid-ground tree presence thin. Grass noon
+  highlight slightly neon. Vignette/DOF consideration. Cloud coverage in the
+  fixed showcase angles is luck-of-the-draw — consider deterministic cloud
+  placement for the town view.
+
+**AWAITING DANNY** — verdict on this round (he judges until "good enough",
+then the approved look gets codified into an art formula doc for all regions).
+
+---
+
 ## 2026-07-17 (live session) — Phase 1 milestone 4: cel-shaded look-dev
 
 **DONE (built + eyes-verified this session, per GDD §10)**
