@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://src/world/sky_cycle.gd" id="6_sky"]
 [ext_resource type="Script" path="res://src/world/cloud_layer.gd" id="7_clouds"]
 [ext_resource type="Script" path="res://src/world/ambient_motes.gd" id="8_motes"]
+[ext_resource type="Script" path="res://src/world/peaks_approach.gd" id="9_approach"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.25, 0.48, 0.88, 1)
@@ -71,6 +72,9 @@ script = ExtResource("4_flora")
 
 [node name="Vistas" type="Node3D" parent="World"]
 script = ExtResource("5_vistas")
+
+[node name="PeaksApproach" type="Node3D" parent="World"]
+script = ExtResource("9_approach")
 
 [node name="SkyCycle" type="Node" parent="World"]
 script = ExtResource("6_sky")
