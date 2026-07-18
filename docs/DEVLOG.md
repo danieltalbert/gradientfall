@@ -4,6 +4,74 @@
 
 ---
 
+## 2026-07-18 (remote session) — richness pass #4: THE GRADIENT PEAKS MASSIF
+
+*Danny's decree this session: legendary bar, no corners — "make it feel like a
+real world that can compare to BOTW." Division of labor for parallel sessions:
+THIS session took the mountains (and the two small backlog fixes at their
+feet); the grass/trees/other-session should NOT touch mountains, meadow
+north-band colors, or the sea plane.*
+
+**DONE (parse-verified + prototype-eyes-verified, see caveat)**
+- **`src/world/gradient_peaks.gd` (new)** — the cones are gone. The Peaks are
+  now a three-rank heightfield massif arcing around the meadow's north:
+  green foothill rank rising straight out of the Datasedge turf (with
+  conifer-pocket coloring), the main rock wall with a ten-summit authored
+  skyline (irregular spacing, one 402 m monarch), and a rank of snowbound
+  600–760 m giants behind it, sized so they genuinely peek over the main
+  wall's cols (checked the elevation angles — the old far rank was exactly
+  angle-hidden). Per rank: crest line = smooth-max of summit gaussians over
+  an undulating base ridge (one connected massif, cols not gaps), × steep
+  front / easier back depth envelope, × domain-warped ridged fBm
+  (spur/gully skeleton, low-frequency so landforms are big, ^1.55 so crests
+  are sharp without sawtooth), − couloir channels squashed down-face
+  (drainage), + talus aprons, then crest-relaxation blur so summits are
+  solid horns, never needle clusters. Colors baked per vertex: lithology
+  rock blend, warped strata bands, cavity AO (blurred-height difference —
+  carves the faces at vista distance), turf/scree/conifer on gentle low
+  ground, and snow that sheds on cliffs, packs into couloirs, dips lower in
+  them, caps summits solid, and wind-scours exposed crests. Snow mask rides
+  COLOR.a. Rank haze pre-baked (aerial perspective layering).
+- **`assets/shaders/mountain.gdshader` (new)** — toon_soft's painterly base
+  + world-space rock grain, vertical erosion striations on the steeps, snow
+  sparkle glints + tighter snow gloss (driven by COLOR.a), faint rim, and an
+  altitude-faded distance-haze assist (far rank gets a harder haze preset so
+  it melts into the sky).
+- **Lime-band fix** (`meadow_terrain.gd`): the north band now trades meadow
+  green for desaturated alpine sage from z −90, then scree at the rim —
+  altitude zonation instead of the neon stripe the grazing light ignited.
+- **Sea de-paled** (`border_vistas.gd`): deep teal, roughness 0.3, metallic
+  0.2 — the old 0.05-rough mirror was bouncing pale sky at the horizon.
+- **`tools/proto_mountains.py` (new)** — the Python twin that designed this:
+  same FastNoiseLite library (pyfastnoiselite), same constants, software
+  rasterizer; 4 iteration rounds of real rendered images (needle-spike
+  crests → horns; snow patches → caps; far rank raised until visible;
+  forest de-blobbed; band fix confirmed). `pip install pyfastnoiselite
+  numpy pillow`, then `python3 tools/proto_mountains.py <outdir>`. Iterate
+  there FIRST, look, then port constants back — it renders in ~2 s. Final
+  design renders committed as `docs/progress/richness4_proto_*.png`
+  (PROTOTYPE renders, not in-engine shots — flat-shaded, no SDFGI/grass).
+
+**VERIFICATION CAVEAT — needs one boot from a rendering session**
+This container's egress policy blocks every Godot binary host, so no
+in-engine boot or screenshot was possible. What was verified: gdparse/gdlint
+clean on all touched GDScript (real GDScript-4 parser), geometry + color
+math eyes-verified through the Python twin's renders, shader written
+strictly within constructs the repo's existing shaders already use. First
+rendering-capable session: boot, screenshot `meadow_north_peaks`, expect a
+first-import class-cache re-import for the new `GradientPeaks` class_name
+(same as the milestone-2 parse hiccup), and commit the generated `.uid`s.
+Known intentional side effect: forest-wall/downs vista dressing reshuffles
+(peaks no longer consume `_rng` draws). Boot cost of the massif build is a
+one-time ~72k-vert generation — if it exceeds ~2 s in the print, drop
+`_box_blur` passes from 3 to 2 before judging.
+
+**NEXT UP** — Danny judges the massif from a rendering session; remaining
+visual backlog after that: Kern's model, day-tone warmth pass, then Bit the
+fairy (ROADMAP Phase 1).
+
+---
+
 ## 2026-07-17 (live session) — richness pass #3: real mountains
 
 **DONE (eyes-verified)**
