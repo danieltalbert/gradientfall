@@ -1,0 +1,16 @@
+[
+  {
+    "id": "quiz_ml_basics_001",
+    "topic": "ml_basics",
+    "difficulty": 1,
+    "question": "What is machine learning, at its heart?",
+    "choices": [
+      "Programming a computer with explicit rules for every situation",
+      "Letting a computer learn patterns from examples instead of being given rules",
+      "Making computers physically faster",
+      "Storing very large amounts of data"
+    ],
+    "answer_index": 1,
+    "explanation": "Machine learning flips traditional programming: instead of writing the rules yourself, you show the machine many examples and it learns the patterns — the 'rules' — from the data."
+  }
+]

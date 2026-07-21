@@ -1,0 +1,37 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+
+config_version=5
+
+[application]
+
+config/name="Neural Quest: Gradientfall"
+config/description="A 3D open-world adventure where machine learning is the magic system. Sequel to Neural Quest."
+run/main_scene="res://scenes/main/main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+EventBus="*res://src/autoloads/event_bus.gd"
+GameState="*res://src/autoloads/game_state.gd"
+ContentDB="*res://src/autoloads/content_db.gd"
+
+[debug]
+
+gdscript/warnings/untyped_declaration=1
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+anti_aliasing/quality/use_taa=true
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=4
+lights_and_shadows/positional_shadow/atlas_size=4096
+textures/default_filters/anisotropic_filtering_level=4

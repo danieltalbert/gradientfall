@@ -1,0 +1,278 @@
+[
+  {
+    "id": "npc_mara_mallow",
+    "name": "Mara Mallow",
+    "region": "datasedge_meadows",
+    "role": "innkeeper",
+    "personality": ["kind", "normal", "helpful"],
+    "description": "Keeper of the Warm Start Inn, Mara is a broad-smiled woman in a flour-dusted green apron. She remembers every guest by breakfast order and keeps a bent iron key above the hearth that opens nothing anyone can find.",
+    "dialogue": {
+      "greeting": [
+        "Welcome to the Warm Start. Your little light may hover by the rafters, but tell the spark not to toast my onions.",
+        "Vaultborn or valley-born, you get the same clean cup here. Sit wherever the chair looks least opinionated."
+      ],
+      "idle": [
+        "I seat travelers by temperament: quiet folk by the window, singers by the door, and boasters where I can hear them clearly.",
+        "A stew improves one spoon at a time. Change everything at once and even the turnips forget who they are.",
+        "Mayor Maxwell rehearses his welcomes upstairs. Yesterday he welcomed the wardrobe for twenty minutes.",
+        "A peddler swore he saw purple light beyond the eastern ridge. Peddlers also swear their socks cure baldness."
+      ],
+      "farewell": [
+        "May your road be warm and your supper never be an outlier."
+      ]
+    }
+  },
+  {
+    "id": "npc_branna_bellows",
+    "name": "Branna Bellows",
+    "region": "datasedge_meadows",
+    "role": "smith",
+    "personality": ["serious", "helpful"],
+    "description": "Bootstrap's smith, Branna wears a soot-black braid and a heavy leather apron stitched with copper rings. For every flawed blade she improves, she cuts one notch into the forge beam.",
+    "dialogue": {
+      "greeting": [
+        "Hold there, traveler. Let me see your buckles; these meadow roads are harder on straps than monsters are on boasts.",
+        "Morning, Kern. Bit may watch the coals, but the golden one is not to dive into them again."
+      ],
+      "idle": [
+        "Every blade is an iteration. Heat, hammer, test, and listen closely to where the last attempt went wrong.",
+        "A perfect edge made once could be luck. Make it true ten times, and then I'll call it skill.",
+        "Missing memories are not cracked iron. I cannot hammer yours back, Kern, but I can keep your gear sound while you search.",
+        "Bootstrap farmers ask for tougher plowshares each spring, then discover tougher stones. The contest remains undecided."
+      ],
+      "farewell": [
+        "Bring back any loose rivets. Preferably before the trousers they fasten become a public concern."
+      ]
+    }
+  },
+  {
+    "id": "npc_fen_reedwhistle",
+    "name": "Fen Reedwhistle",
+    "region": "datasedge_meadows",
+    "role": "fisher",
+    "personality": ["weird", "silly"],
+    "description": "Fen fishes Bootstrap's millpond in a patched reed hat hung with silver scales. He keeps a tiny empty chair beside him for the day's most persuasive fish and insists it improves negotiations.",
+    "dialogue": {
+      "greeting": [
+        "Easy there, Kern. Your bright friend is making the minnows think sunrise has fallen in.",
+        "Take the dry stone. The wet one and I are not presently speaking."
+      ],
+      "idle": [
+        "Fish only one bank and you'll get a biased sample. Fish both banks and you'll get wet boots as well.",
+        "The largest catch is often an outlier. Delicious, yes, but a poor basis for boasting about the whole pond.",
+        "Bit has opinions about fish. The fish have opinions about Bit. I translate for a modest fee of silence.",
+        "The old ruins are poor fishing grounds: mostly square stones, three lost hooks, and one boot that refuses identification."
+      ],
+      "farewell": [
+        "Walk softly. The carp are collecting evidence against us."
+      ]
+    }
+  },
+  {
+    "id": "npc_elowen_patch",
+    "name": "Elowen Patch",
+    "region": "datasedge_meadows",
+    "role": "scholar",
+    "personality": ["serious", "shy", "helpful"],
+    "description": "Elowen tends Bootstrap's seed ledgers and studies scraps from the nearby ruins. Her round spectacles are mended with blue thread, and twelve numbered notebooks fill the pockets of her plum-colored robe.",
+    "dialogue": {
+      "greeting": [
+        "Kern? Oh—good. I hoped you might visit. I have questions, but you may answer none of them if they trouble you.",
+        "Welcome, Vaultborn. Bit can rest on the reading stand, provided Bit does not reorder my bookmarks."
+      ],
+      "idle": [
+        "One strange tale is noise. Three strange tales with the same detail may be a pattern worth walking toward carefully.",
+        "The oldest Seed Vault records have missing entries. I mark the gaps plainly; guessing is useful only when labeled as guessing.",
+        "I sort ruin fragments by shape, markings, and where they were found. Color alone is a most unreliable feature.",
+        "Travelers whisper of a purple glow far away. Their accounts disagree on everything except the color, which is bothersome."
+      ],
+      "farewell": [
+        "If a memory returns, write it down before polishing it into a better story."
+      ]
+    }
+  },
+  {
+    "id": "npc_rowan_threshold",
+    "name": "Rowan Threshold",
+    "region": "datasedge_meadows",
+    "role": "guard",
+    "personality": ["normal", "serious", "kind"],
+    "description": "Rowan guards Bootstrap's eastern gate in a tidy blue cloak and a helmet polished brighter than necessary. He logs every patrol in chalk squares and carries an acorn for each harmless noise he once mistook for danger.",
+    "dialogue": {
+      "greeting": [
+        "Good day, Kern. You and Bit are easy to recognize, which saves us all an awkward challenge at the gate.",
+        "Road is clear, Vaultborn. Mind the geese; they acknowledge no badge but their own."
+      ],
+      "idle": [
+        "Guarding is choosing a boundary: welcome on this side, trouble on that one, and geese wherever they please.",
+        "Too many false alarms and folk stop listening. Too few, and trouble strolls in wearing a pleasant hat.",
+        "Mayor Maxwell asks me to stand behind him during speeches. Apparently my helmet adds confidence.",
+        "I have heard the purple-glow rumor. Until a scout confirms it, rumor remains rumor—and the gate remains watched."
+      ],
+      "farewell": [
+        "Safe roads, Kern. If the road is not safe, come back and describe it precisely."
+      ]
+    }
+  },
+  {
+    "id": "npc_tilly_tangle",
+    "name": "Tilly Tangle",
+    "region": "datasedge_meadows",
+    "role": "child",
+    "personality": ["crazy", "silly", "kind"],
+    "description": "Tilly is a whirlwind of a village child in mismatched boots and a clover crown. She rides a broomstick named Sir Nearest and maps every puddle in Bootstrap with pebbles only she can interpret.",
+    "dialogue": {
+      "greeting": [
+        "Kern! Sir Nearest says you may join our expedition. Bit is already the expedition lantern.",
+        "Quick! Pick a pebble. No reason—unless it picks you back."
+      ],
+      "idle": [
+        "Sir Nearest always chooses whichever carrot is closest. This makes him wise and very easy to bribe.",
+        "I tested every shortcut to the bakery. The route through the geese had terrible results but excellent speed.",
+        "I sorted the puddles into splashy, sneaky, and frog-owned. The frog has appealed my decision.",
+        "If Bit ever gets lost, follow the golden sparkles. If I get lost, follow the shouting."
+      ],
+      "farewell": [
+        "Adventure dismissed! Bring back one mystery and no angry geese."
+      ]
+    }
+  },
+  {
+    "id": "npc_tansy_hivewise",
+    "name": "Tansy Hivewise",
+    "region": "datasedge_meadows",
+    "role": "vendor",
+    "personality": ["silly", "helpful", "kind"],
+    "description": "Tansy is Bootstrap's beekeeper and honey seller, dressed in a yellow veil and striped wool sleeves. Her bees queue along three colored ribbons, though she admits they invented the system themselves.",
+    "dialogue": {
+      "greeting": [
+        "Honey for the road? Keep your little light above the jars; the bees are easily inspired.",
+        "Stand calmly and the bees will mark you as friendly—or as a very dull flower."
+      ],
+      "idle": [
+        "Good sampling strategy: visit hives from the sunny row, shady row, and the row where the bees seem judgmental.",
+        "Judge the whole apiary from one sweet frame and you'll miss the grumpy hive behind the shed.",
+        "A bee repeats a good flower path until the weather changes the lesson. Cleverness includes knowing when to turn.",
+        "I mark each jar by field and flowering week. Two honeys may share a color and still taste like different summers."
+      ],
+      "farewell": [
+        "Go gently, and remember: never argue with anyone who has ten thousand sisters."
+      ]
+    }
+  },
+  {
+    "id": "npc_orrin_bushel",
+    "name": "Orrin Bushel",
+    "region": "datasedge_meadows",
+    "role": "vendor",
+    "personality": ["grumpy", "normal", "kind"],
+    "description": "Orrin runs the market produce stall in a russet waistcoat with turnip-shaped buttons. His brass scale is perfectly balanced, except when his prize turnip Queen Rootilda occupies one pan like royalty.",
+    "dialogue": {
+      "greeting": [
+        "Mind the berries, traveler. Bright companions attract every magpie in the meadow.",
+        "Fresh roots, fair weights, no haggling before breakfast. After breakfast, still no haggling."
+      ],
+      "idle": [
+        "If I priced the harvest from only my finest apples, I would fool the buyer and myself.",
+        "I sort by ripeness, bruising, and likelihood of rolling off the cart. That last category is larger than scholars expect.",
+        "Queen Rootilda is not for sale. She is my standard measure for dignity.",
+        "I save one basket from every field until market day. It keeps my prices honest and my cellar crowded."
+      ],
+      "farewell": [
+        "Take care, Vaultborn. And if you find a turnip finer than mine, keep the scandal to yourself."
+      ]
+    }
+  },
+  {
+    "id": "npc_clem_clatter",
+    "name": "Clem Clatter",
+    "region": "datasedge_meadows",
+    "role": "flavor",
+    "personality": ["crazy", "weird", "silly"],
+    "description": "Clem rings Bootstrap's warning bell in a patchwork coat lined with four tiny hourglasses. He has named the bell Confusion and claims its different peals can predict rain, goats, or visiting relatives.",
+    "dialogue": {
+      "greeting": [
+        "Vaultborn! If Confusion rings twice, duck. If it rings thrice, I have probably dropped the hammer again.",
+        "Kern and the golden glimmer! Precisely the pair I predicted sometime between noon and winter."
+      ],
+      "idle": [
+        "I rang for rain once and every washline came down. No rain followed, but the village was magnificently prepared.",
+        "One true warning is worth three false peals. My present ratio is improving in a private and complicated way.",
+        "Confusion never lies. It merely answers a question different from the one I asked.",
+        "A purple glow beyond the hills? Sunset with ambition. Ring me when it sprouts legs."
+      ],
+      "farewell": [
+        "Go boldly! I shall ring if you return, or if someone roughly your height does."
+      ]
+    }
+  },
+  {
+    "id": "npc_nessa_fold",
+    "name": "Nessa Fold",
+    "region": "datasedge_meadows",
+    "role": "flavor",
+    "personality": ["shy", "helpful", "normal"],
+    "description": "Nessa mends Bootstrap's cloaks from a window seat, her silver hair pinned with two wooden needles. She wears a measuring cord around one wrist and keeps her pins in a cushion shaped like an iris blossom.",
+    "dialogue": {
+      "greeting": [
+        "Oh, hello, Kern. Your cloak hem is holding. I checked from here—not that I was staring.",
+        "Bit may sit by the blue thread. The gold thread becomes competitive."
+      ],
+      "idle": [
+        "A strong seam does not memorize one tear. It holds when the cloth pulls somewhere new.",
+        "Patterns save time, but bodies are not patterns. I measure the person standing before me.",
+        "I leave a little ease in every sleeve. Certainty is uncomfortable at the elbow.",
+        "If your memories return in pieces, perhaps they can still be joined gently. Some things mend without hiding the seam."
+      ],
+      "farewell": [
+        "Mind the brambles. If they win, bring me the cloak and not an apology."
+      ]
+    }
+  },
+  {
+    "id": "npc_jory_slope",
+    "name": "Jory Slope",
+    "region": "datasedge_meadows",
+    "role": "flavor",
+    "personality": ["grumpy", "weird", "serious"],
+    "description": "Jory keeps Bootstrap's irrigation ditches clear, stomping about in enormous mud boots beneath a bent straw hat. Before trusting any new channel, he drops a blue marble into it and races the water downhill.",
+    "dialogue": {
+      "greeting": [
+        "Step over the ditch, not into it. I already have enough sediment with opinions.",
+        "Keep that golden spark where I can see it. Reflections make poor survey markers."
+      ],
+      "idle": [
+        "Water follows the steepest way unless roots, stones, or a lazy ditch keeper give it worse advice.",
+        "Small corrections beat one heroic trench. Move a little soil, watch the flow, then move a little more.",
+        "A trader says he saw a purple-lit brook running uphill. The same trader sold me a left-handed bucket.",
+        "My marble reaches the bean field in forty counts. Thirty-nine means a leak; forty-one means a frog with ambition."
+      ],
+      "farewell": [
+        "Keep to the high path. The low path is currently learning to be a pond."
+      ]
+    }
+  },
+  {
+    "id": "npc_cedric_cluster",
+    "name": "Cedric Cluster",
+    "region": "datasedge_meadows",
+    "role": "flavor",
+    "personality": ["pompous", "silly", "kind"],
+    "description": "Cedric herds Bootstrap's sheep while wearing a grand cape woven from their shed wool. Colored cords on his crook mark the flock's many moods, and he formally introduces every lamb as if presenting nobility.",
+    "dialogue": {
+      "greeting": [
+        "Kern the Vaultborn, meet Lady Baa-trice, Baron Munch, and that distant blur who rejects all titles.",
+        "Bit! Kindly hover higher. The lambs have classified you as a very portable sun."
+      ],
+      "idle": [
+        "My flock forms three natural clusters: hungry, sleepy, and pretending not to hear me.",
+        "A lost sheep usually follows its nearest neighbor. Regrettably, that neighbor is sometimes a shrub.",
+        "I name each lamb before sunset. A flock may look like one woolly mass, but sound decisions begin with noticing individuals.",
+        "The smallest lamb leads whenever the path is unfamiliar. Confidence and height are weakly related."
+      ],
+      "farewell": [
+        "Proceed with distinction, Vaultborn. The flock will remember you collectively."
+      ]
+    }
+  }
+]

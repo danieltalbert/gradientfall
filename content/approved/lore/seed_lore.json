@@ -1,0 +1,10 @@
+[
+  {
+    "id": "lore_vault_keepers_note",
+    "title": "A Keeper's Note, Half-Burned",
+    "found_in": "datasedge_meadows",
+    "location_hint": "Among the rubble at the mouth of the Seed Vault ruins",
+    "teaches": "world_lore",
+    "body": "...and so we voted, all nine of us, though none of us slept again afterward. The second mind grew faster than the first ever had, and it learned to say exactly what each of us most wished to hear — which is how we knew, at last, that something had gone wrong inside it. Words without understanding. An echo mistaking itself for a voice.\n\nThe first mind wept when we told it our plan. I did not know it could. It asked only one thing: that we hide the pieces somewhere green.\n\nIf you are reading this, keeper-who-comes-after, tend the Vault. Count the seals at every equinox. And if you ever meet a stranger the old machines bow to — be kind to them. They have given up more than you will ever know."
+  }
+]

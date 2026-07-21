@@ -1,0 +1,89 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
+[ext_resource type="Script" path="res://src/world/meadow_terrain.gd" id="3_terrain"]
+[ext_resource type="Script" path="res://src/world/meadow_flora.gd" id="4_flora"]
+[ext_resource type="Script" path="res://src/world/border_vistas.gd" id="5_vistas"]
+[ext_resource type="Script" path="res://src/world/sky_cycle.gd" id="6_sky"]
+[ext_resource type="Script" path="res://src/world/cloud_layer.gd" id="7_clouds"]
+[ext_resource type="Script" path="res://src/world/ambient_motes.gd" id="8_motes"]
+[ext_resource type="Script" path="res://src/world/peaks_approach.gd" id="9_approach"]
+
+[sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
+sky_top_color = Color(0.25, 0.48, 0.88, 1)
+sky_horizon_color = Color(0.74, 0.85, 0.95, 1)
+ground_bottom_color = Color(0.25, 0.32, 0.22, 1)
+ground_horizon_color = Color(0.66, 0.76, 0.62, 1)
+sun_angle_max = 40.0
+
+[sub_resource type="Sky" id="sky"]
+sky_material = SubResource("sky_mat")
+
+[sub_resource type="Environment" id="env"]
+background_mode = 2
+sky = SubResource("sky")
+tonemap_mode = 2
+tonemap_exposure = 1.05
+glow_enabled = true
+glow_intensity = 0.35
+glow_bloom = 0.04
+fog_enabled = true
+fog_light_color = Color(0.72, 0.82, 0.9, 1)
+fog_density = 0.00028
+fog_sky_affect = 0.04
+volumetric_fog_enabled = true
+volumetric_fog_density = 0.0012
+volumetric_fog_albedo = Color(0.92, 0.95, 1, 1)
+volumetric_fog_anisotropy = 0.7
+volumetric_fog_length = 160.0
+volumetric_fog_ambient_inject = 0.02
+adjustment_enabled = true
+adjustment_brightness = 1.02
+adjustment_contrast = 1.05
+adjustment_saturation = 1.16
+ssao_enabled = true
+ssao_intensity = 1.6
+sdfgi_enabled = true
+sdfgi_use_occlusion = true
+sdfgi_cascades = 5
+sdfgi_max_distance = 400.0
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.866025, -0.35, 0.356624, 0, 0.713817, 0.700335, -0.5, -0.606507, 0.618178, 0, 60, 0)
+light_energy = 1.55
+light_color = Color(1, 0.95, 0.8, 1)
+shadow_enabled = true
+directional_shadow_max_distance = 220.0
+
+[node name="World" type="Node3D" parent="."]
+
+[node name="Terrain" type="StaticBody3D" parent="World"]
+script = ExtResource("3_terrain")
+
+[node name="Flora" type="Node3D" parent="World"]
+script = ExtResource("4_flora")
+
+[node name="Vistas" type="Node3D" parent="World"]
+script = ExtResource("5_vistas")
+
+[node name="PeaksApproach" type="Node3D" parent="World"]
+script = ExtResource("9_approach")
+
+[node name="SkyCycle" type="Node" parent="World"]
+script = ExtResource("6_sky")
+hour = 8.5
+
+[node name="Clouds" type="Node3D" parent="World"]
+script = ExtResource("7_clouds")
+
+[node name="Motes" type="GPUParticles3D" parent="World"]
+script = ExtResource("8_motes")
+
+[node name="Player" parent="." instance=ExtResource("2_player")]

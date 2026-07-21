@@ -1,0 +1,17 @@
+{
+  "$id": "poi.schema.json",
+  "title": "Gradientfall Point of Interest",
+  "type": "object",
+  "required": ["id", "name", "region", "kind", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^poi_[a-z0-9_]+$" },
+    "name": { "type": "string", "minLength": 3, "maxLength": 60 },
+    "region": { "type": "string", "enum": ["datasedge_meadows", "gradient_peaks", "latent_forest", "overfit_swamp", "tensor_desert", "frozen_cache", "backprop_foundry", "convolution_coast", "parameter_city", "corpus_citadel"] },
+    "kind": { "type": "string", "enum": ["mini_shrine", "collapsed_vault", "puzzle_chest", "secret_vendor", "vista", "hot_spring", "buried_cache", "hermit_camp", "mini_dungeon", "memory_shrine"] },
+    "description": { "type": "string", "minLength": 20, "maxLength": 400 },
+    "reward_items": { "type": "array", "maxItems": 4, "items": { "type": "string", "pattern": "^item_[a-z0-9_]+$" } },
+    "reward_tokens": { "type": "integer", "minimum": 0, "maximum": 10000 },
+    "bit_sense": { "type": "boolean" }
+  }
+}

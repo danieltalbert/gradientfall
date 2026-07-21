@@ -1,0 +1,20 @@
+[
+  {
+    "id": "q_first_errand",
+    "title": "The Mayor's Modest Proposal",
+    "region": "datasedge_meadows",
+    "quest_type": "side",
+    "giver_npc": "npc_mayor_maxwell",
+    "summary": "Mayor Maxwell Pool wants to welcome the Vaultborn properly — which, being the mayor, means putting them to work. Gather iris petals and honey so the innkeeper can brew a proper batch of Traveler's Tonic for the town stores.",
+    "steps": [
+      { "objective": "Gather 6 Iris Petals from the meadow west of Bootstrap", "hint": "Bit can smell the sweet ones. Follow the bees." },
+      { "objective": "Collect 3 jars of Meadow Honey from the hives by the mill", "hint": "The bees rotate hives in a strict order. Watch a full cycle before reaching in." },
+      { "objective": "Return to Mayor Maxwell Pool", "hint": "He'll be rehearsing a speech. He's always rehearsing a speech." }
+    ],
+    "rewards": {
+      "tokens": 40,
+      "items": ["item_travelers_tonic"]
+    },
+    "tone": ["silly", "heartfelt"]
+  }
+]

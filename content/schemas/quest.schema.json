@@ -1,0 +1,55 @@
+{
+  "$id": "quest.schema.json",
+  "title": "Gradientfall Quest",
+  "type": "object",
+  "required": ["id", "title", "region", "quest_type", "giver_npc", "summary", "steps", "rewards"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^q_[a-z0-9_]+$" },
+    "title": { "type": "string", "minLength": 3, "maxLength": 60 },
+    "region": { "type": "string", "enum": ["datasedge_meadows", "gradient_peaks", "latent_forest", "overfit_swamp", "tensor_desert", "frozen_cache", "backprop_foundry", "convolution_coast", "parameter_city", "corpus_citadel"] },
+    "quest_type": { "type": "string", "enum": ["main", "side", "chain", "bounty"] },
+    "giver_npc": { "type": "string", "pattern": "^npc_[a-z0-9_]+$" },
+    "summary": { "type": "string", "minLength": 20, "maxLength": 400 },
+    "steps": {
+      "type": "array", "minItems": 1, "maxItems": 12,
+      "items": {
+        "type": "object",
+        "required": ["objective"],
+        "additionalProperties": false,
+        "properties": {
+          "objective": { "type": "string", "minLength": 5, "maxLength": 160 },
+          "hint": { "type": "string", "maxLength": 200 }
+        }
+      }
+    },
+    "rewards": {
+      "type": "object",
+      "required": ["tokens"],
+      "additionalProperties": false,
+      "properties": {
+        "tokens": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "items": { "type": "array", "maxItems": 6, "items": { "type": "string", "pattern": "^item_[a-z0-9_]+$" } },
+        "hearts": { "type": "integer", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "prerequisites": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quests": { "type": "array", "items": { "type": "string", "pattern": "^q_[a-z0-9_]+$" } },
+        "memory_shrines": { "type": "integer", "minimum": 0, "maximum": 12 }
+      }
+    },
+    "chain": {
+      "type": "object",
+      "required": ["chain_id", "position"],
+      "additionalProperties": false,
+      "properties": {
+        "chain_id": { "type": "string", "pattern": "^chain_[a-z0-9_]+$" },
+        "position": { "type": "integer", "minimum": 1, "maximum": 12 }
+      }
+    },
+    "tone": { "type": "array", "maxItems": 3, "items": { "type": "string", "enum": ["silly", "serious", "eerie", "heartfelt", "mysterious", "heroic"] } }
+  }
+}

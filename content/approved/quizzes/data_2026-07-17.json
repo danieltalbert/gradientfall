@@ -1,0 +1,282 @@
+[
+  {
+    "id": "quiz_data_jo9ofu",
+    "topic": "data",
+    "difficulty": 1,
+    "question": "A bike-rental dataset uses rental count as its target. Which column is a numerical input feature?",
+    "choices": [
+      "The rental station name",
+      "Weather type such as sunny or rainy",
+      "Temperature measured in degrees Celsius",
+      "The target rental count"
+    ],
+    "answer_index": 2,
+    "explanation": "Temperature is a measured number used as input. Rental count is excluded because the question identifies it as the target to predict."
+  },
+  {
+    "id": "quiz_data_jdgkl9",
+    "topic": "data",
+    "difficulty": 1,
+    "question": "What does a missing value in a dataset usually mean?",
+    "choices": [
+      "No value was recorded for that field in that example",
+      "The value is known to be exactly zero",
+      "The value belongs to the rarest category",
+      "The entire dataset is unusable"
+    ],
+    "answer_index": 0,
+    "explanation": "A missing value means the field lacks a recorded observation. It is not automatically zero, and it does not necessarily invalidate the dataset."
+  },
+  {
+    "id": "quiz_data_kcx8f4",
+    "topic": "data",
+    "difficulty": 1,
+    "question": "Which variable is categorical rather than continuous numerical data?",
+    "choices": [
+      "A person's height in centimeters",
+      "The outdoor temperature",
+      "The time needed to finish a race",
+      "A shirt's color"
+    ],
+    "answer_index": 3,
+    "explanation": "Shirt color consists of named categories. Height, temperature, and elapsed time are quantities measured on numerical scales."
+  },
+  {
+    "id": "quiz_data_7dfhrf",
+    "topic": "data",
+    "difficulty": 1,
+    "question": "Why should measurements in one feature use consistent units across all examples?",
+    "choices": [
+      "Consistent units turn every feature into a category",
+      "They prevent measurements in meters and centimeters from being compared without conversion",
+      "They automatically fill every missing value",
+      "They guarantee that any model will be accurate"
+    ],
+    "answer_index": 1,
+    "explanation": "A shared unit gives numbers a consistent meaning. Mixing meters and centimeters without conversion makes comparable measurements appear drastically different."
+  },
+  {
+    "id": "quiz_data_3y41yy",
+    "topic": "data",
+    "difficulty": 2,
+    "question": "Why is a test set normally kept separate until model choices are finished?",
+    "choices": [
+      "To provide extra examples for fitting the model",
+      "To estimate performance on unseen data without tuning to the test examples",
+      "To replace every missing training value",
+      "To make the dataset contain more rows"
+    ],
+    "answer_index": 1,
+    "explanation": "Keeping the test set untouched provides a less biased final estimate. Repeatedly using it to choose models would tune decisions to that set."
+  },
+  {
+    "id": "quiz_data_qfu19y",
+    "topic": "data",
+    "difficulty": 2,
+    "question": "What does one-hot encoding usually create from a categorical feature such as color?",
+    "choices": [
+      "One average color value for the whole dataset",
+      "A randomly ordered list of category names",
+      "A single continuous measurement between 0 and 1",
+      "A separate binary indicator column for each represented category"
+    ],
+    "answer_index": 3,
+    "explanation": "One-hot encoding represents categories with indicator columns. For example, red, blue, and green can each receive their own 0-or-1 column."
+  },
+  {
+    "id": "quiz_data_e70z0m",
+    "topic": "data",
+    "difficulty": 2,
+    "question": "Why are numerical features often scaled before using k-nearest neighbors?",
+    "choices": [
+      "Its distance calculations can be dominated by features with larger numerical scales",
+      "Scaling converts every numerical feature into text",
+      "Scaling guarantees that the classes become balanced",
+      "Its distances can only be computed from whole numbers"
+    ],
+    "answer_index": 0,
+    "explanation": "K-nearest neighbors compares distances. Without scaling, a feature spanning a larger numerical range can outweigh another even when it is not more informative."
+  },
+  {
+    "id": "quiz_data_qbioso",
+    "topic": "data",
+    "difficulty": 2,
+    "question": "How can unintended duplicate records harm a training dataset?",
+    "choices": [
+      "They improve class balance without changing any example's weight",
+      "They add independent evidence even when the copies are identical",
+      "They can overrepresent certain examples and distort learned patterns",
+      "They affect storage size but cannot affect what a model learns"
+    ],
+    "answer_index": 2,
+    "explanation": "Repeated records give some examples extra weight. This can bias both what the model learns and how performance is estimated."
+  },
+  {
+    "id": "quiz_data_qqt1b1",
+    "topic": "data",
+    "difficulty": 3,
+    "question": "A team surveys only an app's most active users to estimate satisfaction among all users. What is the main data risk?",
+    "choices": [
+      "A large number of responses guarantees that the estimate is unbiased",
+      "Averaging the responses automatically makes the sample representative",
+      "The only concern is extra storage needed for frequent users' responses",
+      "The sample may not represent less active users"
+    ],
+    "answer_index": 3,
+    "explanation": "Sampling only highly active users creates selection bias. Their experiences may differ systematically from those of occasional or former users."
+  },
+  {
+    "id": "quiz_data_fyrkp0",
+    "topic": "data",
+    "difficulty": 3,
+    "question": "Which feature would leak future information when predicting whether an account will close today?",
+    "choices": [
+      "The account's age as of today",
+      "The number of support requests submitted before today",
+      "The number of days from today until the account actually closes",
+      "The plan type active at the prediction time"
+    ],
+    "answer_index": 2,
+    "explanation": "Days until actual closure is known only after the prediction time and directly reveals the outcome. Using it would make evaluation unrealistically easy."
+  },
+  {
+    "id": "quiz_data_vx9cjj",
+    "topic": "data",
+    "difficulty": 3,
+    "question": "What is the purpose of a stratified train-validation split for classification?",
+    "choices": [
+      "To sort examples by feature value before splitting",
+      "To keep class proportions similar across the partitions",
+      "To place all rare-class examples in validation",
+      "To remove the need for a test set"
+    ],
+    "answer_index": 1,
+    "explanation": "Stratification aims to preserve class proportions in each partition, which is especially helpful when some classes are uncommon."
+  },
+  {
+    "id": "quiz_data_zzwore",
+    "topic": "data",
+    "difficulty": 3,
+    "question": "For a model that forecasts future weekly sales, which validation split best respects time order?",
+    "choices": [
+      "Train on earlier weeks and validate on later weeks",
+      "Randomly mix all weeks, including future weeks, into both sets",
+      "Train only on the most recent week and validate on all earlier weeks",
+      "Copy the same weeks into both training and validation"
+    ],
+    "answer_index": 0,
+    "explanation": "A forecasting evaluation should mimic deployment: learn from the past and predict a later period. Random mixing can expose the model to future information."
+  },
+  {
+    "id": "quiz_data_6htcbr",
+    "topic": "data",
+    "difficulty": 4,
+    "question": "Why must an imputation median be calculated from the training partition only?",
+    "choices": [
+      "Using validation or test values would leak information into preprocessing",
+      "A median cannot be computed when a validation set exists",
+      "Training values are guaranteed to have no outliers",
+      "The test partition must always use a different unit"
+    ],
+    "answer_index": 0,
+    "explanation": "Preprocessing parameters are part of the fitted pipeline. Computing them from held-out data leaks information and can make evaluation look better than it should."
+  },
+  {
+    "id": "quiz_data_emmofj",
+    "topic": "data",
+    "difficulty": 4,
+    "question": "A medical dataset has several visits for each patient. How should it be split to evaluate performance on new patients?",
+    "choices": [
+      "Randomly split visits so every patient appears in both partitions",
+      "Keep all visits from a given patient in the same partition",
+      "Duplicate each visit into training and validation",
+      "Discard every patient who has more than one visit"
+    ],
+    "answer_index": 1,
+    "explanation": "Grouping by patient prevents related visits from crossing partitions. Otherwise, the model may be tested on a person it effectively saw during training."
+  },
+  {
+    "id": "quiz_data_xan3yx",
+    "topic": "data",
+    "difficulty": 4,
+    "question": "Why can scaling with the median and interquartile range be useful when a feature has extreme outliers?",
+    "choices": [
+      "It removes every outlier from the dataset",
+      "It changes all labels to their median class",
+      "Those statistics are less affected by extreme values than the mean and standard deviation",
+      "It makes the feature perfectly normally distributed"
+    ],
+    "answer_index": 2,
+    "explanation": "The median and interquartile range are robust statistics. Extreme values influence them less than they influence the mean and standard deviation."
+  },
+  {
+    "id": "quiz_data_slm9iv",
+    "topic": "data",
+    "difficulty": 4,
+    "question": "A sensor documented to output values from 0 to 100 produces 9999. What is the sound first data-quality response?",
+    "choices": [
+      "Assume the documented range must be wrong",
+      "Treat 9999 as an ordinary value without checking",
+      "Delete the entire dataset immediately",
+      "Flag the range violation and investigate its source before deciding how to handle it"
+    ],
+    "answer_index": 3,
+    "explanation": "A range check reveals a likely anomaly, but its cause matters. Investigation can distinguish sensor failure, a sentinel code, unit changes, or bad documentation."
+  },
+  {
+    "id": "quiz_data_zewkk5",
+    "topic": "data",
+    "difficulty": 5,
+    "question": "What makes missing data 'missing not at random' (MNAR)?",
+    "choices": [
+      "Missingness is completely unrelated to any data values",
+      "Missingness depends only on fully observed variables",
+      "Even after using observed information, missingness depends on the unseen value itself",
+      "Every column has the same percentage of missing entries"
+    ],
+    "answer_index": 2,
+    "explanation": "Under MNAR, the chance that a value is missing still depends on that unobserved value after accounting for observed data, making simple corrections difficult."
+  },
+  {
+    "id": "quiz_data_ee6mdg",
+    "topic": "data",
+    "difficulty": 5,
+    "question": "Two tables are joined on a key that repeats in both tables. What can an unintended many-to-many join cause?",
+    "choices": [
+      "The join drops every row whose key appears more than once",
+      "The join keeps only one arbitrary match for each repeated key",
+      "The row count stays fixed while matching values are averaged",
+      "Matching row combinations multiply, over-weighting some entities"
+    ],
+    "answer_index": 3,
+    "explanation": "If a key appears multiple times on both sides, every matching pair can be produced. This row explosion may make some entities count far more than intended."
+  },
+  {
+    "id": "quiz_data_pdbzcs",
+    "topic": "data",
+    "difficulty": 5,
+    "question": "When target-encoding a high-cardinality category, which method best limits leakage into training rows?",
+    "choices": [
+      "Compute each training row's encoding out of fold, without using that row's label",
+      "Use the full dataset's labels before creating any split",
+      "Replace every category with the raw label from its first row",
+      "Calculate encodings from the final test set"
+    ],
+    "answer_index": 0,
+    "explanation": "Out-of-fold target encoding estimates category statistics without using a row's own label. Test rows should use mappings learned only from training data."
+  },
+  {
+    "id": "quiz_data_kgjfhu",
+    "topic": "data",
+    "difficulty": 5,
+    "question": "Two annotators have 90% raw agreement, but Cohen's kappa is near zero because one label dominates. What explains this?",
+    "choices": [
+      "Kappa ignores every agreement on the majority label",
+      "Much of the raw agreement is expected by chance from the imbalanced label frequencies",
+      "Kappa can only measure agreement for continuous numerical labels",
+      "The annotators must have labeled different examples"
+    ],
+    "answer_index": 1,
+    "explanation": "Cohen's kappa subtracts agreement expected from the annotators' label frequencies. With a dominant label, high raw agreement can occur largely by chance."
+  }
+]

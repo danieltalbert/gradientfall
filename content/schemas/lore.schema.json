@@ -1,0 +1,15 @@
+{
+  "$id": "lore.schema.json",
+  "title": "Gradientfall Lore Book",
+  "type": "object",
+  "required": ["id", "title", "found_in", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "id": { "type": "string", "pattern": "^lore_[a-z0-9_]+$" },
+    "title": { "type": "string", "minLength": 3, "maxLength": 80 },
+    "found_in": { "type": "string", "enum": ["datasedge_meadows", "gradient_peaks", "latent_forest", "overfit_swamp", "tensor_desert", "frozen_cache", "backprop_foundry", "convolution_coast", "parameter_city", "corpus_citadel"] },
+    "location_hint": { "type": "string", "maxLength": 160 },
+    "body": { "type": "string", "minLength": 200, "maxLength": 3000 },
+    "teaches": { "type": "string", "enum": ["ml_basics", "data", "models", "training", "evaluation", "neural_networks", "overfitting", "nlp_llms", "computer_vision", "reinforcement", "ethics_alignment", "world_lore"] }
+  }
+}
