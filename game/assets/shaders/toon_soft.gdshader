@@ -27,8 +27,12 @@ group_uniforms detail;
 // World-space value noise multiplied into albedo. Zero for props; the
 // terrain sets ~0.1 so big smooth surfaces stop reading as flat putty and
 // pick up the mottled, hand-painted ground variation BOTW fields have.
-uniform float noise_amount : hint_range(0.0, 0.3) = 0.0;
+uniform float noise_amount : hint_range(0.0, 0.5) = 0.0;
 uniform float noise_scale : hint_range(0.05, 4.0) = 0.8;
+// Earth grain: where the noise dips (crevices between clods) the ground goes
+// darker AND warmer, so bare soil under the grass reads as damp dirt with
+// grain instead of a flat tinted plane. Terrain sets ~0.6.
+uniform float earth_grain : hint_range(0.0, 1.0) = 0.0;
 
 varying vec3 v_col;
 varying vec3 v_wpos;
@@ -57,10 +61,14 @@ void vertex() {
 
 void fragment() {
 	ALBEDO = v_col * albedo_tint.rgb * albedo_boost;
-	if (noise_amount > 0.001) {
-		float n = vnoise(v_wpos.xz * noise_scale) * 0.6
-				+ vnoise(v_wpos.xz * noise_scale * 4.7) * 0.4;
+	if (noise_amount > 0.001 || earth_grain > 0.001) {
+		float n = vnoise(v_wpos.xz * noise_scale) * 0.55
+				+ vnoise(v_wpos.xz * noise_scale * 4.3) * 0.30
+				+ vnoise(v_wpos.xz * noise_scale * 13.0) * 0.15;
 		ALBEDO *= 1.0 + (n - 0.5) * 2.0 * noise_amount;
+		// Crevice darkening + warming: soil clods with damp gaps between them.
+		float crev = smoothstep(0.55, 0.12, n) * earth_grain;
+		ALBEDO = mix(ALBEDO, ALBEDO * vec3(0.72, 0.60, 0.44), crev);
 	}
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.15;

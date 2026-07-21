@@ -21,11 +21,11 @@ uniform float half_tone : hint_range(0.0, 1.0) = 0.55;
 uniform float shadow_tone : hint_range(0.0, 1.0) = 0.26;
 
 group_uniforms subsurface;
-uniform vec4 sss_color : source_color = vec4(0.86, 0.28, 0.16, 1.0);
-uniform float sss_strength : hint_range(0.0, 1.5) = 0.55;
+uniform vec4 sss_color : source_color = vec4(0.82, 0.26, 0.15, 1.0);
+uniform float sss_strength : hint_range(0.0, 1.5) = 0.40;
 // Backlight transmission (ears / nostrils): strongest where the surface is
 // thin. Thinness is authored in vertex COLOR.a (1 = thick, 0 = thin).
-uniform float transmit_strength : hint_range(0.0, 2.0) = 0.5;
+uniform float transmit_strength : hint_range(0.0, 2.0) = 0.30;
 
 group_uniforms micro;
 uniform float pore_amount : hint_range(0.0, 0.2) = 0.045;
@@ -33,12 +33,12 @@ uniform float pore_scale : hint_range(20.0, 400.0) = 150.0;
 
 group_uniforms rim;
 uniform vec4 rim_color : source_color = vec4(0.72, 0.86, 1.0, 1.0);
-uniform float rim_amount : hint_range(0.0, 1.0) = 0.30;
-uniform float rim_width : hint_range(0.0, 1.0) = 0.70;
+uniform float rim_amount : hint_range(0.0, 1.0) = 0.18;
+uniform float rim_width : hint_range(0.0, 1.0) = 0.74;
 
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.34, 0.45, 0.68, 1.0);
-uniform float fill_amount : hint_range(0.0, 0.6) = 0.09;
+uniform float fill_amount : hint_range(0.0, 0.6) = 0.05;
 
 varying vec3 v_col;
 varying float v_thick;

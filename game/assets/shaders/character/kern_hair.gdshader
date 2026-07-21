@@ -24,18 +24,18 @@ uniform float half_tone : hint_range(0.0, 1.0) = 0.52;
 uniform float shadow_tone : hint_range(0.0, 1.0) = 0.26;
 
 group_uniforms sheen;
-uniform vec4 sheen_color : source_color = vec4(1.0, 0.82, 0.55, 1.0);
-uniform float sheen_power : hint_range(8.0, 260.0) = 70.0;
-uniform float sheen_strength : hint_range(0.0, 2.0) = 0.7;
+uniform vec4 sheen_color : source_color = vec4(0.95, 0.78, 0.52, 1.0);
+uniform float sheen_power : hint_range(8.0, 260.0) = 180.0;
+uniform float sheen_strength : hint_range(0.0, 2.0) = 0.34;
 
 group_uniforms rim;
 uniform vec4 rim_color : source_color = vec4(0.72, 0.86, 1.0, 1.0);
-uniform float rim_amount : hint_range(0.0, 1.0) = 0.34;
-uniform float rim_width : hint_range(0.0, 1.0) = 0.62;
+uniform float rim_amount : hint_range(0.0, 1.0) = 0.18;
+uniform float rim_width : hint_range(0.0, 1.0) = 0.70;
 
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.34, 0.45, 0.68, 1.0);
-uniform float fill_amount : hint_range(0.0, 0.6) = 0.10;
+uniform float fill_amount : hint_range(0.0, 0.6) = 0.06;
 
 varying vec3 v_col;
 varying vec2 v_uv;
@@ -87,7 +87,7 @@ void light() {
 	float th = dot(t, h);
 	float sin_th = sqrt(max(0.0, 1.0 - th * th));
 	float sheen = pow(sin_th, sheen_power);
-	float band = smoothstep(0.55, 0.75, sheen);
+	float band = smoothstep(0.72, 0.9, sheen);
 	SPECULAR_LIGHT += sheen_color.rgb * LIGHT_COLOR * band
-			* sheen_strength * ATTENUATION * max(lit, 0.25);
+			* sheen_strength * ATTENUATION * max(lit, 0.2);
 }

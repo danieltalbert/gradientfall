@@ -54,10 +54,16 @@ rounds via `--screenshot` on Godot 4.7.1 in-session)**
   via `player_at`), steady-state FPS metric (60-frame timed window — the
   instantaneous readout reports compile spikes: 3 FPS vs a real 165).
 
+- Hero shots saved: `docs/progress/grass_photoreal_{closeup,horizon,dusk,trample}.png`.
+
 **SWEEP (other lanes' breakage fixed to keep the main line running)**
 - `volumetric_sky.gdshader` (clouds lane) shipped with an early `return` in
   `sky()` — illegal in Godot, sky compiled black. Restructured to if/else,
   intent untouched. Flagged here for the clouds lane's awareness.
+- Noted (NOT fixed — character lane's file): with Kern's Visual shown, the
+  render logs `surfaces.size() == 0` / `array_len == 0` errors — a Kern mesh
+  is being committed/queried with zero surfaces. Non-fatal (renders fine),
+  but the character lane should look at `kern_visual.gd`.
 
 **HONEST STATE**
 - Grass verified in stills only — wind motion, gust waves, and trample feel

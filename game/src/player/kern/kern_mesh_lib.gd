@@ -232,27 +232,33 @@ static func _add_cap(surface: Dictionary, ring: Ring, n: int, start: bool,
 
 ## Merge several loft surfaces (same material) into one, offsetting indices.
 ## `surfaces` is a plain Array of surface dicts (untyped for literal call sites).
+## Uses local packed arrays: appending to arrays fetched straight out of a Dict
+## mutates a copy-on-write copy, not the stored array (a classic Godot trap).
 static func merge(surfaces: Array) -> Dictionary:
-	var out: Dictionary = {
-		"verts": PackedVector3Array(), "normals": PackedVector3Array(),
-		"tangents": PackedFloat32Array(), "colors": PackedColorArray(),
-		"uvs": PackedVector2Array(), "indices": PackedInt32Array(),
-		"bones": PackedInt32Array(), "weights": PackedFloat32Array(),
-	}
+	var verts: PackedVector3Array = PackedVector3Array()
+	var normals: PackedVector3Array = PackedVector3Array()
+	var tangents: PackedFloat32Array = PackedFloat32Array()
+	var colors: PackedColorArray = PackedColorArray()
+	var uvs: PackedVector2Array = PackedVector2Array()
+	var indices: PackedInt32Array = PackedInt32Array()
+	var bones: PackedInt32Array = PackedInt32Array()
+	var weights: PackedFloat32Array = PackedFloat32Array()
 	for s in surfaces:
-		var offset: int = (out["verts"] as PackedVector3Array).size()
-		(out["verts"] as PackedVector3Array).append_array(s["verts"])
-		(out["normals"] as PackedVector3Array).append_array(s["normals"])
-		(out["tangents"] as PackedFloat32Array).append_array(s["tangents"])
-		(out["colors"] as PackedColorArray).append_array(s["colors"])
-		(out["uvs"] as PackedVector2Array).append_array(s["uvs"])
-		(out["bones"] as PackedInt32Array).append_array(s["bones"])
-		(out["weights"] as PackedFloat32Array).append_array(s["weights"])
-		var idx: PackedInt32Array = out["indices"]
+		var offset: int = verts.size()
+		verts.append_array(s["verts"])
+		normals.append_array(s["normals"])
+		tangents.append_array(s["tangents"])
+		colors.append_array(s["colors"])
+		uvs.append_array(s["uvs"])
+		bones.append_array(s["bones"])
+		weights.append_array(s["weights"])
 		for i in (s["indices"] as PackedInt32Array):
-			idx.append(i + offset)
-		out["indices"] = idx
-	return out
+			indices.append(i + offset)
+	return {
+		"verts": verts, "normals": normals, "tangents": tangents,
+		"colors": colors, "uvs": uvs, "indices": indices,
+		"bones": bones, "weights": weights,
+	}
 
 
 ## Mirror a surface across X (positions, normals, tangents) and reverse
@@ -282,7 +288,9 @@ static func mirror_x(surface: Dictionary) -> Dictionary:
 	}
 
 
-## Rigid transform of a surface in place (positions + normals + tangents).
+## Rigid transform of a surface (positions + normals + tangents). Works on
+## local copies then writes them back — indexed writes on arrays fetched from a
+## Dict fork a copy-on-write copy and never reach the stored array otherwise.
 static func transform_surface(surface: Dictionary, xf: Transform3D) -> Dictionary:
 	var verts: PackedVector3Array = surface["verts"]
 	var normals: PackedVector3Array = surface["normals"]
@@ -296,6 +304,9 @@ static func transform_surface(surface: Dictionary, xf: Transform3D) -> Dictionar
 		tangents[i * 4] = t.x
 		tangents[i * 4 + 1] = t.y
 		tangents[i * 4 + 2] = t.z
+	surface["verts"] = verts
+	surface["normals"] = normals
+	surface["tangents"] = tangents
 	return surface
 
 
