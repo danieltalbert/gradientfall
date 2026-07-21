@@ -9,6 +9,7 @@ extends Node
 ## whole meadow changes mood as time passes. Deterministic given `hour`.
 
 const DAY_LENGTH_DEFAULT: float = 300.0  # seconds for a full 24 h (look-dev)
+const VOLUMETRIC_SKY_SHADER: Shader = preload("res://assets/shaders/volumetric_sky.gdshader")
 
 ## A moment in the color script.
 class SkyKey:
@@ -38,18 +39,40 @@ class SkyKey:
 
 var _keys: Array[SkyKey] = []
 var _sun: DirectionalLight3D
+var _moon_light: DirectionalLight3D
 var _env: Environment
-var _sky_mat: ProceduralSkyMaterial
+var _vol_sky_mat: ShaderMaterial
 
 
 func _ready() -> void:
 	_sun = get_node("../../Sun") as DirectionalLight3D
+	_moon_light = get_node_or_null("../../MoonLight") as DirectionalLight3D
 	var we: WorldEnvironment = get_node("../../WorldEnvironment") as WorldEnvironment
 	if we != null:
 		_env = we.environment
-		_sky_mat = _env.sky.sky_material as ProceduralSkyMaterial
+		# Swap the placeholder gradient sky for the volumetric cloud sky at
+		# runtime, so main.tscn is left untouched (the grass/mountain sessions
+		# edit that scene too). Only the sky RENDER changes; the sun/moon/
+		# ambient/fog driven below are identical to before, so scene lighting is
+		# unchanged and the vistas still meet the same horizon colour.
+		if _env.sky != null:
+			_vol_sky_mat = ShaderMaterial.new()
+			_vol_sky_mat.shader = VOLUMETRIC_SKY_SHADER
+			_env.sky.sky_material = _vol_sky_mat
+			# Animated radiance so the new sky reflects in the water. REALTIME
+			# requires a 256 radiance map; the shader's AT_CUBEMAP_PASS branch
+			# keeps that per-frame cubemap render cheap (no cloud march).
+			_env.sky.radiance_size = Sky.RADIANCE_SIZE_256
+			_env.sky.process_mode = Sky.PROCESS_MODE_REALTIME
 	_build_keys()
 	_apply(hour)
+
+
+## The volumetric sky material. CloudLayer writes the weather-side uniforms
+## (coverage, wind, density, layer heights, detail); this node owns the
+## time-of-day atmosphere uniforms. The two write disjoint parameter sets.
+func get_sky_material() -> ShaderMaterial:
+	return _vol_sky_mat
 
 
 func set_hour(h: float) -> void:
@@ -67,20 +90,22 @@ func _process(delta: float) -> void:
 func _build_keys() -> void:
 	# hour, sky_top, sky_horizon, sun_color, sun_energy, ambient, amb_energy, fog
 	_keys = [
-		SkyKey.new(0.0, Color(0.03, 0.04, 0.12), Color(0.08, 0.09, 0.2),
-			Color(0.35, 0.4, 0.7), 0.06, Color(0.12, 0.16, 0.32), 0.32, Color(0.1, 0.12, 0.24)),
-		SkyKey.new(6.0, Color(0.28, 0.34, 0.55), Color(0.85, 0.6, 0.42),
-			Color(1.0, 0.72, 0.5), 0.9, Color(0.5, 0.5, 0.62), 0.9, Color(0.78, 0.68, 0.66)),
-		SkyKey.new(9.0, Color(0.26, 0.5, 0.86), Color(0.7, 0.83, 0.93),
-			Color(1.0, 0.95, 0.82), 1.65, Color(0.7, 0.78, 0.9), 1.0, Color(0.72, 0.82, 0.9)),
-		SkyKey.new(13.0, Color(0.22, 0.47, 0.9), Color(0.74, 0.85, 0.96),
-			Color(1.0, 0.98, 0.92), 1.8, Color(0.75, 0.82, 0.95), 1.05, Color(0.74, 0.84, 0.93)),
-		SkyKey.new(17.5, Color(0.34, 0.4, 0.66), Color(0.95, 0.62, 0.36),
-			Color(1.0, 0.66, 0.4), 1.1, Color(0.6, 0.54, 0.58), 0.9, Color(0.86, 0.66, 0.6)),
-		SkyKey.new(19.5, Color(0.15, 0.16, 0.36), Color(0.62, 0.36, 0.4),
-			Color(0.9, 0.5, 0.42), 0.4, Color(0.3, 0.3, 0.46), 0.7, Color(0.4, 0.3, 0.42)),
-		SkyKey.new(21.5, Color(0.05, 0.06, 0.16), Color(0.12, 0.12, 0.26),
-			Color(0.4, 0.45, 0.72), 0.09, Color(0.13, 0.17, 0.34), 0.36, Color(0.12, 0.14, 0.26)),
+		SkyKey.new(0.0, Color(0.022, 0.035, 0.105), Color(0.07, 0.105, 0.22),
+			Color(0.34, 0.43, 0.76), 0.055, Color(0.21, 0.24, 0.34), 0.60, Color(0.075, 0.10, 0.20)),
+		SkyKey.new(5.5, Color(0.10, 0.16, 0.36), Color(0.96, 0.39, 0.18),
+			Color(1.0, 0.56, 0.28), 0.55, Color(0.29, 0.25, 0.25), 0.42, Color(0.38, 0.25, 0.25)),
+		SkyKey.new(6.5, Color(0.12, 0.27, 0.55), Color(1.0, 0.58, 0.27),
+			Color(1.0, 0.68, 0.38), 1.15, Color(0.34, 0.34, 0.30), 0.47, Color(0.46, 0.36, 0.34)),
+		SkyKey.new(9.0, Color(0.08, 0.34, 0.72), Color(0.48, 0.68, 0.82),
+			Color(1.0, 0.84, 0.58), 1.38, Color(0.34, 0.38, 0.33), 0.48, Color(0.38, 0.48, 0.52)),
+		SkyKey.new(13.0, Color(0.055, 0.30, 0.69), Color(0.44, 0.65, 0.80),
+			Color(1.0, 0.92, 0.70), 1.48, Color(0.35, 0.39, 0.34), 0.50, Color(0.38, 0.47, 0.50)),
+		SkyKey.new(17.5, Color(0.10, 0.17, 0.40), Color(0.82, 0.30, 0.12),
+			Color(1.0, 0.48, 0.20), 1.10, Color(0.31, 0.25, 0.23), 0.42, Color(0.40, 0.24, 0.22)),
+		SkyKey.new(19.5, Color(0.055, 0.065, 0.19), Color(0.42, 0.15, 0.22),
+			Color(0.82, 0.32, 0.25), 0.24, Color(0.20, 0.18, 0.24), 0.34, Color(0.19, 0.13, 0.20)),
+		SkyKey.new(21.5, Color(0.022, 0.036, 0.11), Color(0.07, 0.105, 0.22),
+			Color(0.36, 0.45, 0.78), 0.06, Color(0.21, 0.24, 0.35), 0.58, Color(0.075, 0.105, 0.21)),
 	]
 
 
@@ -123,11 +148,42 @@ func _apply(h: float) -> void:
 		_sun.light_color = k.sun_color
 		_sun.light_energy = k.sun_energy
 		_sun.shadow_enabled = k.sun_energy > 0.2
-	if _sky_mat != null:
-		_sky_mat.sky_top_color = k.sky_top
-		_sky_mat.sky_horizon_color = k.sky_horizon
-		_sky_mat.ground_horizon_color = k.sky_horizon.darkened(0.15)
+	# BOTW-like nights remain traversable and dimensional. A separate cool
+	# directional source behaves as moonlight instead of asking a near-zero
+	# below-horizon sun to carry every shadowed material.
+	var day_amount: float = smoothstep(5.4, 7.2, h) * (1.0 - smoothstep(18.2, 20.4, h))
+	var moon_amount: float = 1.0 - day_amount
+	if _moon_light != null:
+		_moon_light.rotation = Vector3(
+			deg_to_rad(-46.0 + sin(h * 0.24) * 6.0),
+			deg_to_rad(28.0 + h * 2.2),
+			0.0
+		)
+		_moon_light.light_energy = moon_amount * 0.42
+		_moon_light.shadow_enabled = moon_amount > 0.42
+	if _vol_sky_mat != null:
+		_vol_sky_mat.set_shader_parameter("sky_top_color", k.sky_top)
+		_vol_sky_mat.set_shader_parameter("sky_horizon_color", k.sky_horizon)
+		_vol_sky_mat.set_shader_parameter("ground_color", k.ambient.darkened(0.55))
+		if _sun != null:
+			# DirectionalLight3D shines along -Z; +Z of its basis points AT the sun.
+			_vol_sky_mat.set_shader_parameter("sun_direction", _sun.global_transform.basis.z)
+			_vol_sky_mat.set_shader_parameter("sun_color", k.sun_color)
+			_vol_sky_mat.set_shader_parameter("sun_energy", k.sun_energy)
+		if _moon_light != null:
+			_vol_sky_mat.set_shader_parameter("moon_direction", _moon_light.global_transform.basis.z)
+			_vol_sky_mat.set_shader_parameter("moon_color", _moon_light.light_color)
+			_vol_sky_mat.set_shader_parameter("moon_energy", _moon_light.light_energy)
+		_vol_sky_mat.set_shader_parameter("day_amount", day_amount)
+		# Dawn/dusk thicken the horizon haze; clear noon thins it.
+		var warm: float = maxf(
+			maxf(0.0, 1.0 - absf(h - 6.25) / 2.0),
+			maxf(0.0, 1.0 - absf(h - 18.15) / 2.2)
+		)
+		_vol_sky_mat.set_shader_parameter("haze_strength", clampf(0.42 + warm * 0.34, 0.0, 1.0))
 	if _env != null:
 		_env.ambient_light_color = k.ambient
 		_env.ambient_light_energy = k.ambient_energy
+		_env.ambient_light_sky_contribution = 0.0
 		_env.fog_light_color = k.fog
+		_env.volumetric_fog_albedo = k.fog.lightened(0.08)

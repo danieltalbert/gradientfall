@@ -169,6 +169,12 @@ rushed, trimmed, or marked done at 'good enough for programmer art').
   you stare" — full photorealism is explicitly NOT the target (code-only
   assets fail hardest at it), but geometric/atmospheric richness is pushed
   to modern-AAA density.
+  - **Amendment (Danny, 2026-07-20, explicit sign-off in chat):** the target
+    moved to **full photorealism, starting with the grass** — "make grass
+    that literally looks like real life." The world catches up element by
+    element in later realism passes; a temporary stylized/real mismatch
+    (toon mountains behind photoreal grass) is accepted cost. The 2026-07-17
+    "painterly" phrasing above is superseded where the two conflict.
 - **The governing principle (Danny, 2026-07-17):** the player's *feeling* is
   the metric — it must feel as close to real life / BOTW as possible at all
   times. Raw counts don't matter; the illusion does. Spend cleverness on

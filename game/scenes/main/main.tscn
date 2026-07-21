@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/main/main.gd" id="1_main"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -8,13 +8,18 @@
 [ext_resource type="Script" path="res://src/world/sky_cycle.gd" id="6_sky"]
 [ext_resource type="Script" path="res://src/world/cloud_layer.gd" id="7_clouds"]
 [ext_resource type="Script" path="res://src/world/ambient_motes.gd" id="8_motes"]
+[ext_resource type="Script" path="res://src/world/celestial_layer.gd" id="9_celestial"]
+[ext_resource type="Script" path="res://src/world/meadow_landmarks.gd" id="10_landmarks"]
+[ext_resource type="Script" path="res://src/companion/bit.gd" id="11_bit"]
 
 [sub_resource type="ProceduralSkyMaterial" id="sky_mat"]
 sky_top_color = Color(0.25, 0.48, 0.88, 1)
 sky_horizon_color = Color(0.74, 0.85, 0.95, 1)
 ground_bottom_color = Color(0.25, 0.32, 0.22, 1)
 ground_horizon_color = Color(0.66, 0.76, 0.62, 1)
-sun_angle_max = 40.0
+sun_angle_max = 8.0
+sun_curve = 0.08
+sun_energy_multiplier = 2.2
 
 [sub_resource type="Sky" id="sky"]
 sky_material = SubResource("sky_mat")
@@ -22,31 +27,34 @@ sky_material = SubResource("sky_mat")
 [sub_resource type="Environment" id="env"]
 background_mode = 2
 sky = SubResource("sky")
+ambient_light_source = 2
+reflected_light_source = 2
 tonemap_mode = 2
-tonemap_exposure = 1.05
+tonemap_exposure = 0.88
 glow_enabled = true
-glow_intensity = 0.35
-glow_bloom = 0.04
+glow_intensity = 0.48
+glow_bloom = 0.10
 fog_enabled = true
 fog_light_color = Color(0.72, 0.82, 0.9, 1)
 fog_density = 0.00028
 fog_sky_affect = 0.04
 volumetric_fog_enabled = true
-volumetric_fog_density = 0.0012
+volumetric_fog_density = 0.00065
 volumetric_fog_albedo = Color(0.92, 0.95, 1, 1)
 volumetric_fog_anisotropy = 0.7
 volumetric_fog_length = 160.0
 volumetric_fog_ambient_inject = 0.02
 adjustment_enabled = true
-adjustment_brightness = 1.02
-adjustment_contrast = 1.05
-adjustment_saturation = 1.16
+adjustment_brightness = 1.0
+adjustment_contrast = 1.10
+adjustment_saturation = 0.98
 ssao_enabled = true
 ssao_intensity = 1.6
 sdfgi_enabled = true
 sdfgi_use_occlusion = true
 sdfgi_cascades = 5
 sdfgi_max_distance = 400.0
+sdfgi_read_sky_light = false
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
@@ -59,7 +67,15 @@ transform = Transform3D(0.866025, -0.35, 0.356624, 0, 0.713817, 0.700335, -0.5, 
 light_energy = 1.55
 light_color = Color(1, 0.95, 0.8, 1)
 shadow_enabled = true
-directional_shadow_max_distance = 220.0
+directional_shadow_max_distance = 320.0
+
+[node name="MoonLight" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-48, 28, 0)
+light_color = Color(0.48, 0.61, 0.92, 1)
+light_energy = 0.0
+shadow_enabled = false
+directional_shadow_max_distance = 260.0
+directional_shadow_fade_start = 0.82
 
 [node name="World" type="Node3D" parent="."]
 
@@ -82,4 +98,13 @@ script = ExtResource("7_clouds")
 [node name="Motes" type="GPUParticles3D" parent="World"]
 script = ExtResource("8_motes")
 
+[node name="Celestial" type="Node3D" parent="World"]
+script = ExtResource("9_celestial")
+
+[node name="Landmarks" type="Node3D" parent="World"]
+script = ExtResource("10_landmarks")
+
 [node name="Player" parent="." instance=ExtResource("2_player")]
+
+[node name="Bit" type="Node3D" parent="."]
+script = ExtResource("11_bit")

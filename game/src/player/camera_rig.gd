@@ -11,15 +11,19 @@ const MOUSE_SENSITIVITY: float = 0.003
 const STICK_SENSITIVITY: float = 2.6  # radians/second at full deflection
 const PITCH_MIN: float = -1.1
 const PITCH_MAX: float = 0.5
-const FOLLOW_HEIGHT: float = 1.5
+const FOLLOW_HEIGHT: float = 1.65
 const FOLLOW_SPEED: float = 14.0
-const FOV_BASE: float = 70.0
-const FOV_SPRINT: float = 78.0
+const FOV_BASE: float = 64.0
+const FOV_SPRINT: float = 72.0
 const FOV_LERP: float = 5.0
 const SPRINT_FOV_THRESHOLD: float = 5.5  # between walk and run top speed
+const SHAKE_DECAY: float = 1.9           # trauma units/second
+const SHAKE_MAX_POS: float = 0.28        # metres of camera kick at full trauma
+const SHAKE_MAX_ROLL: float = 0.06       # radians of roll at full trauma
 
 var _target: CharacterBody3D
-var _pitch: float = -0.25
+var _pitch: float = -0.20
+var _trauma: float = 0.0
 
 @onready var _arm: SpringArm3D = $SpringArm3D
 @onready var _camera: Camera3D = $SpringArm3D/Camera3D
@@ -27,6 +31,7 @@ var _pitch: float = -0.25
 
 func _ready() -> void:
 	_arm.rotation.x = _pitch
+	EventBus.combat_shake.connect(_on_combat_shake)
 
 
 func setup(target: CharacterBody3D) -> void:
@@ -70,6 +75,25 @@ func _process(delta: float) -> void:
 	var ground_speed: float = Vector2(_target.velocity.x, _target.velocity.z).length()
 	var fov_target: float = FOV_SPRINT if ground_speed > SPRINT_FOV_THRESHOLD else FOV_BASE
 	_camera.fov = lerpf(_camera.fov, fov_target, minf(1.0, FOV_LERP * delta))
+	_apply_shake(delta)
+
+
+func _on_combat_shake(amount: float) -> void:
+	_trauma = clampf(_trauma + amount, 0.0, 1.0)
+
+
+func _apply_shake(delta: float) -> void:
+	if _trauma <= 0.0:
+		_camera.position = Vector3.ZERO
+		_camera.rotation.z = 0.0
+		return
+	_trauma = maxf(0.0, _trauma - SHAKE_DECAY * delta)
+	var s: float = _trauma * _trauma  # perceptually nicer falloff
+	_camera.position = Vector3(
+		randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s,
+		randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s,
+		0.0)
+	_camera.rotation.z = randf_range(-1.0, 1.0) * SHAKE_MAX_ROLL * s
 
 
 func _apply_look(yaw_delta: float, pitch_delta: float) -> void:

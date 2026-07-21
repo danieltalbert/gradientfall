@@ -26,15 +26,9 @@ func _ready() -> void:
 	process_material = pm
 
 	var quad: QuadMesh = QuadMesh.new()
-	quad.size = Vector2(0.04, 0.04)
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.95, 0.72, 0.32)
-	mat.emission_enabled = true
-	mat.emission = Color(1.0, 0.9, 0.6)
-	mat.emission_energy_multiplier = 0.6
+	quad.size = Vector2(0.075, 0.075)
+	var mat: ShaderMaterial = ShaderMaterial.new()
+	mat.shader = load("res://assets/shaders/mote.gdshader") as Shader
 	quad.material = mat
 	draw_pass_1 = quad
 

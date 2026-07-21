@@ -81,6 +81,12 @@ func get_height(x: float, z: float) -> float:
 	return h
 
 
+## True over the millpond's deep water. Bit (who fears it) and a future
+## swim system ask the terrain rather than hard-coding pond geometry.
+func is_deep_water(x: float, z: float) -> bool:
+	return Vector2(x, z).distance_to(POND_CENTER) < POND_RADIUS * 0.9
+
+
 func get_normal(x: float, z: float) -> Vector3:
 	var eps: float = 1.5
 	var dx: float = get_height(x + eps, z) - get_height(x - eps, z)
@@ -100,17 +106,20 @@ func _height_raw(x: float, z: float) -> float:
 
 
 func _vertex_color(x: float, z: float, h: float, normal: Vector3) -> Color:
-	var meadow_light: Color = Color(0.43, 0.6, 0.22)
-	var meadow_deep: Color = Color(0.31, 0.52, 0.18)
-	var dry_gold: Color = Color(0.7, 0.62, 0.33)
-	var rock: Color = Color(0.5, 0.46, 0.39)
-	var sand: Color = Color(0.76, 0.68, 0.46)
+	# Grassland ground sits UNDER a dense blade carpet now — it must read as
+	# shadowed under-canopy soil, not bright turf, or gaps between blades
+	# flash pale and the grass looks pasted on. Rock/sand stay lighter.
+	var meadow_light: Color = Color(0.20, 0.30, 0.10)
+	var meadow_deep: Color = Color(0.11, 0.19, 0.06)
+	var dry_gold: Color = Color(0.38, 0.31, 0.13)
+	var rock: Color = Color(0.42, 0.41, 0.34)
+	var sand: Color = Color(0.72, 0.62, 0.38)
 
 	var t: float = clampf(_tint.get_noise_2d(x, z) * 0.5 + 0.5, 0.0, 1.0)
 	var col: Color = meadow_deep.lerp(meadow_light, t)
 	# Sun-dried golden patches (its own noise band, meadow character).
 	var dry: float = smoothstep(0.55, 0.8, _tint.get_noise_2d(x + 900.0, z - 900.0) * 0.5 + 0.5)
-	col = col.lerp(dry_gold, dry * 0.35)
+	col = col.lerp(dry_gold, dry * 0.38)
 	# Steep ground reads as worn rock.
 	col = col.lerp(rock, smoothstep(0.82, 0.6, normal.y))
 	# Pond bed and rim read as sand.
@@ -185,11 +194,15 @@ func _build_mesh_and_collision() -> void:
 	mat.shader = load("res://assets/shaders/toon_soft.gdshader")
 	# Ground rim is subtle — hills shouldn't glow, but a faint sky-lit edge on
 	# ridgelines sells the painterly look.
-	mat.set_shader_parameter("rim_amount", 0.12)
+	mat.set_shader_parameter("albedo_boost", 1.04)
+	mat.set_shader_parameter("rim_amount", 0.08)
 	mat.set_shader_parameter("rim_width", 0.82)
-	mat.set_shader_parameter("fill_amount", 0.12)
-	mat.set_shader_parameter("noise_amount", 0.1)
-	mat.set_shader_parameter("noise_scale", 0.5)
+	mat.set_shader_parameter("fill_amount", 0.16)
+	# Shadowed ground under the blade carpet must stay deep green — a pale
+	# fill reads as gray litter through the sward.
+	mat.set_shader_parameter("shadow_fill", Color(0.22, 0.30, 0.18))
+	mat.set_shader_parameter("noise_amount", 0.08)
+	mat.set_shader_parameter("noise_scale", 0.3)
 	mesh.surface_set_material(0, mat)
 
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()
@@ -206,6 +219,8 @@ func _build_mesh_and_collision() -> void:
 func _add_pond_water() -> void:
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = Vector2(POND_RADIUS * 2.6, POND_RADIUS * 2.6)
+	plane.subdivide_width = 96
+	plane.subdivide_depth = 96
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load("res://assets/shaders/water.gdshader")
 	plane.material = mat

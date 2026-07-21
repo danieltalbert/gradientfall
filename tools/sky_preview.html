@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Gradientfall — volumetric sky preview</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden;
+    font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+  #gl { width: 100vw; height: 100vh; display: block; cursor: grab; }
+  #gl.dragging { cursor: grabbing; }
+  #panel { position: fixed; top: 12px; left: 12px; background: rgba(12,16,24,0.82);
+    color: #dce4f0; padding: 12px 14px; border-radius: 10px; width: 250px;
+    backdrop-filter: blur(6px); user-select: none; }
+  #panel h1 { font-size: 13px; margin: 0 0 2px; letter-spacing: 0.04em; }
+  #panel .sub { color: #8fa0b8; font-size: 11px; margin-bottom: 10px; }
+  #panel label { display: flex; justify-content: space-between; align-items: center;
+    margin: 7px 0 2px; font-size: 12px; color: #aab8cc; }
+  #panel input[type=range] { width: 100%; }
+  #panel .row { display: flex; gap: 5px; margin-top: 9px; flex-wrap: wrap; }
+  #panel button { flex: 1; background: #223049; color: #dce4f0; border: 0;
+    padding: 5px 4px; border-radius: 6px; cursor: pointer; font-size: 11px; }
+  #panel button:hover { background: #2e4160; }
+  #panel button.on { background: #3d5a78; }
+  #panel .foot { color: #6d7d94; font-size: 10.5px; margin-top: 10px; }
+  #fps { position: fixed; right: 12px; top: 12px; color: #8fa0b8;
+    background: rgba(12,16,24,0.7); padding: 4px 8px; border-radius: 6px; font-size: 11px; }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="panel">
+  <h1>GRADIENTFALL · VOLUMETRIC SKY</h1>
+  <div class="sub">1:1 port of volumetric_sky.gdshader + SkyCycle/CloudLayer drivers.
+  Drag to look around.</div>
+  <label><span>Hour</span><span id="hourv">8.5</span></label>
+  <input id="hour" type="range" min="0" max="24" step="0.02" value="8.5">
+  <label><span>Coverage <small>(auto if left alone)</small></span><span id="covv">auto</span></label>
+  <input id="cov" type="range" min="0" max="100" step="1" value="-1">
+  <label><span>Storminess</span><span id="stormv">auto</span></label>
+  <input id="storm" type="range" min="0" max="100" step="1" value="-1">
+  <div class="row">
+    <button data-h="6.2">Dawn</button>
+    <button data-h="10.0">Morning</button>
+    <button data-h="13.0">Noon</button>
+    <button data-h="17.8">Dusk</button>
+    <button data-h="22.0">Night</button>
+  </div>
+  <div class="row">
+    <button id="play">▶ Play day</button>
+    <button id="autow">Reset weather → auto</button>
+  </div>
+  <div class="foot">Godot adds TAA + bloom + its own filmic curve, so the in-game
+  render will be a touch softer and glowier than this.</div>
+</div>
+<div id="fps"></div>
+
+<script>
+"use strict";
+const canvas = document.getElementById("gl");
+const gl = canvas.getContext("webgl2", { antialias: false });
+
+const VS = `#version 300 es
+layout(location=0) in vec2 p;
+void main(){ gl_Position = vec4(p, 0.0, 1.0); }`;
+
+// ---------------------------------------------------------------------------
+// Fragment shader: direct port of volumetric_sky.gdshader (same names, same
+// constants). ES 3.00 forbids uniform initializers, so JS sets everything.
+// ---------------------------------------------------------------------------
+const FS = `#version 300 es
+precision highp float;
+out vec4 fragColor;
+
+uniform vec2 u_res;
+uniform float u_time;
+uniform float u_yaw;
+uniform float u_pitch;
+
+uniform vec3 sky_top_color;
+uniform vec3 sky_horizon_color;
+uniform vec3 ground_color;
+uniform vec3 sun_direction;
+uniform vec3 sun_color;
+uniform float sun_energy;
+uniform vec3 moon_direction;
+uniform vec3 moon_color;
+uniform float moon_energy;
+uniform float day_amount;
+uniform float haze_strength;
+
+uniform float cloud_coverage;
+uniform float cloud_density;
+uniform float cloud_base;
+uniform float cloud_top;
+uniform vec2 wind_dir;
+uniform float wind_speed;
+uniform float detail_strength;
+uniform float shape_scale;
+uniform float cirrus_amount;
+uniform float storminess;
+
+// Step counts are uniforms ON PURPOSE: with constant bounds, ANGLE's D3D
+// backend fully unrolls the nested march loops and the FXC compile hangs the
+// GPU process for minutes. Uniform bounds force real loops. (Godot's Vulkan
+// compiler doesn't need this — the .gdshader keeps proper consts.)
+uniform int u_psteps;
+uniform int u_lsteps;
+const float PLANET_RADIUS = 4.0e6;
+const float MAX_MARCH = 62000.0;
+const float LIGHT_MARCH_LEN = 640.0;
+#define TIME u_time
+
+float hash13(vec3 p) {
+  p = fract(p * 0.1031);
+  p += dot(p, p.yzx + 33.33);
+  return fract((p.x + p.y) * p.z);
+}
+float value_noise(vec3 p) {
+  vec3 cell = floor(p);
+  vec3 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float n000 = hash13(cell);
+  float n100 = hash13(cell + vec3(1.0, 0.0, 0.0));
+  float n010 = hash13(cell + vec3(0.0, 1.0, 0.0));
+  float n110 = hash13(cell + vec3(1.0, 1.0, 0.0));
+  float n001 = hash13(cell + vec3(0.0, 0.0, 1.0));
+  float n101 = hash13(cell + vec3(1.0, 0.0, 1.0));
+  float n011 = hash13(cell + vec3(0.0, 1.0, 1.0));
+  float n111 = hash13(cell + vec3(1.0, 1.0, 1.0));
+  float near_z = mix(mix(n000, n100, f.x), mix(n010, n110, f.x), f.y);
+  float far_z = mix(mix(n001, n101, f.x), mix(n011, n111, f.x), f.y);
+  return mix(near_z, far_z, f.z);
+}
+float fbm(vec3 p, int octaves) {
+  float total = 0.0; float amplitude = 0.5; float weight = 0.0;
+  for (int i = 0; i < octaves; i++) {
+    total += value_noise(p) * amplitude;
+    weight += amplitude;
+    p = p * 2.02 + vec3(11.7, 5.2, 19.3);
+    amplitude *= 0.5;
+  }
+  return total / max(weight, 0.0001);
+}
+float ridged_fbm(vec3 p, int octaves) {
+  float total = 0.0; float amplitude = 0.5; float weight = 0.0;
+  for (int i = 0; i < octaves; i++) {
+    float n = 1.0 - abs(value_noise(p) * 2.0 - 1.0);
+    n *= n;
+    total += n * amplitude;
+    weight += amplitude;
+    p = p * 2.13 + vec3(3.1, 17.9, 7.4);
+    amplitude *= 0.5;
+  }
+  return total / max(weight, 0.0001);
+}
+float remap(float v, float a, float b, float c, float d) {
+  return c + (clamp(v, min(a, b), max(a, b)) - a) * (d - c) / (b - a + 0.00001);
+}
+float henyey_greenstein(float cos_theta, float g) {
+  float g2 = g * g;
+  return (1.0 - g2) / (4.0 * 3.14159265 * pow(1.0 + g2 - 2.0 * g * cos_theta, 1.5));
+}
+vec2 shell_hits(float eye_h, vec3 dir, float alt) {
+  float b = (PLANET_RADIUS + eye_h) * dir.y;
+  float c = (eye_h - alt) * (2.0 * PLANET_RADIUS + eye_h + alt);
+  float disc = b * b - c;
+  if (disc < 0.0) { return vec2(1.0, -1.0); }
+  disc = sqrt(disc);
+  return vec2(-b - disc, -b + disc);
+}
+float height_profile(float h, float type) {
+  float bottom = smoothstep(0.0, 0.11 + type * 0.05, h);
+  float top = 1.0 - smoothstep(0.55 - type * 0.12, 1.0, h);
+  float belly = 1.0 - abs(h - 0.42) * 0.7;
+  return clamp(bottom * top * belly, 0.0, 1.0);
+}
+float cloud_density_at(vec3 world_pos, float height_frac, bool detail) {
+  vec3 wind = vec3(wind_dir.x, 0.0, wind_dir.y) * wind_speed * TIME;
+  vec3 p = (world_pos + wind) * (0.00035 * shape_scale);
+  vec3 boil = vec3(0.0, TIME * 0.006, 0.0);
+  vec3 sp = p + boil;
+  float shape;
+  if (detail) {
+    vec3 warp = vec3(
+      fbm(p * 0.6 + boil, 3),
+      fbm(p * 0.6 + boil + vec3(31.0, 0.0, 11.0), 3),
+      fbm(p * 0.6 + boil + vec3(0.0, 47.0, 23.0), 3)
+    ) - 0.5;
+    sp += warp * 0.85;
+    shape = mix(fbm(sp, 4), ridged_fbm(sp * 1.9, 3), 0.42);
+  } else {
+    shape = fbm(sp, 3);
+  }
+  float region = fbm(world_pos * 0.00006 + vec3(0.0, 0.0, TIME * 0.0004), 3);
+  float local_cover = clamp(cloud_coverage * remap(region, 0.25, 0.85, 0.35, 1.35), 0.0, 1.0);
+  float type = clamp(0.35 + storminess * 0.5 + (region - 0.5) * 0.4, 0.0, 1.0);
+  float profile = height_profile(height_frac, type);
+  float base = remap(shape * profile, 1.0 - local_cover, 1.0, 0.0, 1.0);
+  base *= profile;
+  if (!detail) { return clamp(base, 0.0, 1.0); }
+  float erosion = fbm(sp * 6.4 + wind * 0.0004 + vec3(0.0, 0.0, TIME * 0.02), 3);
+  float wispy = fbm(sp * 15.0, 2);
+  float carve = mix(erosion, wispy, 0.35) * detail_strength;
+  base = remap(base, carve * (1.0 - height_frac * 0.4), 1.0, 0.0, 1.0);
+  return clamp(base, 0.0, 1.0);
+}
+float light_march(vec3 pos, vec3 sun_dir, vec3 center, float shell_lo, float shell_span) {
+  float optical = 0.0;
+  float step_len = LIGHT_MARCH_LEN / float(u_lsteps);
+  for (int i = 0; i < u_lsteps; i++) {
+    vec3 sp = pos + sun_dir * (float(i) + 0.5) * step_len;
+    float hf = clamp((length(sp - center) - shell_lo) / shell_span, 0.0, 1.0);
+    optical += cloud_density_at(sp, hf, false) * step_len;
+  }
+  float beer = exp(-optical * 0.003 * cloud_density);
+  float beer2 = exp(-optical * 0.003 * cloud_density * 0.22) * 0.55;
+  return max(beer, beer2);
+}
+float cirrus_veil(vec3 dir) {
+  if (dir.y < 0.02) { return 0.0; }
+  vec3 hit = dir * (7000.0 / max(dir.y, 0.02));
+  vec2 uv = hit.xz * 0.00022 + wind_dir * TIME * 0.004;
+  float streak = fbm(vec3(uv.x * 0.6, uv.y * 3.4, 0.0), 4);
+  streak = smoothstep(0.52, 0.85, streak);
+  float fade = smoothstep(0.02, 0.35, dir.y);
+  return streak * fade * cirrus_amount;
+}
+vec3 atmosphere(vec3 dir) {
+  float up = clamp(dir.y * 0.5 + 0.5, 0.0, 1.0);
+  vec3 sky = mix(sky_horizon_color, sky_top_color, pow(up, 0.42));
+  float sd = max(dot(dir, normalize(sun_direction)), 0.0);
+  sky += sun_color * pow(sd, 6.0) * 0.20 * (0.2 + sun_energy);
+  sky += sun_color * pow(sd, 220.0) * 1.4 * sun_energy;
+  sky += sun_color * smoothstep(0.99965, 0.99992, sd) * 7.0 * max(sun_energy, 0.15);
+  float horizon = pow(1.0 - up, 5.0) * haze_strength;
+  sky = mix(sky, sky_horizon_color, clamp(horizon, 0.0, 0.85));
+  sky = mix(ground_color, sky, smoothstep(-0.05, 0.02, dir.y));
+  return sky;
+}
+vec4 march_clouds(float eye_h, vec3 dir, float jitter) {
+  if (dir.y < 0.0015) { return vec4(0.0, 0.0, 0.0, 1.0); }
+  vec3 origin = vec3(0.0, eye_h, 0.0);
+  vec3 center = vec3(0.0, -PLANET_RADIUS, 0.0);
+  float shell_lo = PLANET_RADIUS + cloud_base;
+  float shell_span = cloud_top - cloud_base;
+  vec2 inner = shell_hits(eye_h, dir, cloud_base);
+  vec2 outer = shell_hits(eye_h, dir, cloud_top);
+  float t_start = max(inner.y, 0.0);
+  float t_end = outer.y;
+  if (t_end <= t_start) { return vec4(0.0, 0.0, 0.0, 1.0); }
+  t_end = min(t_end, t_start + MAX_MARCH);
+  float seg = t_end - t_start;
+  float step_len = seg / float(u_psteps);
+  float t = t_start + step_len * jitter;
+
+  vec3 sun_dir = normalize(sun_direction);
+  float cos_theta = dot(dir, sun_dir);
+  float phase = mix(henyey_greenstein(cos_theta, 0.82),
+      henyey_greenstein(cos_theta, -0.28), 0.28);
+  phase = max(phase, 0.10);
+
+  vec3 amb_top = sky_top_color * (0.55 + 0.45 * day_amount) + sun_color * 0.05 * day_amount;
+  vec3 amb_bottom = sky_horizon_color * 0.25 * (0.4 + 0.6 * day_amount);
+  amb_bottom += moon_color * 0.06 * moon_energy;
+  vec3 sun_light = sun_color * sun_energy * 2.2;
+  vec3 moon_light = moon_color * moon_energy * 0.9;
+
+  float transmittance = 1.0;
+  vec3 scattered = vec3(0.0);
+  for (int i = 0; i < u_psteps; i++) {
+    if (transmittance < 0.02) { break; }
+    vec3 pos = origin + dir * t;
+    float hf = clamp((length(pos - center) - shell_lo) / shell_span, 0.0, 1.0);
+    float density = cloud_density_at(pos, hf, true);
+    if (density > 0.001) {
+      float d = density * cloud_density;
+      float sun_t = light_march(pos, sun_dir, center, shell_lo, shell_span);
+      float moon_t = moon_energy > 0.001
+          ? light_march(pos, normalize(moon_direction), center, shell_lo, shell_span)
+          : 0.0;
+      float powder = 1.0 - exp(-d * step_len * 0.02);
+      vec3 direct = (sun_light * sun_t + moon_light * moon_t) * phase * powder;
+      vec3 ambient = mix(amb_bottom, amb_top, hf);
+      vec3 lum = direct + ambient;
+      float sample_sigma = d * step_len * 0.0016;
+      float sample_t = exp(-sample_sigma);
+      scattered += transmittance * lum * (1.0 - sample_t);
+      transmittance *= sample_t;
+    }
+    t += step_len;
+  }
+  float horizon_fade = smoothstep(0.14, 0.015, dir.y) * haze_strength;
+  scattered = mix(scattered, sky_horizon_color * (1.0 - transmittance), horizon_fade * 0.8);
+  transmittance = mix(transmittance, 1.0, horizon_fade * 0.5);
+  return vec4(scattered, transmittance);
+}
+
+// Approximation of Godot's env: filmic tonemap @ exposure 0.88, contrast 1.10,
+// saturation 0.98 (glow omitted).
+vec3 tonemap(vec3 c) {
+  c *= 0.88;
+  c = max(vec3(0.0), c - 0.004);
+  c = (c * (6.2 * c + 0.5)) / (c * (6.2 * c + 1.7) + 0.06);   // already gamma-ish
+  vec3 gray = vec3(dot(c, vec3(0.299, 0.587, 0.114)));
+  c = mix(gray, c, 0.98);
+  c = (c - 0.5) * 1.10 + 0.5;
+  return clamp(c, 0.0, 1.0);
+}
+
+void main() {
+  vec2 uv = (gl_FragCoord.xy - u_res * 0.5) / u_res.y;
+  float cp = cos(u_pitch); float sp2 = sin(u_pitch);
+  float cy = cos(u_yaw); float sy = sin(u_yaw);
+  vec3 forward = vec3(sy * cp, sp2, -cy * cp);
+  vec3 right = vec3(cy, 0.0, sy);
+  vec3 up = cross(right, forward);
+  float focal = 1.1;  // ~70 deg vertical FOV, matches the game camera
+  vec3 dir = normalize(forward * focal + right * uv.x + up * uv.y);
+
+  float eye_h = 12.0;
+  vec3 sky = atmosphere(dir);
+  float jitter = fract(hash13(dir * 977.0));
+
+  float cirrus = cirrus_veil(dir);
+  vec3 cirrus_col = mix(sky_horizon_color, vec3(1.0), 0.6) * (0.6 + 0.6 * day_amount);
+  cirrus_col += sun_color * pow(max(dot(dir, normalize(sun_direction)), 0.0), 8.0) * 0.4 * sun_energy;
+  sky = mix(sky, cirrus_col, cirrus * 0.7);
+
+  vec4 clouds = march_clouds(eye_h, dir, jitter);
+  vec3 result = sky * clouds.a + clouds.rgb;
+
+  fragColor = vec4(tonemap(max(result, vec3(0.0))), 1.0);
+}`;
+
+// ---------------------------------------------------------------------------
+// SkyCycle port: identical key table + smoothstep sampling + sun/moon arcs.
+// ---------------------------------------------------------------------------
+const KEYS = [
+  // hour, sky_top, sky_horizon, sun_color, sun_energy, ambient, amb_energy, fog
+  [0.0,  [0.022,0.035,0.105],[0.07,0.105,0.22],[0.34,0.43,0.76],0.055,[0.21,0.24,0.34]],
+  [5.5,  [0.10,0.16,0.36],  [0.96,0.39,0.18], [1.0,0.56,0.28], 0.55, [0.29,0.25,0.25]],
+  [6.5,  [0.12,0.27,0.55],  [1.0,0.58,0.27],  [1.0,0.68,0.38], 1.15, [0.34,0.34,0.30]],
+  [9.0,  [0.08,0.34,0.72],  [0.48,0.68,0.82], [1.0,0.84,0.58], 1.38, [0.34,0.38,0.33]],
+  [13.0, [0.055,0.30,0.69], [0.44,0.65,0.80], [1.0,0.92,0.70], 1.48, [0.35,0.39,0.34]],
+  [17.5, [0.10,0.17,0.40],  [0.82,0.30,0.12], [1.0,0.48,0.20], 1.10, [0.31,0.25,0.23]],
+  [19.5, [0.055,0.065,0.19],[0.42,0.15,0.22], [0.82,0.32,0.25],0.24, [0.20,0.18,0.24]],
+  [21.5, [0.022,0.036,0.11],[0.07,0.105,0.22],[0.36,0.45,0.78],0.06, [0.21,0.24,0.35]],
+];
+const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const lerp = (a, b, t) => a + (b - a) * t;
+const lerp3 = (a, b, t) => [lerp(a[0],b[0],t), lerp(a[1],b[1],t), lerp(a[2],b[2],t)];
+const srgbToLinear = (c) => c.map(v => Math.pow(v, 2.2));
+
+function sampleKeys(h) {
+  const n = KEYS.length;
+  let a = KEYS[n-1], b = KEYS[0], base = a[0] - 24, span = 24;
+  for (let i = 0; i < n; i++) {
+    if (h < KEYS[i][0]) {
+      b = KEYS[i]; a = KEYS[(i - 1 + n) % n];
+      base = i > 0 ? a[0] : a[0] - 24; span = b[0] - base; break;
+    }
+    if (i === n - 1) { a = KEYS[i]; b = KEYS[0]; base = a[0]; span = b[0] + 24 - base; }
+  }
+  let t = Math.min(1, Math.max(0, (h - base) / Math.max(span, 0.001)));
+  t = t * t * (3 - 2 * t);
+  return {
+    skyTop: lerp3(a[1], b[1], t), skyHorizon: lerp3(a[2], b[2], t),
+    sunColor: lerp3(a[3], b[3], t), sunEnergy: lerp(a[4], b[4], t),
+    ambient: lerp3(a[5], b[5], t),
+  };
+}
+function dirFromEuler(pitchDeg, yawDeg) {
+  const rx = pitchDeg * Math.PI / 180, ry = yawDeg * Math.PI / 180;
+  // Godot basis.z for rotation (rx, ry, 0), YXZ order — points AT the light.
+  return [Math.sin(ry) * Math.cos(rx), -Math.sin(rx), Math.cos(ry) * Math.cos(rx)];
+}
+function sunState(h) {
+  const elev = Math.sin((h - 6.0) / 12.0 * Math.PI);
+  const pitch = lerp(6.0, -82.0, Math.min(1, Math.max(0, elev * 0.5 + 0.5)));
+  const yaw = lerp(70.0, -70.0, Math.min(1, Math.max(0, h / 24.0)));
+  return dirFromEuler(pitch, yaw);
+}
+function moonState(h) {
+  const pitch = -46.0 + Math.sin(h * 0.24) * 6.0;
+  const yaw = 28.0 + h * 2.2;
+  return dirFromEuler(pitch, yaw);
+}
+const dayAmount = (h) => smoothstep(5.4, 7.2, h) * (1 - smoothstep(18.2, 20.4, h));
+
+// ---------------------------------------------------------------------------
+// CloudLayer port: identical deterministic weather model.
+// ---------------------------------------------------------------------------
+const WEATHER_SEED = 20260720.0;
+function weatherNoise(x) {
+  let total = 0;
+  total += Math.sin(x * 1.000 + WEATHER_SEED * 0.101) * 0.50;
+  total += Math.sin(x * 2.130 + WEATHER_SEED * 0.317) * 0.26;
+  total += Math.sin(x * 4.410 + WEATHER_SEED * 0.523) * 0.14;
+  total += Math.sin(x * 8.870 + WEATHER_SEED * 0.771) * 0.10;
+  return Math.min(1, Math.max(0, total * 0.5 + 0.5));
+}
+function weather(h, covOv, stormOv) {
+  const front = weatherNoise(h * 0.55);
+  const gustMood = weatherNoise(h * 1.7 + 40.0);
+  const convection = smoothstep(8.5, 14.5, h) * (1 - smoothstep(17.5, 21.0, h));
+  let coverage = 0.46 + (front - 0.5) * 0.42 + convection * 0.14
+      - smoothstep(3, 6, h) * (1 - smoothstep(6, 9, h)) * 0.10;
+  coverage = Math.min(0.86, Math.max(0.16, coverage));
+  let storminess = Math.min(0.55, smoothstep(0.72, 0.95, front) * convection);
+  if (covOv >= 0) coverage = covOv;
+  if (stormOv >= 0) storminess = stormOv;
+  const windAngle = 211 * Math.PI / 180 + (weatherNoise(h * 0.31 + 9.0) - 0.5) * 1.15;
+  const windSpeed = 30.0 * (0.75 + front * 0.55 + storminess * 0.6);
+  const twilight = Math.max(
+    Math.max(0, 1 - Math.abs(h - 6.5) / 2.6), Math.max(0, 1 - Math.abs(h - 17.8) / 2.8));
+  return {
+    coverage, storminess,
+    density: 1.35 * (1 + storminess * 0.9 + (coverage - 0.46) * 0.35),
+    base: 620 - storminess * 140,
+    top: 1680 + storminess * 620 + convection * 160,
+    windDir: [Math.cos(windAngle), Math.sin(windAngle)],
+    windSpeed,
+    detail: lerp(0.68, 0.44, smoothstep(0.55, 0.85, coverage)),
+    shapeScale: lerp(1.06, 0.84, Math.max(storminess, coverage * 0.5)),
+    cirrus: Math.min(0.85, 0.18 + twilight * 0.34 + (1 - front) * 0.22 + gustMood * 0.08),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// GL setup + loop
+// ---------------------------------------------------------------------------
+function compile(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = gl.createProgram();
+gl.attachShader(prog, compile(gl.VERTEX_SHADER, VS));
+gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FS));
+gl.linkProgram(prog);
+if (!gl.getProgramParameter(prog, gl.LINK_STATUS))
+  throw new Error(gl.getProgramInfoLog(prog));
+gl.useProgram(prog);
+const quad = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 3,-1, -1,3]), gl.STATIC_DRAW);
+gl.enableVertexAttribArray(0);
+gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+const U = {};
+for (const name of ["u_res","u_time","u_yaw","u_pitch","sky_top_color","sky_horizon_color",
+  "ground_color","sun_direction","sun_color","sun_energy","moon_direction","moon_color",
+  "moon_energy","day_amount","haze_strength","cloud_coverage","cloud_density","cloud_base",
+  "cloud_top","wind_dir","wind_speed","detail_strength","shape_scale","cirrus_amount",
+  "storminess","u_psteps","u_lsteps"]) U[name] = gl.getUniformLocation(prog, name);
+gl.uniform1i(U.u_psteps, 96);
+gl.uniform1i(U.u_lsteps, 6);
+
+const RENDER_SCALE = 0.55;
+function resize() {
+  canvas.width = Math.round(innerWidth * RENDER_SCALE);
+  canvas.height = Math.round(innerHeight * RENDER_SCALE);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+}
+addEventListener("resize", resize); resize();
+
+let yaw = 0.4, pitch = 0.34, dragging = false, lastX = 0, lastY = 0;
+canvas.addEventListener("pointerdown", e => { dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.classList.add("dragging"); canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener("pointerup", () => { dragging = false; canvas.classList.remove("dragging"); });
+canvas.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  yaw += (e.clientX - lastX) * 0.0035;
+  pitch = Math.min(1.45, Math.max(-0.15, pitch + (e.clientY - lastY) * 0.0035));
+  lastX = e.clientX; lastY = e.clientY;
+});
+
+const hourEl = document.getElementById("hour"), hourV = document.getElementById("hourv");
+const covEl = document.getElementById("cov"), covV = document.getElementById("covv");
+const stormEl = document.getElementById("storm"), stormV = document.getElementById("stormv");
+let covTouched = false, stormTouched = false, playing = false;
+covEl.addEventListener("input", () => { covTouched = true; });
+stormEl.addEventListener("input", () => { stormTouched = true; });
+document.getElementById("autow").addEventListener("click", () => {
+  covTouched = stormTouched = false; covV.textContent = stormV.textContent = "auto";
+});
+document.getElementById("play").addEventListener("click", (e) => {
+  playing = !playing; e.target.textContent = playing ? "⏸ Pause" : "▶ Play day";
+});
+for (const b of document.querySelectorAll("#panel button[data-h]"))
+  b.addEventListener("click", () => { hourEl.value = b.dataset.h; });
+
+let frames = 0, fpsT = performance.now();
+const fpsEl = document.getElementById("fps");
+const start = performance.now();
+
+function frame() {
+  if (playing) {
+    hourEl.value = ((parseFloat(hourEl.value) + 24 / (120 * 60)) % 24).toFixed(3);
+  }
+  const h = parseFloat(hourEl.value);
+  hourV.textContent = h.toFixed(1);
+  const covOv = covTouched ? parseInt(covEl.value) / 100 : -1;
+  const stormOv = stormTouched ? parseInt(stormEl.value) / 100 : -1;
+  if (covTouched) covV.textContent = covEl.value + "%";
+  if (stormTouched) stormV.textContent = stormEl.value + "%";
+
+  const k = sampleKeys(h), w = weather(h, covOv, stormOv);
+  const warm = Math.max(Math.max(0, 1 - Math.abs(h - 6.25) / 2.0),
+      Math.max(0, 1 - Math.abs(h - 18.15) / 2.2));
+  const t = (performance.now() - start) / 1000;
+
+  gl.uniform2f(U.u_res, canvas.width, canvas.height);
+  gl.uniform1f(U.u_time, t);
+  gl.uniform1f(U.u_yaw, yaw);
+  gl.uniform1f(U.u_pitch, pitch);
+  gl.uniform3fv(U.sky_top_color, srgbToLinear(k.skyTop));
+  gl.uniform3fv(U.sky_horizon_color, srgbToLinear(k.skyHorizon));
+  gl.uniform3fv(U.ground_color, srgbToLinear(k.ambient.map(v => v * 0.45)));
+  gl.uniform3fv(U.sun_direction, sunState(h));
+  gl.uniform3fv(U.sun_color, srgbToLinear(k.sunColor));
+  gl.uniform1f(U.sun_energy, k.sunEnergy);
+  gl.uniform3fv(U.moon_direction, moonState(h));
+  gl.uniform3fv(U.moon_color, srgbToLinear([0.48, 0.61, 0.92]));
+  gl.uniform1f(U.moon_energy, (1 - dayAmount(h)) * 0.42);
+  gl.uniform1f(U.day_amount, dayAmount(h));
+  gl.uniform1f(U.haze_strength, Math.min(1, 0.42 + warm * 0.34));
+  gl.uniform1f(U.cloud_coverage, w.coverage);
+  gl.uniform1f(U.cloud_density, w.density);
+  gl.uniform1f(U.cloud_base, w.base);
+  gl.uniform1f(U.cloud_top, w.top);
+  gl.uniform2fv(U.wind_dir, w.windDir);
+  gl.uniform1f(U.wind_speed, w.windSpeed);
+  gl.uniform1f(U.detail_strength, w.detail);
+  gl.uniform1f(U.shape_scale, w.shapeScale);
+  gl.uniform1f(U.cirrus_amount, w.cirrus);
+  gl.uniform1f(U.storminess, w.storminess);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  frames++;
+  const now = performance.now();
+  if (now - fpsT > 800) {
+    fpsEl.textContent = Math.round(frames * 1000 / (now - fpsT)) + " fps";
+    frames = 0; fpsT = now;
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

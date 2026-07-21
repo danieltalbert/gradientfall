@@ -66,7 +66,8 @@ void fragment() {
 	SPECULAR = 0.15;
 	// Sky-colored fill added as flat emission lifts shadowed faces toward the
 	// ambient hue — the trick that makes toon shadows look painted, not dead.
-	EMISSION += shadow_fill.rgb * fill_amount * ALBEDO;
+	// A small ambient floor keeps deep meadow colors chromatic in long shadows.
+	EMISSION += shadow_fill.rgb * fill_amount * (ALBEDO * 0.78 + vec3(0.055));
 	// Fresnel rim: bright where the surface turns away from the camera.
 	float fres = 1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	float rim = smoothstep(rim_width, 1.0, fres) * rim_amount;

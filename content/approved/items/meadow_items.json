@@ -1,0 +1,167 @@
+[
+  {
+    "id": "item_sunrow_wheat",
+    "name": "Sunrow Wheat",
+    "category": "flora",
+    "rarity": "common",
+    "value": 5,
+    "description": "A bright-headed grain that leans with the meadow wind in tidy rows. Millers sort each bundle by stalk height before it reaches the stones.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_ditchmint",
+    "name": "Ditchmint",
+    "category": "flora",
+    "rarity": "common",
+    "value": 4,
+    "description": "Cool green sprigs that crowd the irrigation ditches. Sheep avoid it until tea is poured, then become extremely interested.",
+    "found_in": ["datasedge_meadows", "latent_forest"]
+  },
+  {
+    "id": "item_turnip_root",
+    "name": "Speckled Turnip",
+    "category": "flora",
+    "rarity": "common",
+    "value": 6,
+    "description": "A round meadow turnip with freckles on its purple crown. Every root is just different enough to ruin a perfectly neat basket.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_boundary_bloom",
+    "name": "Boundary Bloom",
+    "category": "flora",
+    "rarity": "rare",
+    "value": 84,
+    "description": "A rare iris whose petals sit between the meadow's familiar families. Collectors debate its place; the flower seems content to be difficult.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_millstone_grit",
+    "name": "Mill-Stone Grit",
+    "category": "material",
+    "rarity": "common",
+    "value": 7,
+    "description": "Sparkling dust swept from Bootstrap's millstones after a long day's turning. A pinch gives crafted tools a steady, trustworthy weight.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_softspun_wool",
+    "name": "Softspun Wool",
+    "category": "material",
+    "rarity": "common",
+    "value": 12,
+    "description": "Cloud-soft wool from the meadow flocks, washed in ditch water and combed into even locks. It still smells faintly of sunshine and sheep opinions.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_millpond_scale",
+    "name": "Millpond Scale",
+    "category": "material",
+    "rarity": "uncommon",
+    "value": 22,
+    "description": "A silver-green scale found along the millpond bank. Its rings record a fish's seasons so neatly that patient anglers compare them by lanternlight.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_ditchbed_clay",
+    "name": "Ditchbed Clay",
+    "category": "material",
+    "rarity": "common",
+    "value": 5,
+    "description": "Smooth blue-gray clay from the quiet bends of irrigation ditches. It holds a thumbprint so faithfully that potters use scraps for counting marks.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_honeyed_turnip_bites",
+    "name": "Honeyed Turnip Bites",
+    "category": "consumable",
+    "rarity": "common",
+    "value": 14,
+    "description": "Roasted turnip pieces glazed with meadow honey. Sweet, earthy, and much less argumentative than a raw turnip, they restore one heart.",
+    "found_in": ["datasedge_meadows"],
+    "craftable": true,
+    "recipe": [
+      { "item_id": "item_turnip_root", "qty": 2 },
+      { "item_id": "item_meadow_honey", "qty": 1 }
+    ],
+    "stats": { "hearts_restored": 1 }
+  },
+  {
+    "id": "item_ditchmint_tea",
+    "name": "Ditchmint Tea",
+    "category": "consumable",
+    "rarity": "common",
+    "value": 15,
+    "description": "A cooling cup brewed from ditchmint and a little honey. Clears trail dust from the throat and restores one and a half hearts.",
+    "found_in": ["datasedge_meadows"],
+    "craftable": true,
+    "recipe": [
+      { "item_id": "item_ditchmint", "qty": 2 },
+      { "item_id": "item_meadow_honey", "qty": 1 }
+    ],
+    "stats": { "hearts_restored": 1.5 }
+  },
+  {
+    "id": "item_sunrow_biscuit",
+    "name": "Sunrow Biscuit",
+    "category": "consumable",
+    "rarity": "uncommon",
+    "value": 18,
+    "description": "A honey-brushed wheat biscuit baked firm enough for a long walk. It crunches loudly enough to alert nearby geese and restores one heart.",
+    "found_in": ["datasedge_meadows"],
+    "craftable": true,
+    "recipe": [
+      { "item_id": "item_sunrow_wheat", "qty": 2 },
+      { "item_id": "item_meadow_honey", "qty": 1 }
+    ],
+    "stats": { "hearts_restored": 1 }
+  },
+  {
+    "id": "item_boundary_bloom_cordial",
+    "name": "Boundary Bloom Cordial",
+    "category": "consumable",
+    "rarity": "rare",
+    "value": 110,
+    "description": "A shimmering cordial made from one boundary bloom and common iris petals. Its flavor refuses every tidy description while restoring four hearts.",
+    "found_in": ["datasedge_meadows"],
+    "craftable": true,
+    "recipe": [
+      { "item_id": "item_boundary_bloom", "qty": 1 },
+      { "item_id": "item_iris_petal", "qty": 2 },
+      { "item_id": "item_meadow_honey", "qty": 2 }
+    ],
+    "stats": { "hearts_restored": 4 }
+  },
+  {
+    "id": "item_meadow_measure_cord",
+    "name": "Meadow Measure Cord",
+    "category": "tool",
+    "rarity": "uncommon",
+    "value": 27,
+    "description": "A knotted cord for comparing stalks, petals, and the occasional heroic turnip. Its weighted end keeps even windy measurements honest.",
+    "found_in": ["datasedge_meadows"],
+    "craftable": true,
+    "recipe": [
+      { "item_id": "item_softspun_wool", "qty": 2 },
+      { "item_id": "item_millstone_grit", "qty": 1 }
+    ]
+  },
+  {
+    "id": "item_boundary_stone_rubbing",
+    "name": "Boundary Stone Rubbing",
+    "category": "curio",
+    "rarity": "uncommon",
+    "value": 32,
+    "description": "A careful rubbing of the Old Boundary Stones' looping marks. Turn it sideways and the same pattern seems to choose a different path.",
+    "found_in": ["datasedge_meadows"]
+  },
+  {
+    "id": "item_whispering_well_pebble",
+    "name": "Whispering Well Pebble",
+    "category": "curio",
+    "rarity": "uncommon",
+    "value": 24,
+    "description": "A smooth pebble from beside the Whispering Well, warm only when held with others like it. Bit calls the quiet hum singing; the pebble declines to comment.",
+    "found_in": ["datasedge_meadows"]
+  }
+]
