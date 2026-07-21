@@ -31,6 +31,15 @@ average of its neighbors.
   0.1–0.9. (Region-exclusive drops get wired in during review.)
 - This is the starter region: keep it beginner-friendly.
 
+**Engine note (Combat v1 — how to make your monsters shine):** the combat
+system now gives distinct AI to three behaviors — `melee` (closes in,
+telegraphs, then lunge-strikes), `ranged` (kites at a distance and fires a
+data-bolt), and `swarm` (light, fast, charges in loose packs). `ambush`,
+`flying`, `tank`, and `caster` are still valid and will be accepted, but for
+now they play like a basic bruiser. So lean the roster toward `melee` /
+`ranged` / `swarm` (aim for a spread across all three), and use at most one or
+two of the others for flavor.
+
 **Schema — every entry must match exactly (no extra fields):**
 - `id`: `^mon_[a-z0-9_]+$`, unique
 - `name`: 2–50 chars

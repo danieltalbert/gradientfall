@@ -4,6 +4,101 @@
 
 ---
 
+## 2026-07-20 (live session, parallel lane) — Knowledge charge v1 + item batch
+
+*Ran alongside THREE other live sessions doing the photoreal grass/clouds/
+mountain passes. This session deliberately stayed out of `assets/shaders/` and
+`src/world/` — everything below is content-pipeline + combat/UI/companion lane.
+Danny picked the tracks and made the design calls in chat.*
+
+**DONE — content pipeline**
+- Reviewed and merged `content/inbox/items/batch_03.json` (15 meadow items) →
+  `content/approved/items/meadow_items.json`. Approved essentially untouched:
+  exact brief mix (4 flora / 4 materials / 4 consumables / 1 tool / 2 curios),
+  5 craftable with clean recipe cross-refs, values in-band, canon refs correct
+  (Whispering Well, Boundary Stones, millpond, Bit). Standout: **Boundary
+  Bloom** — an iris "between the meadow's familiar families" (a flower on the
+  decision boundary; ML-as-character done right). Validator PASS: **approved
+  85 entries / 0 errors** (was 70). WORLDBOOK Datasedge items tick → 20 (19✅).
+- Moved `batch_03_meadow_items.md` queue → done. Deleted the stale empty
+  `inbox/quests/batch_02.json` (the delete past runs couldn't do). Queue holds
+  4 unclaimed briefs (04 monsters, 05/06 POIs, 07 lore) — above the ≥3 bar.
+
+**DONE — roadmap milestone 7: Knowledge charge v1 (built, UNSEEN)**
+*Danny's design (chat): the focus special is a COMBINED Kern+Bit attack that
+must be CAST by answering questions — live fight, slow-mo + safe while the
+card is up, countdown pressure per question.*
+- New `src/quiz/quiz_picker.gd` (QuizPicker): shuffle-bag selection from the
+  approved bank; WORLDBOOK difficulty gate implemented verbatim (D1–2 base,
+  D3 after Shrine 3 via future `shrine_N_cleared` flags, D4 after Shrine 6,
+  D5 Citadel/endgame) — resolves to D1–2 (17 eligible questions) for the
+  whole slice and scales itself as the campaign lands.
+- New `src/ui/knowledge_prompt.gd` (KnowledgePrompt): the code-built quiz card
+  (CanvasLayer, layer 20; Controls + StyleBoxFlat, no assets). Press **Q**
+  with a part-full meter → `knowledge_channel_requested` → card opens:
+  question + 4 choices (keys 1–4 / d-pad), a **real-time countdown bar**
+  (wall-clock ticks — immune to the slow-mo), difficulty pips. Every answer
+  shows the **explanation** (the teaching beat, both right and wrong). Correct
+  feeds the meter via the existing `quiz_answered` → `add_charge` chain; fill
+  it and the strike auto-fires as the channel's climax. Wrong/timeout fizzles;
+  **accumulated focus is kept** (all-ages kindness). Q again breaks off (with
+  a 250 ms grace so the opening press can't self-cancel). Closes on
+  `player_died`.
+- `player_combat.gd`: channel state — request emit on Q at part-charge; on
+  start: swing canceled, block dropped, `set_external_invuln(true)`,
+  `Engine.time_scale = 0.15`; while channeling: move locked, guard pose (Kern
+  braces to focus), dodge/attack/block inputs owned by the card; on end:
+  restore + auto `_try_special()` when completed. Hitstop interplay handled:
+  `_end_hitstop` hands back the CHANNEL time scale, not 1.0, if a parry
+  hitstop overlaps the channel open.
+- `bit.gd` / `bit_lines.gd`: Bit joins the cast — darts in over Kern's head
+  (lerp compensates `Engine.time_scale`, so Bit visibly flies IN while the
+  world crawls) and three new in-voice pools: CHANNEL_START ("Combining
+  power! Don't overthink it. Or under-think it."), SUCCESS, FIZZLE.
+- Wired: `event_bus.gd` +3 channel signals; `input_setup.gd` +4 answer
+  actions (1–4 / d-pad); `main.gd` spawns KnowledgePrompt in
+  `_setup_combat()` (combat-only — screenshot mode stays clean).
+- Static verification (no Godot run — the visual sessions own the editor/
+  import DB right now): 32 `.gd` files lint clean (tabs, balanced brackets),
+  every EventBus emit/connect matches declared arity, all class_names
+  resolve, every input action referenced is registered. Validator PASS.
+
+**HALF-FORMED / cleanup for a live sweep**
+- `.uid`s for the new scripts were **auto-generated mid-session** — one of the
+  parallel visual sessions has the editor open and it imported them live
+  (commit them per convention). That import should also have registered the
+  new class_names; if a fresh boot still complains, one `--import` fixes it
+  (run-#2 lesson).
+- Feel numbers are first-guesses and consts up top: `QUESTION_TIME 12s`,
+  `REVEAL_TIME 6.5s`, `CHANNEL_TIME_SCALE 0.15`, `CHARGE_PER_QUIZ 0.34`
+  (= 3 correct per cast from empty; parries still shortcut it). Tune in hand.
+- COMMIT SPLIT (Danny-directed): the **content + docs lane was merged to
+  `main` by this session** via a clean worktree off origin/main (approved
+  content, brief queue/done state, DEVLOG/ROADMAP/WORLDBOOK) — this also
+  un-staled the queue on main so Codex runs claim the right briefs. The
+  **engine code stays uncommitted** in the shared working tree: milestone
+  6/7 files are one dependency chain entangled with files the three visual
+  sessions have open (`main.gd`, `main.tscn`, `meadow_terrain.gd`), so the
+  code commit rides the post-visual sweep. M6/M7 code files:
+  `src/combat/`, `src/companion/`, `src/ui/`, `src/quiz/`,
+  `src/world/meadow_landmarks.gd`, plus edits to `event_bus.gd`,
+  `input_setup.gd`, `player.gd`, `player.tscn`, `camera_rig.gd`,
+  `kern_visual.gd`, `main.gd`, `main.tscn`.
+
+**UNSEEN (GDD §10)** — the card is a visible surface no eyes have seen. A live
+session must: import, boot clean, walk to the proving ground, press Q at
+part-charge → watch the slow-mo + Bit fly in, answer under the countdown
+(right AND wrong paths), read the explanation beat, see the fizzle keep the
+meter, fill it and watch the combined strike auto-fire, and confirm Q-cancel
+and the F debug fill still work. Then the box ticks clean.
+
+**NEXT UP** — merge batch_04/05 inbox outputs when ChatGPT delivers them
+(monsters especially — they retire the proving ground). Then milestone 8:
+**Town of Bootstrap** (buildings, 6–8 NPCs from the approved cast, dialogue
+UI). The 13 approved townsfolk are waiting for it.
+
+---
+
 ## 2026-07-18 (remote session) — richness pass #5: STORY-STYLING + DENSITY
 
 *Danny's direction: the peaks looked plain and un-styled — make the landscape
@@ -141,6 +236,169 @@ one-time ~72k-vert generation — if it exceeds ~2 s in the print, drop
 **NEXT UP** — Danny judges the massif from a rendering session; remaining
 visual backlog after that: Kern's model, day-tone warmth pass, then Bit the
 fairy (ROADMAP Phase 1).
+
+---
+
+## 2026-07-18 (scheduled autonomous run #2, no Godot) — Combat v1
+
+**DONE — content pipeline**
+- Inbox empty this run (this morning's run #1 already merged `batch_02.json` →
+  meadow quests). Validator PASS both ways: **approved 70 entries / 0 err**,
+  inbox 0. Nothing to merge, reject, or move.
+- Brief queue already stocked at **5 unclaimed** (batch_03 items, 04 monsters,
+  05 pois, 06 pois_2, 07 lore) — above the ≥3 bar, and already aimed at the
+  largest Datasedge Part III gaps, so no new brief was needed this run.
+- Aligned `batch_04_meadow_monsters.md` to the engine I just built: added a
+  "Combat v1" note steering generators toward `melee`/`ranged`/`swarm` (the
+  behaviors with distinct AI now); `ambush`/`flying`/`tank`/`caster` still
+  validate but currently play as a basic bruiser. No budget ticks changed
+  (nothing merged).
+
+**DONE — roadmap milestone 6: Combat v1 (built, UNSEEN)**
+New `game/src/combat/`: `combat_layers.gd` (shared physics-layer bits),
+`health.gd` (hearts pool, half-hearts, i-frames), `damage_shards.gd` (the canon
+"dissolved into shards" burst), `projectile.gd` (ranged data-bolt), `enemy_visual.gd`
+(code-built cel-shaded bodies per behavior + hit-flash/telegraph), `enemy.gd`
+(data-driven brain), `monster_spawner.gd`, `player_combat.gd` (the sword kit).
+New `game/src/ui/combat_hud.gd`. Wired: `event_bus.gd` (+7 combat signals),
+`input_setup.gd` (+attack/block/dodge/special/debug_charge, mouse binder),
+`kern_visual.gd` (swing + guard poses, idle-anim yield), `camera_rig.gd` (trauma
+shake), `player.gd` (Health + PlayerCombat integration, `apply_hit`, come-apart/
+reform), `player.tscn` (+Health, +Combat nodes), `main.gd` (spawns HUD + spawner
+in normal play; screenshot mode stays clean).
+- **Player kit**: 3-hit light combo with a forgiving buffer + BOTW-ish
+  soft-target facing; roll-dodge with i-frames and a cooldown; hold-block that
+  chips damage head-on with a tight parry window (full negate + a sliver of
+  focus). Movement scales to 0 mid-swing, a crawl while guarding; dodge drives
+  velocity directly.
+- **Enemy AI**: one `Enemy` reads a ContentDB monster dict (or a sparring cfg)
+  and runs melee / ranged / swarm / dummy brains — aggro + leash, wander,
+  wind-up telegraph (warm glow), lunge-strike or bolt, recover, stagger on hit,
+  and death = shard dissolve + drop roll (→ `GameState.add_item`/EventBus) then
+  free (dummies reform). Ranged kites and fires `Projectile`s; swarm charges.
+- **Feel**: hit-flash, knockback, brief hitstop (`Engine.time_scale`, restored
+  on an ignore-time-scale timer), trauma-based camera shake, shard sparks on
+  every hit — GDD §10 juice.
+- **Hearts + HUD**: reusable `Health` seeded from `GameState.hearts_max`; a
+  deliberately minimal code-drawn HUD (heart row w/ half-hearts, focus sliver,
+  damage vignette + low-HP pulse). The full HUD (hearts/Tokens/minimap) is still
+  its own later milestone — this is a v0 it will absorb.
+- **Deliberate scope calls (autonomous, noted for review):**
+  1. Only the swarm Stray Glitchling is approved, so to make melee+ranged AI
+     verifiable NOW without inventing canon (that's ChatGPT's briefed job,
+     batch_04), the `MonsterSpawner` field-spawns the real Glitchling AND stands
+     up a **proving ground** of clearly non-content sparring rigs (`monster_id`
+     ""): a straw dummy, a melee construct, a ranged construct. Flag
+     `DEBUG_PROVING_GROUND` retires it once batch_04's monsters land.
+  2. The **focus / knowledge-charge special** (a shard-nova) is fully built and
+     hooked, but its SOURCE stays milestone 7's job: `PlayerCombat` exposes
+     `add_charge()` and already listens on `EventBus.quiz_answered`; a dev key
+     **F** fills the meter so the special is testable before the quiz UI exists.
+  3. **Save shape untouched** — current hearts stay session-runtime for now
+     (seeded full from `hearts_max`); persisting them + the migration lands with
+     the save/load milestone, so `SAVE_VERSION` was intentionally NOT bumped.
+- Static verification (no Godot here): tab/bracket smoke-lint clean across 28
+  `.gd` files; every `res://` reference resolves; all 7 new EventBus signals are
+  declared and their handlers' arities match; validator PASS.
+
+**HALF-FORMED / cleanup for a live session**
+- New scripts have **no `.uid`** (can't run Godot). Scenes load scripts by
+  `res://` path so they resolve; a live import must generate + commit the `.uid`s
+  (CLAUDE.md convention).
+- `content/inbox/quests/batch_02.json` still lingers as `[]` (the sandbox mount
+  blocks deletes; harmless — validator sees 0). Delete it in a live session.
+- Nothing is mid-flight; the main line runs (statically). No half-wired state.
+
+**UNSEEN (GDD §10 verification rule)** — Combat v1 is a large visible surface no
+human/editor has seen. A live session must: import the project (parse errors?),
+boot clean, then FIGHT — feel the 3-hit combo + soft-target, roll i-frames,
+block/parry, watch enemy telegraphs + shard dissolves + drops, take damage to
+the come-apart/reform, and press **F** then the special to see the nova. Only
+then does the box tick fully clean.
+
+**GIT** — this environment has **no working git** (`.git` present but empty in the
+mount); **nothing is committed**. A live session must review and commit all of the
+above as one change per the iron rules. Suggested message:
+`Gradientfall: Combat v1 — sword combo/dodge/block, enemy AI (melee/ranged/swarm), hearts + shard-death VFX, spawner + proving ground`.
+
+**NEXT UP** — Phase 1 milestone 7: **Knowledge charge v1** — the in-combat quiz
+prompt that feeds the focus meter/special already wired here (scale questions to
+campaign progress; on correct → `PlayerCombat.add_charge`). Also merge
+batch_03/04/05 when their inbox outputs land.
+
+---
+
+## 2026-07-18 (scheduled autonomous run, no Godot) — Bit the fairy + content
+
+**DONE — content pipeline**
+- Reviewed and merged `content/inbox/quests/batch_02.json` (8 quests) →
+  `content/approved/quests/meadow_quests.json`. All keepers, essentially
+  untouched: five ML-puzzle side quests (cross-validation fish tale, k-NN sheep,
+  gradient-descent irrigation, precision/recall goose bell, controlled-change
+  bee ribbons) plus the 3-part *Missing Ledger Pages* chain — which dovetails
+  beautifully with Elowen Patch's approved dialogue ("the oldest Seed Vault
+  records have missing entries") and ends on a held-out-test-set beat ("an
+  outside-only comparison… no brave improvising") at the Vault ruins. Canon,
+  tone, and cross-refs all clean; validator PASS (approved: 70 entries, 0 err).
+- Moved `batch_02_bootstrap_quests.md` queue → done.
+- Corrected WORLDBOOK Part III Datasedge ticks to the true approved counts:
+  side quests **12 (9✅)** (the prior 3✅ was stale — only 1 quest had actually
+  been approved before this merge), monsters **8 (1✅)**, POIs **24 (1✅)**.
+
+**DONE — brief queue (topped to 5 unclaimed)**
+- Wrote `batch_06_meadow_pois_2.md` (9 more meadow POIs — the region's largest
+  remaining gap: 24 target vs. ~16 after batch_05; instructs no overlap with the
+  five taken sites, fresh back-corner discoveries, west-sea/south vistas).
+- Wrote `batch_07_meadow_lore.md` (2 meadow lore books — lore had NO brief; 3
+  target, 1 approved). Both to the batch_01 self-contained standard, with a
+  spoiler guardrail so external generators don't reveal who Kern is.
+- Queue now: batch_03 (items), 04 (monsters), 05 (pois), 06 (pois), 07 (lore).
+
+**DONE — roadmap milestone 5: Bit the fairy (built, UNSEEN)**
+- New: `src/companion/bit.gd`, `bit_lines.gd`, `bit_landmark.gd`;
+  `src/world/meadow_landmarks.gd`. Wired: `main.tscn` (+`Bit`, +`World/Landmarks`),
+  `main.gd` (`_landmarks.build` + `_bit.setup`), `event_bus.gd` (+`bit_spoke`,
+  +`landmark_named`), `meadow_terrain.gd` (+`is_deep_water()`).
+- **Follow**: framerate-independent exp-smoothed hover at Kern's shoulder;
+  scout-offset to the left of travel; idle orbit + bob when he's still; snappier
+  catch-up past 4.5 m; **canon water-fear** — over the millpond Bit pulls up and
+  inward and frets ("You paddle, I'll supervise from up here").
+- **Look-at naming**: scans `BitLandmark` group; first time Kern nears one, Bit
+  faces it, darts a little toward it, and eagerly names it. 8 landmarks planted
+  at MeadowTerrain's canonical spots (Bootstrap, Old Millpond, Seed Vault ruins,
+  Whispering Well, Boundary Stones, Hivewise Apiary, + Gradient Peaks & Latent
+  Forest vistas). Remembered via `GameState.flags` (no save-format change), and
+  these anchors double as drop points for the real POI props later.
+- **Hint lines**: in-voice barks (curious/loyal/vain/water-shy per WORLDBOOK
+  Part IV; the one allowed "Hey! Listen!" is reserved for the Citadel and is NOT
+  used) — greeting, idle+hint pools, and reactions to quiz/item/region events —
+  shown on a floating billboard `Label3D` (fade in/out, one at a time; naming &
+  water preempt idle) and broadcast on `EventBus.bit_spoke` for the future
+  dialogue UI. Visual is code-only: unshaded glow core + additive halo +
+  fluttering wings + a soft omni light.
+
+**HALF-FORMED / cleanup for a live session**
+- The sandbox mount blocks file *deletes*: `content/inbox/quests/batch_02.json`
+  could not be unlinked, so it was emptied to `[]` (validator sees 0 entries —
+  harmless). Live session: delete the stray file.
+- New scripts have **no `.uid` files** (can't run Godot here). The scene loads
+  scripts by `res://` path so it will resolve, but a live import must generate
+  the `.uid`s and commit them (CLAUDE.md convention).
+
+**UNSEEN (GDD §10 verification rule)** — Bit has a visible surface and NO human/
+editor eyes have seen it. A live session must: (1) open the project so Godot
+imports + reports any parse error, (2) confirm clean boot, (3) watch Bit —
+follow feel, the water-fear at the pond, landmark naming barks, the floating
+label, night glow. Only then does its box tick fully clean.
+
+**GIT** — this environment has no working git (`.git` present but empty in the
+mount); **nothing is committed**. Danny / a live session must review and commit
+all of the above as one change per the iron rules. Suggested message:
+`Gradientfall: Bit the fairy (follow/naming/hints) + merge meadow quest batch + queue POI & lore briefs`.
+
+**NEXT UP** — Phase 1 milestone 6: **Combat v1** (sword combo/dodge/block, enemy
+AI melee+ranged, hearts, data-shard death VFX). Also merge batch_03/04/05 when
+their inbox outputs land; batch_06/07 await generation.
 
 ---
 
