@@ -414,7 +414,7 @@ written to fill the largest gaps first for whatever phase is active.
 
 | Region | NPCs | Side quests* | Monsters | Items | POIs | Lore |
 |---|---|---|---|---|---|---|
-| Datasedge Meadows | 13 ✅ | 12 (9✅) | 8 (1✅) | 20 (19✅) | 24 (1✅) | 3 (1✅) |
+| Datasedge Meadows | 13 ✅ | 12 (9✅) | 8 (1✅) | 20 (19✅) | 24 (16✅) | 3 (1✅) |
 | Latent Forest | 8 | 14 | 8 | 25 | 30 | 3 |
 | Gradient Peaks | 7 | 14 | 8 | 25 | 30 | 3 |
 | Overfit Swamp | 7 | 14 | 8 | 25 | 28 | 3 |

@@ -92,10 +92,35 @@ part-charge → watch the slow-mo + Bit fly in, answer under the countdown
 meter, fill it and watch the combined strike auto-fire, and confirm Q-cancel
 and the F debug fill still work. Then the box ticks clean.
 
-**NEXT UP** — merge batch_04/05 inbox outputs when ChatGPT delivers them
-(monsters especially — they retire the proving ground). Then milestone 8:
-**Town of Bootstrap** (buildings, 6–8 NPCs from the approved cast, dialogue
-UI). The 13 approved townsfolk are waiting for it.
+**DONE (addendum, Danny-directed) — batch_05 POIs authored in-house + repo rescue**
+- **Repo rescue:** while merging the content sync to `main`, discovered
+  commit `06cc66c` ("Turn profile into a focused engineering portfolio",
+  authored under Danny's school email at 23:11) had **deleted both project
+  trees** — all of `gradientfall/` AND `neural-quest/`, 164 files / ~15.9k
+  lines — from the profile repo. Confirmed unintentional with Danny in chat.
+  Restored both trees from the parent commit on top of the new README
+  (`06bdd4e`), then landed the content sync (`7d78244`). ⚠️ Standing risk:
+  whatever produced that commit (a profile-cleanup task?) may run again —
+  Danny is checking. If it recurs, restore the same way.
+- **batch_05 executed by Claude** (Danny reassigned it in chat; Codex got
+  batch_04 monsters the same evening): 15 Datasedge POIs authored to the
+  brief, inbox → validate (15/15) → merged into
+  `approved/pois/meadow_pois.json` (now 16 POIs). The 4 canon sites (Mill &
+  millpond, Hivewise Apiary, Boundary Stones, Seed Vault outer ruins) plus
+  11 invented — vistas honor the rule (Peaks: ascending ranks + the
+  Gradientfall's glint; Forest: too-deep green), ML strictly as behavior
+  (sluice water settling to its lowest, a hermit consulting his five
+  nearest hills, a granary that collapsed under "it worked once"), the Long
+  Fallow foreshadows the Thresher, the Goose Hoard tees up Tilly's chain,
+  and the single allowed corruption nod sits at the Vault ruins. Brief
+  moved queue → done. Validator: **approved 100 entries / 0 errors**.
+  WORLDBOOK POIs tick → 24 (16✅). Queue: batch_04 (claimed by Codex,
+  in flight), 06, 07.
+
+**NEXT UP** — review/merge Codex's batch_04 monsters when they land in the
+inbox (they retire the proving ground). Then milestone 8: **Town of
+Bootstrap** (buildings, 6–8 NPCs from the approved cast, dialogue UI). The
+13 approved townsfolk are waiting for it.
 
 ---
 
