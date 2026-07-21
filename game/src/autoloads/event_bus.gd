@@ -22,3 +22,21 @@ signal tokens_changed(new_total: int)
 
 # Knowledge charge / quizzes
 signal quiz_answered(quiz_id: String, correct: bool)
+## Combat charge meter (0..1). Combat v1 owns the meter and the special that
+## spends it; the Knowledge-charge milestone will feed it from in-combat quizzes.
+signal knowledge_charge_changed(fraction: float)
+
+# Combat
+## An enemy came apart. monster_id is "" for non-content sparring rigs.
+signal enemy_defeated(monster_id: String, position: Vector3)
+signal enemy_hit(monster_id: String, remaining_hearts: float)
+## Kern's life pool changed / he took a blow / he was downed and reformed.
+signal player_hearts_changed(current: float, max_hearts: float)
+signal player_hit(amount: float)
+signal player_reformed()
+## Screen-shake request, 0..1 trauma. CameraRig listens and decays it.
+signal combat_shake(amount: float)
+
+# Companion (Bit) & discovery
+signal bit_spoke(line: String, kind: String)
+signal landmark_named(landmark_id: String, display_name: String)

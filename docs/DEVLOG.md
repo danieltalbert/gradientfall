@@ -4,143 +4,166 @@
 
 ---
 
-## 2026-07-18 (remote session) — richness pass #5: STORY-STYLING + DENSITY
+## 2026-07-18 (scheduled autonomous run #2, no Godot) — Combat v1
 
-*Danny's direction: the peaks looked plain and un-styled — make the landscape
-say "Gradientfall," and fill it in until it feels like BOTW. This pass reads
-GDD §7 + WORLDBOOK §3 (Gradient Peaks) and paints the region's actual fiction
-into geometry, then adds the mid-ground density that was missing. Division of
-labor UNCHANGED: THIS session owns the peaks + the north approach; the other
-(grass) session must NOT touch gradient_peaks.gd, peaks_approach.gd, the
-meadow north band, or the sea.*
+**DONE — content pipeline**
+- Inbox empty this run (this morning's run #1 already merged `batch_02.json` →
+  meadow quests). Validator PASS both ways: **approved 70 entries / 0 err**,
+  inbox 0. Nothing to merge, reject, or move.
+- Brief queue already stocked at **5 unclaimed** (batch_03 items, 04 monsters,
+  05 pois, 06 pois_2, 07 lore) — above the ≥3 bar, and already aimed at the
+  largest Datasedge Part III gaps, so no new brief was needed this run.
+- Aligned `batch_04_meadow_monsters.md` to the engine I just built: added a
+  "Combat v1" note steering generators toward `melee`/`ranged`/`swarm` (the
+  behaviors with distinct AI now); `ambush`/`flying`/`tank`/`caster` still
+  validate but currently play as a basic bruiser. No budget ticks changed
+  (nothing merged).
 
-**DONE (parse/lint-clean; iterated on the Python twin, see caveat)**
+**DONE — roadmap milestone 6: Combat v1 (built, UNSEEN)**
+New `game/src/combat/`: `combat_layers.gd` (shared physics-layer bits),
+`health.gd` (hearts pool, half-hearts, i-frames), `damage_shards.gd` (the canon
+"dissolved into shards" burst), `projectile.gd` (ranged data-bolt), `enemy_visual.gd`
+(code-built cel-shaded bodies per behavior + hit-flash/telegraph), `enemy.gd`
+(data-driven brain), `monster_spawner.gd`, `player_combat.gd` (the sword kit).
+New `game/src/ui/combat_hud.gd`. Wired: `event_bus.gd` (+7 combat signals),
+`input_setup.gd` (+attack/block/dodge/special/debug_charge, mouse binder),
+`kern_visual.gd` (swing + guard poses, idle-anim yield), `camera_rig.gd` (trauma
+shake), `player.gd` (Health + PlayerCombat integration, `apply_hit`, come-apart/
+reform), `player.tscn` (+Health, +Combat nodes), `main.gd` (spawns HUD + spawner
+in normal play; screenshot mode stays clean).
+- **Player kit**: 3-hit light combo with a forgiving buffer + BOTW-ish
+  soft-target facing; roll-dodge with i-frames and a cooldown; hold-block that
+  chips damage head-on with a tight parry window (full negate + a sliver of
+  focus). Movement scales to 0 mid-swing, a crawl while guarding; dodge drives
+  velocity directly.
+- **Enemy AI**: one `Enemy` reads a ContentDB monster dict (or a sparring cfg)
+  and runs melee / ranged / swarm / dummy brains — aggro + leash, wander,
+  wind-up telegraph (warm glow), lunge-strike or bolt, recover, stagger on hit,
+  and death = shard dissolve + drop roll (→ `GameState.add_item`/EventBus) then
+  free (dummies reform). Ranged kites and fires `Projectile`s; swarm charges.
+- **Feel**: hit-flash, knockback, brief hitstop (`Engine.time_scale`, restored
+  on an ignore-time-scale timer), trauma-based camera shake, shard sparks on
+  every hit — GDD §10 juice.
+- **Hearts + HUD**: reusable `Health` seeded from `GameState.hearts_max`; a
+  deliberately minimal code-drawn HUD (heart row w/ half-hearts, focus sliver,
+  damage vignette + low-HP pulse). The full HUD (hearts/Tokens/minimap) is still
+  its own later milestone — this is a v0 it will absorb.
+- **Deliberate scope calls (autonomous, noted for review):**
+  1. Only the swarm Stray Glitchling is approved, so to make melee+ranged AI
+     verifiable NOW without inventing canon (that's ChatGPT's briefed job,
+     batch_04), the `MonsterSpawner` field-spawns the real Glitchling AND stands
+     up a **proving ground** of clearly non-content sparring rigs (`monster_id`
+     ""): a straw dummy, a melee construct, a ranged construct. Flag
+     `DEBUG_PROVING_GROUND` retires it once batch_04's monsters land.
+  2. The **focus / knowledge-charge special** (a shard-nova) is fully built and
+     hooked, but its SOURCE stays milestone 7's job: `PlayerCombat` exposes
+     `add_charge()` and already listens on `EventBus.quiz_answered`; a dev key
+     **F** fills the meter so the special is testable before the quiz UI exists.
+  3. **Save shape untouched** — current hearts stay session-runtime for now
+     (seeded full from `hearts_max`); persisting them + the migration lands with
+     the save/load milestone, so `SAVE_VERSION` was intentionally NOT bumped.
+- Static verification (no Godot here): tab/bracket smoke-lint clean across 28
+  `.gd` files; every `res://` reference resolves; all 7 new EventBus signals are
+  declared and their handlers' arities match; validator PASS.
 
-*Story styling — the region's fiction, painted into the massif
-(`gradient_peaks.gd`, `meadow_terrain.gd`):*
-- **THE GRADIENT, literal**: rock albedo now cools warm→violet-slate with
-  altitude — the region's name read bottom-to-top on every face.
-- **The skyline ascends** toward THE Summit's bearing (WORLDBOOK "stark
-  ascending drama" / the hermit's "mountains sorting themselves"); the far
-  rank's monarch is now **THE Summit** (900 m), Shrine 8's peak.
-- **The Saddle** (named site): a real, readable col carved into the main
-  crest between two shoulder summits.
-- **The Gradientfall** — the region's namesake waterfall — is generated by
-  running *literal gradient descent* on the main wall's heightfield: the
-  water follows steepest slope, pools in local minima, spills over the rim
-  (momentum). The mechanic IS the vista.
-- **Overshoot Ledge** (named site): a shelf that overshoots the face and
-  cantilevers over open air — the gradient-descent joke as a landmark.
-- **The Summit hermitage**: a warm window-light pinprick just below THE
-  Summit (the Hermit-Watcher tracks it by spyglass — so it must exist).
-- **Altitude zonation bands** (real ecology + on-theme rungs): golden
-  Datasedge-kin turf on the foothills → saffron scrub ("summit saffron") →
-  a crisp **frostline** rime band → snow. North meadow band warmed to
-  gold-sage to match.
+**HALF-FORMED / cleanup for a live session**
+- New scripts have **no `.uid`** (can't run Godot). Scenes load scripts by
+  `res://` path so they resolve; a live import must generate + commit the `.uid`s
+  (CLAUDE.md convention).
+- `content/inbox/quests/batch_02.json` still lingers as `[]` (the sandbox mount
+  blocks deletes; harmless — validator sees 0). Delete it in a live session.
+- Nothing is mid-flight; the main line runs (statically). No half-wired state.
 
-*Density — the BOTW "something is actually there" layer (NEW
-`peaks_approach.gd`, wired into `main.tscn`):*
-- **Alpine treeline**: ~900 MultiMesh conifers climbing the foothills, dense
-  at the meadow's edge, thinning to a ragged treeline, cool spruce high /
-  warm fir low. Fills the empty gap between field and rock wall.
-- **Sorted boulders**: ~120 that visibly SORT with altitude — scattered and
-  random low down, graded-large and aligned high ("the mountains are slowly
-  sorting themselves," made literal).
-- **Descent's Rest** (WORLDBOOK §3): the switchback village — terraced houses
-  with dark peaked roofs and warm-lit windows, nestled where the foothills
-  begin. The vista payoff when you look north.
+**UNSEEN (GDD §10 verification rule)** — Combat v1 is a large visible surface no
+human/editor has seen. A live session must: import the project (parse errors?),
+boot clean, then FIGHT — feel the 3-hit combo + soft-target, roll i-frames,
+block/parry, watch enemy telegraphs + shard dissolves + drops, take damage to
+the come-apart/reform, and press **F** then the special to see the nova. Only
+then does the box tick fully clean.
 
-*Tooling:*
-- `tools/proto_mountains.py` now previews the density layer (treeline,
-  boulders, village) plus a grass carpet standing in for the in-game 400k
-  field, and a projected sun + glow — so the framing shows what the player
-  sees, not a bare heightfield. Progress images:
-  `docs/progress/richness5_approach_{centered,gameangle}.png` (PROTOTYPE
-  renders — flat-shaded, no SDFGI/TAA/real grass/bark/leaf shaders/bloom;
-  the engine adds all of that on top).
+**GIT** — this environment has **no working git** (`.git` present but empty in the
+mount); **nothing is committed**. A live session must review and commit all of the
+above as one change per the iron rules. Suggested message:
+`Gradientfall: Combat v1 — sword combo/dodge/block, enemy AI (melee/ranged/swarm), hearts + shard-death VFX, spawner + proving ground`.
 
-**VERIFICATION CAVEAT — still needs one boot from a rendering session.**
-No Godot binary is reachable from this container (egress policy). Verified:
-gdparse + gdlint clean on every touched/new file; all geometry + color math
-eyes-verified through the Python twin over ~7 render rounds. First
-rendering-capable session: boot, screenshot `meadow_north_peaks`, expect a
-class-cache re-import for the new `PeaksApproach` class_name, commit the new
-`.uid`s. Watch for: MultiMesh `get_mesh_arrays()` usage in the conifer
-builder; treeline/boulders are non-colliding scenery for now (per-instance
-collision is a follow-up); tune counts if boot cost is high.
-
-**NEXT UP** — Danny judges from a rendering session. Then: Kern's model,
-a day-tone warmth pass, and per-instance tree collision; after that Bit the
-fairy (ROADMAP Phase 1). Region-styling formula now proven — reuse it when
-each new region is built (paint the fiction into the terrain, then densify).
+**NEXT UP** — Phase 1 milestone 7: **Knowledge charge v1** — the in-combat quiz
+prompt that feeds the focus meter/special already wired here (scale questions to
+campaign progress; on correct → `PlayerCombat.add_charge`). Also merge
+batch_03/04/05 when their inbox outputs land.
 
 ---
 
-## 2026-07-18 (remote session) — richness pass #4: THE GRADIENT PEAKS MASSIF
+## 2026-07-18 (scheduled autonomous run, no Godot) — Bit the fairy + content
 
-*Danny's decree this session: legendary bar, no corners — "make it feel like a
-real world that can compare to BOTW." Division of labor for parallel sessions:
-THIS session took the mountains (and the two small backlog fixes at their
-feet); the grass/trees/other-session should NOT touch mountains, meadow
-north-band colors, or the sea plane.*
+**DONE — content pipeline**
+- Reviewed and merged `content/inbox/quests/batch_02.json` (8 quests) →
+  `content/approved/quests/meadow_quests.json`. All keepers, essentially
+  untouched: five ML-puzzle side quests (cross-validation fish tale, k-NN sheep,
+  gradient-descent irrigation, precision/recall goose bell, controlled-change
+  bee ribbons) plus the 3-part *Missing Ledger Pages* chain — which dovetails
+  beautifully with Elowen Patch's approved dialogue ("the oldest Seed Vault
+  records have missing entries") and ends on a held-out-test-set beat ("an
+  outside-only comparison… no brave improvising") at the Vault ruins. Canon,
+  tone, and cross-refs all clean; validator PASS (approved: 70 entries, 0 err).
+- Moved `batch_02_bootstrap_quests.md` queue → done.
+- Corrected WORLDBOOK Part III Datasedge ticks to the true approved counts:
+  side quests **12 (9✅)** (the prior 3✅ was stale — only 1 quest had actually
+  been approved before this merge), monsters **8 (1✅)**, POIs **24 (1✅)**.
 
-**DONE (parse-verified + prototype-eyes-verified, see caveat)**
-- **`src/world/gradient_peaks.gd` (new)** — the cones are gone. The Peaks are
-  now a three-rank heightfield massif arcing around the meadow's north:
-  green foothill rank rising straight out of the Datasedge turf (with
-  conifer-pocket coloring), the main rock wall with a ten-summit authored
-  skyline (irregular spacing, one 402 m monarch), and a rank of snowbound
-  600–760 m giants behind it, sized so they genuinely peek over the main
-  wall's cols (checked the elevation angles — the old far rank was exactly
-  angle-hidden). Per rank: crest line = smooth-max of summit gaussians over
-  an undulating base ridge (one connected massif, cols not gaps), × steep
-  front / easier back depth envelope, × domain-warped ridged fBm
-  (spur/gully skeleton, low-frequency so landforms are big, ^1.55 so crests
-  are sharp without sawtooth), − couloir channels squashed down-face
-  (drainage), + talus aprons, then crest-relaxation blur so summits are
-  solid horns, never needle clusters. Colors baked per vertex: lithology
-  rock blend, warped strata bands, cavity AO (blurred-height difference —
-  carves the faces at vista distance), turf/scree/conifer on gentle low
-  ground, and snow that sheds on cliffs, packs into couloirs, dips lower in
-  them, caps summits solid, and wind-scours exposed crests. Snow mask rides
-  COLOR.a. Rank haze pre-baked (aerial perspective layering).
-- **`assets/shaders/mountain.gdshader` (new)** — toon_soft's painterly base
-  + world-space rock grain, vertical erosion striations on the steeps, snow
-  sparkle glints + tighter snow gloss (driven by COLOR.a), faint rim, and an
-  altitude-faded distance-haze assist (far rank gets a harder haze preset so
-  it melts into the sky).
-- **Lime-band fix** (`meadow_terrain.gd`): the north band now trades meadow
-  green for desaturated alpine sage from z −90, then scree at the rim —
-  altitude zonation instead of the neon stripe the grazing light ignited.
-- **Sea de-paled** (`border_vistas.gd`): deep teal, roughness 0.3, metallic
-  0.2 — the old 0.05-rough mirror was bouncing pale sky at the horizon.
-- **`tools/proto_mountains.py` (new)** — the Python twin that designed this:
-  same FastNoiseLite library (pyfastnoiselite), same constants, software
-  rasterizer; 4 iteration rounds of real rendered images (needle-spike
-  crests → horns; snow patches → caps; far rank raised until visible;
-  forest de-blobbed; band fix confirmed). `pip install pyfastnoiselite
-  numpy pillow`, then `python3 tools/proto_mountains.py <outdir>`. Iterate
-  there FIRST, look, then port constants back — it renders in ~2 s. Final
-  design renders committed as `docs/progress/richness4_proto_*.png`
-  (PROTOTYPE renders, not in-engine shots — flat-shaded, no SDFGI/grass).
+**DONE — brief queue (topped to 5 unclaimed)**
+- Wrote `batch_06_meadow_pois_2.md` (9 more meadow POIs — the region's largest
+  remaining gap: 24 target vs. ~16 after batch_05; instructs no overlap with the
+  five taken sites, fresh back-corner discoveries, west-sea/south vistas).
+- Wrote `batch_07_meadow_lore.md` (2 meadow lore books — lore had NO brief; 3
+  target, 1 approved). Both to the batch_01 self-contained standard, with a
+  spoiler guardrail so external generators don't reveal who Kern is.
+- Queue now: batch_03 (items), 04 (monsters), 05 (pois), 06 (pois), 07 (lore).
 
-**VERIFICATION CAVEAT — needs one boot from a rendering session**
-This container's egress policy blocks every Godot binary host, so no
-in-engine boot or screenshot was possible. What was verified: gdparse/gdlint
-clean on all touched GDScript (real GDScript-4 parser), geometry + color
-math eyes-verified through the Python twin's renders, shader written
-strictly within constructs the repo's existing shaders already use. First
-rendering-capable session: boot, screenshot `meadow_north_peaks`, expect a
-first-import class-cache re-import for the new `GradientPeaks` class_name
-(same as the milestone-2 parse hiccup), and commit the generated `.uid`s.
-Known intentional side effect: forest-wall/downs vista dressing reshuffles
-(peaks no longer consume `_rng` draws). Boot cost of the massif build is a
-one-time ~72k-vert generation — if it exceeds ~2 s in the print, drop
-`_box_blur` passes from 3 to 2 before judging.
+**DONE — roadmap milestone 5: Bit the fairy (built, UNSEEN)**
+- New: `src/companion/bit.gd`, `bit_lines.gd`, `bit_landmark.gd`;
+  `src/world/meadow_landmarks.gd`. Wired: `main.tscn` (+`Bit`, +`World/Landmarks`),
+  `main.gd` (`_landmarks.build` + `_bit.setup`), `event_bus.gd` (+`bit_spoke`,
+  +`landmark_named`), `meadow_terrain.gd` (+`is_deep_water()`).
+- **Follow**: framerate-independent exp-smoothed hover at Kern's shoulder;
+  scout-offset to the left of travel; idle orbit + bob when he's still; snappier
+  catch-up past 4.5 m; **canon water-fear** — over the millpond Bit pulls up and
+  inward and frets ("You paddle, I'll supervise from up here").
+- **Look-at naming**: scans `BitLandmark` group; first time Kern nears one, Bit
+  faces it, darts a little toward it, and eagerly names it. 8 landmarks planted
+  at MeadowTerrain's canonical spots (Bootstrap, Old Millpond, Seed Vault ruins,
+  Whispering Well, Boundary Stones, Hivewise Apiary, + Gradient Peaks & Latent
+  Forest vistas). Remembered via `GameState.flags` (no save-format change), and
+  these anchors double as drop points for the real POI props later.
+- **Hint lines**: in-voice barks (curious/loyal/vain/water-shy per WORLDBOOK
+  Part IV; the one allowed "Hey! Listen!" is reserved for the Citadel and is NOT
+  used) — greeting, idle+hint pools, and reactions to quiz/item/region events —
+  shown on a floating billboard `Label3D` (fade in/out, one at a time; naming &
+  water preempt idle) and broadcast on `EventBus.bit_spoke` for the future
+  dialogue UI. Visual is code-only: unshaded glow core + additive halo +
+  fluttering wings + a soft omni light.
 
-**NEXT UP** — Danny judges the massif from a rendering session; remaining
-visual backlog after that: Kern's model, day-tone warmth pass, then Bit the
-fairy (ROADMAP Phase 1).
+**HALF-FORMED / cleanup for a live session**
+- The sandbox mount blocks file *deletes*: `content/inbox/quests/batch_02.json`
+  could not be unlinked, so it was emptied to `[]` (validator sees 0 entries —
+  harmless). Live session: delete the stray file.
+- New scripts have **no `.uid` files** (can't run Godot here). The scene loads
+  scripts by `res://` path so it will resolve, but a live import must generate
+  the `.uid`s and commit them (CLAUDE.md convention).
+
+**UNSEEN (GDD §10 verification rule)** — Bit has a visible surface and NO human/
+editor eyes have seen it. A live session must: (1) open the project so Godot
+imports + reports any parse error, (2) confirm clean boot, (3) watch Bit —
+follow feel, the water-fear at the pond, landmark naming barks, the floating
+label, night glow. Only then does its box tick fully clean.
+
+**GIT** — this environment has no working git (`.git` present but empty in the
+mount); **nothing is committed**. Danny / a live session must review and commit
+all of the above as one change per the iron rules. Suggested message:
+`Gradientfall: Bit the fairy (follow/naming/hints) + merge meadow quest batch + queue POI & lore briefs`.
+
+**NEXT UP** — Phase 1 milestone 6: **Combat v1** (sword combo/dodge/block, enemy
+AI melee+ranged, hearts, data-shard death VFX). Also merge batch_03/04/05 when
+their inbox outputs land; batch_06/07 await generation.
 
 ---
 

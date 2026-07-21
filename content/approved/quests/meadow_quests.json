@@ -1,0 +1,276 @@
+[
+  {
+    "id": "q_four_banks_one_fish_tale",
+    "title": "Four Banks, One Fish Tale",
+    "region": "datasedge_meadows",
+    "quest_type": "side",
+    "giver_npc": "npc_fen_reedwhistle",
+    "summary": "Fen claims the millpond carp favor whichever bank he is not sitting on. He needs Kern to watch equal stretches of shore before moving the tiny chair reserved for his most persuasive fish.",
+    "steps": [
+      {
+        "objective": "Watch for fish rings at four marked stretches around the millpond for twenty counts each",
+        "hint": "Same amount of watching at every spot, or Fen will blame the chair."
+      },
+      {
+        "objective": "Cast Fen's reed lure once from each marked stretch and note where the fish answer",
+        "hint": "One enormous splash is exciting. Four ordinary splashes may tell you more."
+      },
+      {
+        "objective": "Return to Fen and compare all four stretches before choosing the liveliest bank",
+        "hint": "Bit votes for the bank with the fewest opinions about golden lights."
+      }
+    ],
+    "rewards": {
+      "tokens": 32,
+      "items": [
+        "item_iris_petal"
+      ]
+    },
+    "tone": [
+      "silly"
+    ]
+  },
+  {
+    "id": "q_ribbons_in_the_wrong_rows",
+    "title": "Ribbons in the Wrong Rows",
+    "region": "datasedge_meadows",
+    "quest_type": "side",
+    "giver_npc": "npc_tansy_hivewise",
+    "summary": "A gust scrambled Tansy's route ribbons at the hives. Rather than trust the loudest bees, she asks Kern to watch every row, sort the ribbons by flight path, and change them one at a time.",
+    "steps": [
+      {
+        "objective": "Watch one full bee flight cycle at each of the three hive rows",
+        "hint": "Sunny, shady, and judgmental bees all deserve an equal look."
+      },
+      {
+        "objective": "Match each loose route ribbon to the row whose bees follow its flower path",
+        "hint": "Follow where they return from, not merely where the busiest cloud begins."
+      },
+      {
+        "objective": "Tie one ribbon in place, wait for the bees to follow it, then secure the other two",
+        "hint": "Test one change first. Ten thousand sisters can make ten thousand corrections."
+      }
+    ],
+    "rewards": {
+      "tokens": 38,
+      "items": [
+        "item_meadow_honey"
+      ]
+    },
+    "tone": [
+      "silly",
+      "heartfelt"
+    ]
+  },
+  {
+    "id": "q_the_gate_that_cried_goose",
+    "title": "The Gate That Cried Goose",
+    "region": "datasedge_meadows",
+    "quest_type": "side",
+    "giver_npc": "npc_rowan_threshold",
+    "summary": "The eastern gate bell keeps sounding for harmless traffic. Rowan wants fewer false alarms without ignoring real trouble, so Kern must test sheep, cart, and goose crossings separately.",
+    "steps": [
+      {
+        "objective": "Inspect the bell cord and mark three clear crossing lines at Bootstrap's eastern gate",
+        "hint": "A tidy test begins with tidy chalk. Rowan has very strong feelings about both."
+      },
+      {
+        "objective": "Observe one sheep crossing, one handcart crossing, and one goose crossing separately",
+        "hint": "Change only the traveler. If everything moves at once, every suspect gets an alibi."
+      },
+      {
+        "objective": "Adjust the loose lower cord loop disturbed by the goose crossing, then repeat all three crossings",
+        "hint": "Quiet for geese is good. Quiet for every visitor would be a rather poor alarm."
+      },
+      {
+        "objective": "Report the before-and-after results to Rowan Threshold",
+        "hint": "Describe what happened precisely. Leave out the goose's opinion of the badge."
+      }
+    ],
+    "rewards": {
+      "tokens": 44,
+      "items": [
+        "item_travelers_tonic"
+      ]
+    },
+    "tone": [
+      "silly",
+      "serious"
+    ]
+  },
+  {
+    "id": "q_sir_nearest_counts_sheep",
+    "title": "Sir Nearest Counts Sheep",
+    "region": "datasedge_meadows",
+    "quest_type": "side",
+    "giver_npc": "npc_tilly_tangle",
+    "summary": "Six sheep have wandered between the pasture flocks, and Tilly's broomstick insists the closest flock is always correct. Kern must use more than distance before Sir Nearest earns a shepherd's hat.",
+    "steps": [
+      {
+        "objective": "Meet Tilly and Sir Nearest beside the six wandering sheep in the pastures",
+        "hint": "The broomstick is the one already wearing a grass whistle."
+      },
+      {
+        "objective": "Check each sheep's ear-ribbon shape, bell tone, and wool curl",
+        "hint": "One clue can fool you. Two agreeing clues are much less woolly."
+      },
+      {
+        "objective": "Guide each wandering sheep to the flock sharing at least two of its three signs",
+        "hint": "The nearest flock is a good first guess, not a royal command from a broomstick."
+      },
+      {
+        "objective": "Watch the flocks settle, correct any mismatch, and report to Tilly",
+        "hint": "A calm flock is useful evidence. So is one sheep immediately leaving."
+      }
+    ],
+    "rewards": {
+      "tokens": 36,
+      "items": [
+        "item_meadow_honey"
+      ]
+    },
+    "tone": [
+      "silly",
+      "heartfelt"
+    ]
+  },
+  {
+    "id": "q_the_blue_marble_standard",
+    "title": "The Blue Marble Standard",
+    "region": "datasedge_meadows",
+    "quest_type": "side",
+    "giver_npc": "npc_jory_slope",
+    "summary": "One irrigation branch reaches the sheep pastures late, but Jory refuses to dig on a hunch. Time his blue marble through every ditch, make one small correction, and test the water again.",
+    "steps": [
+      {
+        "objective": "Walk the three irrigation branches to the sheep pastures without clearing anything yet",
+        "hint": "First see the ditches as they are. Mud dislikes witnesses but cannot stop them."
+      },
+      {
+        "objective": "Release Jory's blue marble at each branch and count until it reaches the pasture marker",
+        "hint": "Start from the same stone each time, unless you enjoy arguments with a ditch keeper."
+      },
+      {
+        "objective": "Remove the smallest root-and-stone blockage from the slowest branch",
+        "hint": "One careful change beats one heroic trench. Jory may have mentioned this."
+      },
+      {
+        "objective": "Repeat all three marble runs and confirm no branch now floods or stalls",
+        "hint": "A faster marble is promising. Three healthy flows are the real answer."
+      }
+    ],
+    "rewards": {
+      "tokens": 50,
+      "items": [
+        "item_travelers_tonic"
+      ]
+    },
+    "tone": [
+      "serious",
+      "silly"
+    ]
+  },
+  {
+    "id": "q_ledger_trail_of_flour",
+    "title": "The Missing Ledger Pages: Flour",
+    "region": "datasedge_meadows",
+    "quest_type": "chain",
+    "giver_npc": "npc_elowen_patch",
+    "summary": "Pages are missing from Elowen's oldest seed ledger. A dusting of flour on the torn binding points toward the mill, but she wants matching evidence before anyone blames the wind.",
+    "steps": [
+      {
+        "objective": "Examine the torn binding, then note its page size, thread color, and flour smudge",
+        "hint": "Elowen says color alone is unreliable. Three details make a kinder argument."
+      },
+      {
+        "objective": "Recover three matching scraps around the mill, order them by harvest tally, and return them to Elowen",
+        "hint": "Look beside the grain sacks, under the steps, and where the mill breeze escapes."
+      }
+    ],
+    "rewards": {
+      "tokens": 40
+    },
+    "chain": {
+      "chain_id": "chain_missing_ledger_pages",
+      "position": 1
+    },
+    "tone": [
+      "mysterious",
+      "heartfelt"
+    ]
+  },
+  {
+    "id": "q_ledger_what_the_water_kept",
+    "title": "The Missing Ledger Pages: Downstream",
+    "region": "datasedge_meadows",
+    "quest_type": "chain",
+    "giver_npc": "npc_elowen_patch",
+    "summary": "The recovered scraps end mid-tally and carry millpond reeds. Elowen asks Kern to follow the water's route through the irrigation ditches and check every likely snag, not just the first one.",
+    "steps": [
+      {
+        "objective": "Follow the irrigation ditch from the millpond, inspect four spaced snag points, and recover three damp ledger pages",
+        "hint": "The nearest reeds are tempting. The farthest reeds know this and feel neglected."
+      },
+      {
+        "objective": "Order the pages by their overlapping harvest tallies and bring the sequence to Elowen",
+        "hint": "If the middle page fits both neighbors, you probably have more than a lucky guess."
+      }
+    ],
+    "rewards": {
+      "tokens": 55,
+      "items": [
+        "item_iris_petal"
+      ]
+    },
+    "prerequisites": {
+      "quests": [
+        "q_ledger_trail_of_flour"
+      ]
+    },
+    "chain": {
+      "chain_id": "chain_missing_ledger_pages",
+      "position": 2
+    },
+    "tone": [
+      "mysterious",
+      "serious"
+    ]
+  },
+  {
+    "id": "q_ledger_at_the_unwritten_edge",
+    "title": "The Missing Ledger Pages: The Ruins' Edge",
+    "region": "datasedge_meadows",
+    "quest_type": "chain",
+    "giver_npc": "npc_elowen_patch",
+    "summary": "The restored tally ends with a sketched delivery route to the Seed Vault ruins. Elowen wants an outside-only comparison, the final page if it remains—and absolutely no brave improvising.",
+    "steps": [
+      {
+        "objective": "Follow the sketched route to the Seed Vault ruins' edge and find the final page without crossing the boundary stones",
+        "hint": "Elowen underlined 'edge' three times. Bit sees no reason to improvise a dungeon."
+      },
+      {
+        "objective": "Return to Elowen and report the page and a distant purple flicker as observations, not conclusions",
+        "hint": "Facts may be quieter than guesses. Elowen is listening for both."
+      }
+    ],
+    "rewards": {
+      "tokens": 70,
+      "items": [
+        "item_data_shard"
+      ]
+    },
+    "prerequisites": {
+      "quests": [
+        "q_ledger_what_the_water_kept"
+      ]
+    },
+    "chain": {
+      "chain_id": "chain_missing_ledger_pages",
+      "position": 3
+    },
+    "tone": [
+      "mysterious",
+      "heartfelt"
+    ]
+  }
+]

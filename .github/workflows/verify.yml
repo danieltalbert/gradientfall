@@ -1,0 +1,38 @@
+name: Content + Godot CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Validate staged and approved content
+        run: |
+          python tools/validate_content.py --inbox
+          python tools/validate_content.py --all
+      - name: Install Godot 4.7.1
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/godot.zip" \
+            https://github.com/godotengine/godot/releases/download/4.7.1-stable/Godot_v4.7.1-stable_linux.x86_64.zip
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot/Godot_v4.7.1-stable_linux.x86_64"
+      - name: Parse Godot project
+        run: |
+          output=$("$RUNNER_TEMP/godot/Godot_v4.7.1-stable_linux.x86_64" \
+            --headless --editor --path game --quit 2>&1)
+          printf '%s\n' "$output"
+          if grep -E "SCRIPT ERROR|Parse Error|Failed to load script" <<< "$output"; then
+            exit 1
+          fi
