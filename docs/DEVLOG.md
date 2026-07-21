@@ -4,6 +4,90 @@
 
 ---
 
+## 2026-07-20 (live session, grass lane) — PHOTOREAL GRASS
+
+*Danny's directive, verbatim spirit: "make grass that literally looks like
+real life" — no more spikes. He signed off a DESIGN-PILLAR CHANGE in chat:
+full photorealism is now the target, world catches up element by element
+(GDD §10 amendment recorded). Ran alongside the clouds/mountains/combat
+lanes; stayed in the grass lane throughout.*
+
+**DONE — the grass system, rebuilt from scratch (eyes-verified, 7 render
+rounds via `--screenshot` on Godot 4.7.1 in-session)**
+- `grass_field.gdshader` rewritten as a full photoreal blade system:
+  - **Rounded cross-blade normals** — flat cards shade like 3-D cylinders;
+    this single change killed the old black-edged "spikes."
+  - **Clump-coherent structure** — ~40 cm hash cells share lean direction/
+    strength/height/hue, so the field mats and swirls like a real meadow
+    instead of combing one way. Per-blade droop rides on top.
+  - **Population roles**: 5% flopped-flat, 4.5% dead-brown, 3.5% tall straw
+    seed stalks, ~10% mid-blade-kinked "broken" blades.
+  - **Realistic colour**: cool dark bases → living green mids → dry-tipped
+    highlights, patch + clump hue drift, root AO, per-blade roughness;
+    BACKLIGHT sun-through-blade; near-zero emission floor for night.
+  - **Layered wind**: broad rolling gust waves + per-blade flutter (stalks
+    tremble more), riding on the structural lean, not replacing it.
+  - **Trample**: `gf_player_pos` shader global (set in `player.gd`
+    `_physics_process`) — the sward parts and flattens around Kern, radius
+    1.3 m. Verified in the `detail_trample` screenshot.
+  - **Dithered pop** at tile edges (per-blade die-distance) — no shrink band.
+- `meadow_flora.gd`: three camera-wrapped MultiMesh carpets — near 1.3M
+  blades @ ~415/m² (5-seg cards) to 27 m, mid 750k @ ~69/m² to 51 m, far
+  1.2M @ ~33/m² wide cheap cards to the fog. Blades get fewer but WIDER with
+  distance so projected coverage holds (the Ghost-of-Tsushima trick) — no
+  visible handoff. Builds 3.25M blades in ~0.5 s. Old accent-tuft system
+  deleted (was also the source of a `BLADES_PER_CLUMP` parse error left in
+  the tree); orphaned `grass_wind.gdshader` deleted.
+- **Chunked culling** (the perf breakthrough): each carpet is 8×8
+  MultiMeshes whose AABBs track their wrapped world rects per frame, plus
+  distance-cull past each field's fade ring. **32 → 60 FPS (vsync-capped)**
+  at 720p; no-grass baseline 165 FPS, so grass now costs ~10 ms. A/B flag
+  `-- --no-grass` added for honest attribution. Also removed a vestigial
+  fragment `discard` (rejected blades are zero-area in vertex; discard only
+  disabled early-Z).
+- Ground blend: terrain meadow albedo + toon `shadow_fill` darkened to
+  under-canopy green so gaps between blades read as shadow depth, not putty.
+- Daisies/irises: pixel-dither distance fade 34→58 m (unfaded white petals
+  read as litter speckle across the far sward).
+- Screenshot harness: hides Kern/Bit/landmark labels (they'd taken over the
+  lens), adds `detail_grass_closeup` + `detail_trample` (poses Kern in-frame
+  via `player_at`), steady-state FPS metric (60-frame timed window — the
+  instantaneous readout reports compile spikes: 3 FPS vs a real 165).
+
+**SWEEP (other lanes' breakage fixed to keep the main line running)**
+- `volumetric_sky.gdshader` (clouds lane) shipped with an early `return` in
+  `sky()` — illegal in Godot, sky compiled black. Restructured to if/else,
+  intent untouched. Flagged here for the clouds lane's awareness.
+
+**HONEST STATE**
+- Grass verified in stills only — wind motion, gust waves, and trample feel
+  need Danny's hands on the keyboard (GDD §10: stills can't show motion).
+- 60 FPS is the vsync cap at 720p on this machine; uncapped headroom and
+  1440p/4K behaviour unmeasured (vertex-bound, so resolution should scale
+  mildly). Re-measure when Danny plays fullscreen.
+- Dusk renders lean rust-amber over the dead-blade population — gorgeous to
+  my eye, but Danny is the taste authority; palette uniforms are exposed on
+  the material for quick taste passes.
+- The world around the grass (toon mountains, apple-toy trees, flat-color
+  water) now visibly lags the grass realism — expected under the 07-20
+  amendment; each element gets its own realism pass.
+
+**GIT — deliberately NOT committed this session.** Four uncommitted lanes
+(this one, clouds, mountains, combat/UI) plus the July-18 autonomous work
+are interleaved in shared files (`player.gd`, `main.gd`, `project.godot`…).
+Isolating one lane per commit is impossible, and sweep-committing lanes that
+might still be mid-flight risks freezing someone's half-wired state. The
+tree BOOTS CLEAN end-to-end (verified this session, zero script errors).
+Recommend: one sweep commit once all lanes wrap —
+`Gradientfall: photoreal grass + volumetric sky + real peaks + knowledge charge (4-lane day)`.
+
+**NEXT UP (grass lane)** — judge in motion with Danny; then per-region grass
+palettes (WORLDBOOK biomes), specular dew pass at dawn hours, and grass
+interaction for enemies/Bit (the `gf_player_pos` global generalizes to a
+small array of benders).
+
+---
+
 ## 2026-07-20 (live session, parallel lane) — Knowledge charge v1 + item batch
 
 *Ran alongside THREE other live sessions doing the photoreal grass/clouds/
@@ -117,10 +201,38 @@ and the F debug fill still work. Then the box ticks clean.
   WORLDBOOK POIs tick → 24 (16✅). Queue: batch_04 (claimed by Codex,
   in flight), 06, 07.
 
-**NEXT UP** — review/merge Codex's batch_04 monsters when they land in the
-inbox (they retire the proving ground). Then milestone 8: **Town of
-Bootstrap** (buildings, 6–8 NPCs from the approved cast, dialogue UI). The
-13 approved townsfolk are waiting for it.
+**DONE (addendum 2) — Codex's batch_04 monsters reviewed & merged**
+- Codex delivered `inbox/monsters/batch_04.json` the same evening. Validator
+  8/8; reviewed and **approved essentially untouched** — exact mix (3 fodder
+  / 4 standard / 1 elite), behaviors lean melee/ranged/swarm per the Combat
+  v1 note (single `ambush` for flavor), stats in-band, night-only spawn
+  present, goldens throughout, elite at the ruins' edge per WORLDBOOK. Eight
+  distinct ML concepts, all in BEHAVIOR: Meanwing Finch (flock mean),
+  Trail-Loop Leveret (overfit memorized route), Patchmunch Bramblehog
+  (mini-batch grazing), Middleset Mossram (centroid), Rustlewatch Prowler
+  (single-feature classifier — pounces on wind), Lilywise Newt (k-NN by
+  lily pads), Lastlook Jackdaw (recency bias), and **Brackenhoof, Keeper of
+  Forks** (decision-tree elite; one question per head tilt). "Data bolt"
+  phrasing in two descriptions accepted — data shards/bolts are engine
+  canon, and the monster brief's vocabulary rule (unlike the POI briefs')
+  doesn't ban it. Merged → `approved/monsters/meadow_monsters.json` (9
+  monsters). Brief queue → done. Validator: **approved 108 entries / 0
+  errors**. WORLDBOOK monsters tick → 8 (9✅) — one over target with the
+  Glitchling; content banks.
+- **Proving ground can now retire**: batch_04 was its retirement condition.
+  Flip `DEBUG_PROVING_GROUND` in `monster_spawner.gd` at the next
+  boot-verified session (not flipped blind tonight).
+- Queue after this: 06 (POIs 2), 07 (lore) — 2 unclaimed, below the ≥3
+  scheduled-run bar, but Danny has **turned off all scheduled sessions**
+  (also defusing the profile-cleanup recurrence risk), so briefs are now
+  manual-send only. Largest remaining Datasedge gap for a future batch_08:
+  the 3 open side-quest slots (12 target, 9✅).
+
+**NEXT UP** — the 4-lane sweep commit once clouds/mountains wrap (grass lane
+verified the tree boots clean end-to-end — so M6/M7 boot too; the quiz card
+still needs eyes-on PLAY per GDD §10). Then milestone 8: **Town of
+Bootstrap** (buildings, 6–8 NPCs from the approved cast, dialogue UI) — the
+13 approved townsfolk and 9 monsters are waiting for it.
 
 ---
 
