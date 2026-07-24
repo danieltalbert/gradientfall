@@ -18,7 +18,10 @@ const KM: GDScript = preload("res://src/player/kern/kern_materials.gd")
 const CENTER_Z: float = 0.008
 const EYE_T: float = 0.435          # socket latitude
 const EYE_PSI: float = 0.33         # socket azimuth off the midline
-const EYE_R: float = 0.0140         # eyeball radius (reads better a touch large)
+# Adult human eyeball is ~12 mm radius (24 mm across) and is remarkably
+# consistent between people — oversizing it is the single loudest "doll/anime"
+# tell on an otherwise realistic face, so this is held at life size.
+const EYE_R: float = 0.0121         # eyeball radius (anatomical)
 
 var _pivot: Vector3 = Vector3.ZERO
 var _eye_l: Node3D
@@ -497,7 +500,9 @@ func _build_eye(right: bool) -> void:
 	# A near-flat almond eye set flush into the socket — no protruding orb to
 	# cover, so it never goes bug-eyed. The sculpted socket + lash lines frame
 	# it; the sclera/iris/pupil/catchlight give it life.
-	var center: Vector3 = socket - out_dir * 0.0020 - _pivot
+	# Seat the lens deeper than the socket floor. At 2 mm the wide lens broke back
+	# out through the brow and cheek either side of the (narrow) socket carve.
+	var center: Vector3 = socket - out_dir * 0.0042 - _pivot
 	var fwd: Basis = Basis.IDENTITY.rotated(Vector3.UP, side * -0.06)
 
 	var eye_root: Node3D = Node3D.new()
@@ -602,7 +607,10 @@ func _build_eyeball(eye_root: Node3D) -> void:
 	var sclera: MeshInstance3D = MeshInstance3D.new()
 	sclera.name = "Sclera"
 	sclera.mesh = sclera_mesh
-	sclera.scale = Vector3(1.30, 0.66, 0.42)
+	# ~28 mm wide x 14 mm tall x 11 mm deep. The old 0.66 height made an eye
+	# 18 mm tall — nearly double a real palpebral fissure — which is what read as
+	# a bug-eyed doll and what pushed the lens out through the cheek in profile.
+	sclera.scale = Vector3(1.16, 0.58, 0.46)
 	var sclera_mat: StandardMaterial3D = StandardMaterial3D.new()
 	sclera_mat.albedo_color = Color(0.84, 0.81, 0.77)
 	sclera_mat.roughness = 0.28

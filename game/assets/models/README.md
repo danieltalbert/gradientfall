@@ -58,25 +58,80 @@ The GameEngine rig's bone names (`pelvis`, `spine_01`, `upperarm_l`,
 `lowerarm_l`, `hand_l`, `thigh_l`, `calf_l`, `foot_l`, …) are what
 `kern_bone_map.gd` maps the procedural animation onto.
 
-## Blender export settings
+## How to actually produce it
 
-`File → Export → glTF 2.0`:
+Making the character is a short click-path; *exporting it correctly* is where
+base meshes go wrong. So the export is scripted — do the clicks, then run two
+commands.
 
-- Format: **glTF Binary (.glb)**
-- Include: **Selected Objects** (armature + body + eyes)
-- Transform: **+Y Up**
-- Mesh: **Apply Modifiers**
-- Skinning: **on**; *Export deformation bones only*: **on**;
-  *Include all bone influences*: **off**
-- Animation: **off**; *Use Current Frame*: **off** (so the rest T-pose exports)
-- Images: **Automatic / embedded**
+### 1. Install (one time)
 
-Before exporting, bake shape keys and delete MPFB helpers
-(`Operations → Basemesh → Bake shapekeys`, then `Delete helpers`) unless facial
-morph targets are wanted, in which case keep the required shape keys.
+- **Blender** 3.6 LTS or 4.x — <https://www.blender.org/download/>
+- **MPFB2** — <https://static.makehumancommunity.org/mpfb.html>
+  (download the add-on zip, then in Blender:
+  `Edit → Preferences → Add-ons → Install…` → pick the zip → tick it on)
+
+MPFB2 bundles the CC0 system assets; nothing else needs downloading.
+
+### 2. Build the body (~6 clicks, in the MPFB tab of the 3D view sidebar)
+
+1. **New Human** → *From scratch*. Set the macro sliders: **Gender ~0.85**
+   (male), **Age ~0.35** (young adult), **Muscle ~0.6**, **Weight ~0.42**,
+   **Height** to taste — the export script rescales to exactly 1.75 m anyway.
+2. **Eyes** → add the low-poly eyes asset (separate eye meshes are required).
+3. **Rig → Add rig → "Game engine"**. This is the important one: it is the
+   53-bone `pelvis`/`spine_01`/`upperarm_l` rig that `kern_bone_map.gd` maps
+   onto. *Not* Default, CMU or Mixamo.
+4. Leave the rest pose as the **T-pose** MPFB creates. Do not pose it.
+5. Add **no clothing** — the tunic, cloak, belt, boots and sword are built in
+   code and fitted over the bare body.
+6. `Operations → Basemesh → Bake shapekeys`, then **Delete helpers**
+   (skip the bake only if you want to keep facial morph targets).
+7. Save the .blend, e.g. `kern.blend`.
+
+### 3. Export + verify (two commands)
+
+```
+blender --background kern.blend --python tools/export_kern_base.py
+python tools/check_base_mesh.py
+```
+
+`tools/export_kern_base.py` drops MPFB helper geometry, renames meshes so the
+loader's eye/teeth/brow hints match, stands the figure on the origin, scales it
+to exactly 1.75 m, applies transforms, warns if the pose isn't a T, and writes
+`kern_base.glb` with +Y up / skinning on / deform bones only / animation off.
+
+`tools/check_base_mesh.py` then re-reads the .glb and reports PASS or FAIL
+against everything on this page — wrong up-axis, centimetre units, an A-pose,
+skinning silently off, a non-GameEngine rig, missing eyes, clothing baked in.
+It's zero-dependency and it's the same contract `kern_bone_map.gd` enforces at
+runtime, so a PASS here means the fitting pass can start.
+
+### Manual export (if you'd rather not use the script)
+
+`File → Export → glTF 2.0` with: Format **glTF Binary (.glb)**; Include
+**Selected Objects** (armature + body + eyes); Transform **+Y Up**; Mesh
+**Apply Modifiers**; Skinning **on**, *Export deformation bones only* **on**,
+*Include all bone influences* **off**; Animation **off**, *Use Current Frame*
+**off** (so the rest T-pose exports); Images **Automatic / embedded**. Then
+still run `check_base_mesh.py` — it catches the mistakes this list is long
+because of.
 
 ## Godot import
 
 Open **Advanced Import Settings** on the `.glb`, select the `Skeleton3D`,
 create a **BoneMap**, and assign **SkeletonProfileHumanoid**. Verify the limb
 mappings and the T-pose before saving.
+
+## Status (2026-07-24)
+
+`kern_base.glb` **has not been produced yet**, so the game is still running the
+procedural body. Everything needed to consume the mesh is built and waiting:
+the loader, the bone map, the fallback, the export script and the validator.
+The only outstanding step is steps 1-3 above, which need Blender on the machine
+(there is none installed as of this date).
+
+Until then the procedural body is what ships. It reads acceptably at full-body
+game distance but does not hold up at portrait range - the face is a displaced
+lat/long sphere and the hair is flat cards. That is the plateau this whole
+document exists because of; see `docs/progress/kern_2026-07-24_*.png`.

@@ -53,12 +53,16 @@ uniform vec4 trim_glow_color : source_color = vec4(1.0, 0.72, 0.24, 1.0);
 
 group_uniforms rim;
 uniform vec4 rim_color : source_color = vec4(0.72, 0.86, 1.0, 1.0);
-uniform float rim_amount : hint_range(0.0, 1.0) = 0.20;
+// EMISSION is not Lambert-normalised but DIFFUSE_LIGHT below is (/PI, peak
+// ~0.32x albedo). At the old 0.20 the blue rim peaked ABOVE the tunic's own
+// albedo in every channel — that was the grey-blue "ghost" wash over the whole
+// costume, not a lighting choice. Keep rim well under the lit diffuse.
+uniform float rim_amount : hint_range(0.0, 1.0) = 0.055;
 uniform float rim_width : hint_range(0.0, 1.0) = 0.64;
 
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.34, 0.45, 0.68, 1.0);
-uniform float fill_amount : hint_range(0.0, 0.6) = 0.07;
+uniform float fill_amount : hint_range(0.0, 0.6) = 0.025;
 
 varying vec3 v_col;
 varying vec2 v_uv;

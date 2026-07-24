@@ -27,7 +27,14 @@ group_uniforms micro;
 // Two scales of pore/wrinkle bump. Object-space so it sticks to the skin.
 // bump_strength is in metres of virtual height — skin micro-relief is sub-
 // millimetre, so this stays tiny; the derivative bump amplifies it plenty.
-uniform float bump_strength : hint_range(0.0, 0.01) = 0.0;
+// Was 0.0 — which multiplied the whole pore/wrinkle height field by zero, so
+// every bit of the micro-detail machinery below ran and produced a flat normal.
+// Skin micro-relief is sub-millimetre; the derivative bump amplifies it plenty.
+// Metres of virtual relief. Real pore depth is ~0.05 mm, so this stays tiny —
+// the derivative bump amplifies it plenty. (Was 0.0, which multiplied the whole
+// height field by zero and left the skin perfectly flat; 0.0006 was the other
+// extreme and read as wet stucco at portrait range.)
+uniform float bump_strength : hint_range(0.0, 0.002) = 0.00009;
 uniform float pore_scale : hint_range(20.0, 600.0) = 380.0;
 uniform float pore_depth : hint_range(0.0, 2.0) = 0.5;
 uniform float wrinkle_scale : hint_range(4.0, 120.0) = 110.0;
@@ -39,7 +46,10 @@ uniform float spec_tight : hint_range(0.0, 1.0) = 0.16;
 
 group_uniforms rim;
 uniform vec4 rim_color : source_color = vec4(0.66, 0.80, 1.0, 1.0);
-uniform float rim_amount : hint_range(0.0, 1.0) = 0.12;
+// Rim/fill are added as raw EMISSION, which is NOT Lambert-normalised, so they
+// must stay well under the lit diffuse (peak ~1/PI of albedo) or they flood the
+// surface and desaturate it. These are deliberately ~1/3 of their old values.
+uniform float rim_amount : hint_range(0.0, 1.0) = 0.04;
 uniform float rim_width : hint_range(0.0, 1.0) = 0.78;
 
 group_uniforms magic;
@@ -50,7 +60,7 @@ uniform vec4 glow_color : source_color = vec4(1.0, 0.74, 0.28, 1.0);
 
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.30, 0.40, 0.62, 1.0);
-uniform float fill_amount : hint_range(0.0, 0.6) = 0.06;
+uniform float fill_amount : hint_range(0.0, 0.6) = 0.02;
 
 varying vec3 v_col;
 varying float v_thick;
@@ -125,19 +135,23 @@ void light() {
 	float ndl = dot(N, L);
 	// Wrapped diffuse: soft terminator instead of a hard toon step.
 	float diff = clamp((ndl + diffuse_wrap) / (1.0 + diffuse_wrap), 0.0, 1.0);
-	DIFFUSE_LIGHT += ALBEDO * LIGHT_COLOR * diff * ATTENUATION;
+	// NB: the 1/PI is the same Lambert normalisation Godot's built-in diffuse
+	// uses, and that every other Kern shader (cloth/leather/hair/metal) already
+	// applies. Skin used to omit it and rendered PI times hotter than the
+	// clothing — a blown-out flat pink face over muddy garments.
+	DIFFUSE_LIGHT += ALBEDO * LIGHT_COLOR / PI * diff * ATTENUATION;
 	// Subsurface: a wider wrap, and the light that lives only in that wider
 	// band (sss - diff) gets tinted red — the glow just past the terminator.
 	float sss = clamp((ndl + sss_wrap) / (1.0 + sss_wrap), 0.0, 1.0);
 	sss = pow(sss, 1.4);
 	float band = max(0.0, sss - diff);
 	DIFFUSE_LIGHT += sss_color.rgb * ALBEDO * band * sss_strength
-			* LIGHT_COLOR * ATTENUATION;
+			* LIGHT_COLOR / PI * ATTENUATION;
 	// Backlight transmission through thin skin (ears / nostrils / lips edge).
 	float back = clamp(dot(normalize(VIEW), -L), 0.0, 1.0);
 	float thin = 1.0 - v_thick;
 	DIFFUSE_LIGHT += sss_color.rgb * pow(back, 2.5) * thin
-			* transmit_strength * LIGHT_COLOR * ATTENUATION;
+			* transmit_strength * LIGHT_COLOR / PI * ATTENUATION;
 	// Dual-lobe skin specular on the bumped normal: a broad oily sheen and a
 	// tighter highlight, both gated so the dark side stays matte.
 	vec3 H = normalize(normalize(VIEW) + L);

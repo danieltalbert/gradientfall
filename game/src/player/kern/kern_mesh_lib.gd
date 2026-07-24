@@ -312,6 +312,13 @@ static func transform_surface(surface: Dictionary, xf: Transform3D) -> Dictionar
 
 ## Commit one surface bundle onto a mesh (new surface, given material).
 static func add_surface(mesh: ArrayMesh, surface: Dictionary, material: Material) -> void:
+	# An empty bundle (a loft that degenerated, or a part built with every ring
+	# culled) used to reach add_surface_from_arrays and spam the render log with
+	# `surfaces.size() == 0` / `array_len == 0`. Non-fatal but noisy, and it hid
+	# real errors from the other lanes — drop the surface instead.
+	if (surface["verts"] as PackedVector3Array).is_empty() \
+			or (surface["indices"] as PackedInt32Array).is_empty():
+		return
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = surface["verts"]
