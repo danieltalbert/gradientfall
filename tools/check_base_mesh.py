@@ -279,11 +279,13 @@ def check_scale(bounds, rep):
     size = [hi[k] - lo[k] for k in range(3)]
     rep.note("bounds: %.3f wide (X) x %.3f tall (Y) x %.3f deep (Z) m"
              % (size[0], size[1], size[2]))
-    tallest = max(range(3), key=lambda k: size[k])
-    if tallest != 1:
-        rep.error("the model's longest axis is %s, not Y - it was exported "
-                  "%s-up. Re-export with Transform +Y Up."
-                  % ("XYZ"[tallest], "XYZ"[tallest]))
+    # Up-axis check: a T-posing human is legitimately WIDER (arm span, X) than
+    # tall, so only Y vs Z is meaningful. A Z-up export puts the height in Z
+    # and the ~30 cm body depth in Y.
+    if size[2] > size[1] * 1.5:
+        rep.error("the model is %.2f m along Z but only %.2f m along Y - it "
+                  "was exported Z-up. Re-export with Transform +Y Up."
+                  % (size[2], size[1]))
         return
     height = size[1]
     if height < 0.2:

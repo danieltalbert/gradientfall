@@ -191,23 +191,90 @@ def normalise_transform(armature, meshes):
     log("final: %.4f m tall, feet at Z=%.4f" % (hi.z - lo.z, lo.z))
 
 
-def check_tpose(armature):
-    """A-pose ruins the retarget, so say so before anyone burns a fitting pass."""
+def _rest_droop(armature):
+    """Degrees the left upper arm's REST pose drops below horizontal."""
     bone = armature.data.bones.get("upperarm_l") or \
         armature.data.bones.get("upperarm_r")
     if bone is None:
-        log("WARN: no upperarm bone, skipping the T-pose check")
-        return
+        return None
     vec = (bone.tail_local - bone.head_local)
     if vec.length < 1e-6:
-        return
+        return None
     vec.normalize()
     # Blender is Z-up: the arm should run along X with little Z drop.
-    droop = math.degrees(math.asin(max(-1.0, min(1.0, -vec.z))))
-    log("rest pose: %s drops %.1f deg below horizontal" % (bone.name, droop))
-    if droop > 25.0:
-        log("WARN: that is an A-pose, not a T-pose. kern_visual's retarget "
-            "assumes T -- set the rest pose to T before exporting.")
+    return math.degrees(math.asin(max(-1.0, min(1.0, -vec.z))))
+
+
+def ensure_tpose(armature, meshes):
+    """Convert an A-pose rest pose (MakeHuman's default) into a proper T-pose.
+
+    kern_visual's retarget assumes the rest pose is T. MPFB's game_engine rig
+    rests in an A-pose, so: pose each arm chain straight out along +/-X, bake
+    that pose into every mesh (apply + re-add the Armature modifiers), then
+    apply the pose as the new rest pose. This is the canonical Blender
+    A-to-T procedure, just scripted so it happens identically every time.
+    """
+    droop = _rest_droop(armature)
+    if droop is None:
+        log("WARN: no upperarm bone, skipping the T-pose check")
+        return
+    log("rest pose: arm drops %.1f deg below horizontal" % droop)
+    if abs(droop) <= 8.0:
+        log("rest pose is already T enough, leaving it alone")
+        return
+    log("converting A-pose rest to T-pose...")
+
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = armature
+    armature.select_set(True)
+    bpy.ops.object.mode_set(mode="POSE")
+
+    # Straighten each arm chain bone-by-bone (children first read updated
+    # parents), aiming every bone dead sideways. Chain order matters.
+    for suffix, sign in (("_l", 1.0), ("_r", -1.0)):
+        target = mathutils.Vector((sign, 0.0, 0.0))
+        for bone_base in ("upperarm", "lowerarm", "hand"):
+            pb = armature.pose.bones.get(bone_base + suffix)
+            if pb is None:
+                continue
+            bpy.context.view_layer.update()
+            direction = (pb.tail - pb.head)
+            if direction.length < 1e-8:
+                continue
+            rot = direction.normalized().rotation_difference(target)
+            pivot = mathutils.Matrix.Translation(pb.head)
+            pb.matrix = (pivot @ rot.to_matrix().to_4x4()
+                         @ pivot.inverted() @ pb.matrix)
+    bpy.context.view_layer.update()
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    # Bake the posed shape into the meshes: apply each Armature modifier at
+    # the current pose, then re-add it so the mesh stays bound to the rig.
+    for obj in meshes:
+        arm_mods = [m for m in obj.modifiers if m.type == "ARMATURE"
+                    and m.object == armature]
+        if not arm_mods:
+            continue
+        with bpy.context.temp_override(object=obj, active_object=obj,
+                                       selected_objects=[obj]):
+            for mod in list(arm_mods):
+                bpy.ops.object.modifier_apply(modifier=mod.name)
+        fresh = obj.modifiers.new(name="Armature", type="ARMATURE")
+        fresh.object = armature
+
+    # Finally make the T the rest pose itself.
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = armature
+    armature.select_set(True)
+    bpy.ops.object.mode_set(mode="POSE")
+    bpy.ops.pose.armature_apply(selected=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    droop = _rest_droop(armature)
+    log("rest pose now drops %.1f deg" % (droop if droop is not None else 0.0))
+    if droop is not None and abs(droop) > 8.0:
+        log("WARN: T-pose conversion did not fully straighten the arms -- "
+            "check the result in Blender before using the export.")
 
 
 def supported_kwargs(op, wanted):
@@ -268,8 +335,8 @@ def main():
         bpy.ops.object.mode_set(mode="OBJECT")
     armature = find_armature()
     check_rig(armature)
-    check_tpose(armature)
     meshes = prune_and_rename(armature)
+    ensure_tpose(armature, meshes)
     normalise_transform(armature, meshes)
     export(armature, meshes, out_path())
     log("done. Now verify it with:")

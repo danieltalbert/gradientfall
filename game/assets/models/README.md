@@ -123,15 +123,24 @@ Open **Advanced Import Settings** on the `.glb`, select the `Skeleton3D`,
 create a **BoneMap**, and assign **SkeletonProfileHumanoid**. Verify the limb
 mappings and the T-pose before saving.
 
-## Status (2026-07-24)
+## Status (2026-07-24, evening)
 
-`kern_base.glb` **has not been produced yet**, so the game is still running the
-procedural body. Everything needed to consume the mesh is built and waiting:
-the loader, the bone map, the fallback, the export script and the validator.
-The only outstanding step is steps 1-3 above, which need Blender on the machine
-(there is none installed as of this date).
+`kern_base.glb` **EXISTS and validates** (PASS from `tools/check_base_mesh.py`:
+53-bone game_engine rig, 19/19 bones mapped, 1.75 m, Y-up, T-pose, separate
+eyes + teeth, no clothing). It was generated fully headlessly:
 
-Until then the procedural body is what ships. It reads acceptably at full-body
-game distance but does not hold up at portrait range - the face is a displaced
-lat/long sphere and the hair is flat cards. That is the plateau this whole
-document exists because of; see `docs/progress/kern_2026-07-24_*.png`.
+    blender --background --python tools/make_kern_base.py
+    blender --background "C:/Users/danny/Documents/kern.blend" --python tools/export_kern_base.py
+    python tools/check_base_mesh.py
+
+`tools/make_kern_base.py` drives MPFB 2.0.x's Python service layer directly
+(HumanService/TargetService) -- no GUI clicks needed. It needs Blender 5.x with
+the MPFB extension enabled and the MakeHuman CC0 system assets extracted into
+MPFB's user data (the one manual download; see the recipe above).
+
+The runtime loader confirms: `KernBoneMap: matched 19/19 bones`,
+`KernVisual: base mesh loaded (1.75 m)`. What remains is the FITTING PASS in
+`kern_visual.gd`: retarget the procedural animation onto the imported skeleton,
+skin-tone the imported body (it has no vertex colors, so the skin shader needs
+an albedo fallback), retire the procedural head/body overlay, and refit the
+code-built gear to the new body.
