@@ -25,22 +25,40 @@ uniform float half_tone : hint_range(0.0, 1.0) = 0.52;
 uniform float shadow_tone : hint_range(0.0, 1.0) = 0.24;
 
 group_uniforms backlight;
-uniform float transmit_strength : hint_range(0.0, 1.5) = 0.28;
+// Kept low: too much and thin garment edges read as see-through gauze rather
+// than cloth catching a little sun through the weave.
+uniform float transmit_strength : hint_range(0.0, 1.5) = 0.12;
 uniform vec4 transmit_tint : source_color = vec4(1.0, 0.86, 0.62, 1.0);
 
 group_uniforms motion;
-// Tiny breathing flutter for free edges; the big motion is bone-driven.
-uniform float flutter_amount : hint_range(0.0, 0.05) = 0.0;
-uniform float flutter_speed : hint_range(0.0, 8.0) = 2.6;
+// Wind: a travelling gust wave along wind_dir plus finer flutter, weighted by
+// looseness (COLOR.a) so seams stay put and free hems/sleeves/scarf ripple.
+uniform float wind_strength : hint_range(0.0, 0.06) = 0.0;
+uniform vec3 wind_dir = vec3(1.0, 0.0, 0.35);
+uniform float wind_speed : hint_range(0.0, 6.0) = 1.7;
+
+group_uniforms trim;
+// Embroidered border: a perceptron glyph — nodes wired together — drawn in one
+// or two UV.y bands (each vec2 = centre_v, half_height; negative centre = off).
+// Echoes the game's icon, and glows with `awaken` (charged embroidery).
+uniform vec4 trim_color : source_color = vec4(0.86, 0.70, 0.30, 1.0);
+uniform vec4 trim_color2 : source_color = vec4(0.62, 0.24, 0.16, 1.0);
+uniform float trim_reps : hint_range(2.0, 80.0) = 20.0;
+uniform vec2 trim_band_a = vec2(-1.0, 0.05);
+uniform vec2 trim_band_b = vec2(-1.0, 0.05);
+
+group_uniforms magic;
+uniform float awaken : hint_range(0.0, 1.0) = 0.12;
+uniform vec4 trim_glow_color : source_color = vec4(1.0, 0.72, 0.24, 1.0);
 
 group_uniforms rim;
 uniform vec4 rim_color : source_color = vec4(0.72, 0.86, 1.0, 1.0);
-uniform float rim_amount : hint_range(0.0, 1.0) = 0.34;
-uniform float rim_width : hint_range(0.0, 1.0) = 0.58;
+uniform float rim_amount : hint_range(0.0, 1.0) = 0.20;
+uniform float rim_width : hint_range(0.0, 1.0) = 0.64;
 
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.34, 0.45, 0.68, 1.0);
-uniform float fill_amount : hint_range(0.0, 0.6) = 0.10;
+uniform float fill_amount : hint_range(0.0, 0.6) = 0.07;
 
 varying vec3 v_col;
 varying vec2 v_uv;
@@ -65,11 +83,41 @@ void vertex() {
 	v_col = pow(COLOR.rgb, vec3(2.2));
 	v_uv = UV;
 	v_loose = COLOR.a;
-	if (flutter_amount > 0.0001) {
-		float w = sin(TIME * flutter_speed + UV.x * 9.0 + UV.y * 5.0)
-				* sin(TIME * flutter_speed * 0.73 + UV.y * 13.0);
-		VERTEX += NORMAL * w * flutter_amount * v_loose;
+	if (wind_strength > 0.00001 && v_loose > 0.001) {
+		vec3 wd = normalize(wind_dir);
+		float phase = dot(VERTEX, wd) * 6.0 - TIME * wind_speed * 2.4;
+		float gust = sin(phase) * 0.6 + sin(phase * 1.9 + 1.3) * 0.4;
+		float flutter = sin(TIME * wind_speed * 3.4 + UV.x * 20.0 + UV.y * 12.0) * 0.5
+				+ sin(TIME * wind_speed * 5.1 + UV.x * 34.0) * 0.3;
+		float amt = wind_strength * v_loose * v_loose;
+		// Billow with the wind, and ripple along the surface normal.
+		VERTEX += wd * (gust * 0.5 + 0.5) * amt;
+		VERTEX += NORMAL * (gust * 0.35 + flutter * 0.5) * amt;
 	}
+}
+
+// Perceptron-glyph trim inside one UV.y band; returns node/wire coverage 0..1.
+// A repeating cell holds a centre node, two flanking nodes, wires between them,
+// and border rails top & bottom.
+float trim_mask(vec2 uv, vec2 band) {
+	if (band.x < 0.0) {
+		return 0.0;
+	}
+	float lv = (uv.y - band.x) / band.y;   // -1..1 across the band
+	if (abs(lv) > 1.0) {
+		return 0.0;
+	}
+	// Border rails.
+	float rails = step(0.82, abs(lv));
+	// Repeating cell along the band.
+	float cx = fract(uv.x * trim_reps) - 0.5;   // -0.5..0.5 within a cell
+	// Centre node + two side nodes (on the rails-inward line lv ~ 0).
+	float centre = step(length(vec2(cx, lv * 0.9)), 0.16);
+	float side = step(length(vec2(abs(cx) - 0.42, lv * 0.9)), 0.10);
+	// Wires: a horizontal spine plus diagonal links from centre to side nodes.
+	float spine = step(abs(lv), 0.10) * step(abs(cx), 0.46);
+	float diag = step(abs(abs(lv) - abs(cx) * 1.8), 0.08) * step(abs(cx), 0.42);
+	return clamp(rails + centre + side + spine + diag, 0.0, 1.0);
 }
 
 void fragment() {
@@ -85,11 +133,28 @@ void fragment() {
 	// Yarn-dye blotches: two octaves of low-frequency value drift.
 	float yarn = vnoise(v_uv * 7.0) * 0.6 + vnoise(v_uv * 23.0) * 0.4;
 	albedo *= 1.0 + (yarn - 0.5) * 2.0 * yarn_amount;
+	// Embroidered perceptron-glyph trim: rails in the accent colour, nodes/wires
+	// in gold; the whole band glows as Kern awakens.
+	float t_a = trim_mask(v_uv, trim_band_a);
+	float t_b = trim_mask(v_uv, trim_band_b);
+	float trim = clamp(t_a + t_b, 0.0, 1.0);
+	if (trim > 0.001) {
+		float lv_a = trim_band_a.x < 0.0 ? 2.0 : abs((v_uv.y - trim_band_a.x) / trim_band_a.y);
+		float lv_b = trim_band_b.x < 0.0 ? 2.0 : abs((v_uv.y - trim_band_b.x) / trim_band_b.y);
+		float lv = min(lv_a, lv_b);
+		float is_rail = step(0.82, lv);
+		vec3 tc = mix(trim_color.rgb, trim_color2.rgb, is_rail);
+		albedo = mix(albedo, tc, trim);
+	}
 	ALBEDO = albedo;
-	ROUGHNESS = 0.95;
-	SPECULAR = 0.06;
+	ROUGHNESS = 0.9;
+	SPECULAR = 0.08;
 	EMISSION += shadow_fill.rgb * fill_amount * albedo;
-	// Fuzz rim: wider and softer than skin/metal — lint catching light.
+	// Charged embroidery: only the glyph itself lights up as awaken rises — the
+	// discrete threads/nodes glow, so the cloth around them stays its true
+	// colour (a fresnel "edge" glow floods rounded cloth and was dropped).
+	EMISSION += trim_glow_color.rgb * trim * (0.03 + awaken * 0.55);
+	// Fuzz rim: soft lint catching light.
 	float fres = 1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	float rim = smoothstep(rim_width, 1.0, fres);
 	EMISSION += mix(rim_color.rgb, albedo * 2.2, 0.45) * rim * rim_amount;

@@ -12,13 +12,39 @@ const LEATHER_SHADER: Shader = preload("res://assets/shaders/character/kern_leat
 const METAL_SHADER: Shader = preload("res://assets/shaders/character/kern_metal.gdshader")
 const HAIR_SHADER: Shader = preload("res://assets/shaders/character/kern_hair.gdshader")
 const EYE_SHADER: Shader = preload("res://assets/shaders/character/kern_eye.gdshader")
+const GLOW_SHADER: Shader = preload("res://assets/shaders/character/kern_glow.gdshader")
+
+# --- Awaken: one level (0 = disguised traveller, 1 = First Model showing) that
+# every magical material reads. Materials register themselves so a single
+# set_awaken() updates the whole character. ---
+static var _awaken_mats: Array = []
+static var _awaken: float = 0.12
+
+
+## Register a ShaderMaterial so `awaken` is kept in sync on it. Harmless for
+## shaders without an `awaken` uniform (the set is a no-op there).
+static func _reg(m: ShaderMaterial) -> ShaderMaterial:
+	_awaken_mats.append(m)
+	m.set_shader_parameter("awaken", _awaken)
+	return m
+
+
+## Drive the whole character's magic. 0 = ordinary; 1 = fully lit.
+static func set_awaken(level: float) -> void:
+	_awaken = clampf(level, 0.0, 1.0)
+	for m in _awaken_mats:
+		(m as ShaderMaterial).set_shader_parameter("awaken", _awaken)
+
+
+static func awaken_level() -> float:
+	return _awaken
 
 # --- The palette (authored as display/sRGB; shaders linearize) --------------
 # Skin: warm tan of someone who works outdoors; painted zones shift around it.
-const SKIN_BASE: Color = Color(0.855, 0.635, 0.470)
-const SKIN_FLUSH: Color = Color(0.880, 0.545, 0.400)  # cheeks/nose/ears/knuckles
-const SKIN_SHADOWED: Color = Color(0.760, 0.545, 0.420)  # eye sockets, under jaw
-const LIP_COLOR: Color = Color(0.795, 0.470, 0.385)
+const SKIN_BASE: Color = Color(0.790, 0.560, 0.415)
+const SKIN_FLUSH: Color = Color(0.810, 0.470, 0.345)  # cheeks/nose/ears/knuckles
+const SKIN_SHADOWED: Color = Color(0.660, 0.455, 0.350)  # eye sockets, under jaw
+const LIP_COLOR: Color = Color(0.720, 0.400, 0.335)
 # Hair: chestnut, warmer at the tips (shader ramps between these).
 const HAIR_ROOT: Color = Color(0.155, 0.085, 0.045)
 const HAIR_TIP: Color = Color(0.410, 0.240, 0.105)
@@ -52,13 +78,25 @@ static var _skin: ShaderMaterial
 static var _hair: ShaderMaterial
 static var _brow: ShaderMaterial
 static var _eye: ShaderMaterial
+static var _glow: ShaderMaterial
 
 
 static func skin() -> ShaderMaterial:
 	if _skin == null:
 		_skin = ShaderMaterial.new()
 		_skin.shader = SKIN_SHADER
+		_reg(_skin)
 	return _skin
+
+
+## The living arcane glow — hand-mark, latent threads, sword sigil. Emissive,
+## awaken-driven, with a light pulse flowing along each thread.
+static func glow() -> ShaderMaterial:
+	if _glow == null:
+		_glow = ShaderMaterial.new()
+		_glow.shader = GLOW_SHADER
+		_reg(_glow)
+	return _glow
 
 
 static func hair() -> ShaderMaterial:
@@ -67,7 +105,17 @@ static func hair() -> ShaderMaterial:
 		_hair.shader = HAIR_SHADER
 		_hair.set_shader_parameter("root_color", HAIR_ROOT)
 		_hair.set_shader_parameter("tip_color", HAIR_TIP)
+		_reg(_hair)
 	return _hair
+
+
+## Iris material for the flat cornea disc (gradient + shimmer + awaken glow).
+static func iris() -> ShaderMaterial:
+	if _eye == null:
+		_eye = ShaderMaterial.new()
+		_eye.shader = EYE_SHADER
+		_reg(_eye)
+	return _eye
 
 
 static func brow() -> ShaderMaterial:
@@ -81,19 +129,24 @@ static func brow() -> ShaderMaterial:
 	return _brow
 
 
-static func eye() -> ShaderMaterial:
-	if _eye == null:
-		_eye = ShaderMaterial.new()
-		_eye.shader = EYE_SHADER
-	return _eye
-
-
-static func cloth(weave_scale: float = 190.0, flutter: float = 0.0) -> ShaderMaterial:
+static func cloth(weave_scale: float = 190.0, wind_strength: float = 0.0) -> ShaderMaterial:
 	var m: ShaderMaterial = ShaderMaterial.new()
 	m.shader = CLOTH_SHADER
 	m.set_shader_parameter("weave_scale", weave_scale)
-	m.set_shader_parameter("flutter_amount", flutter)
-	return m
+	m.set_shader_parameter("wind_strength", wind_strength)
+	return _reg(m)
+
+
+## Add an embroidered trim border to a cloth material. Bands are (centre_v,
+## half_height) in the garment's UV.y; pass Vector2(-1,0.05) to disable one.
+static func add_trim(m: ShaderMaterial, band_a: Vector2, band_b: Vector2,
+		reps: float = 26.0, gold: Color = Color(0.86, 0.70, 0.30),
+		accent: Color = Color(0.62, 0.24, 0.16)) -> void:
+	m.set_shader_parameter("trim_band_a", band_a)
+	m.set_shader_parameter("trim_band_b", band_b)
+	m.set_shader_parameter("trim_reps", reps)
+	m.set_shader_parameter("trim_color", gold)
+	m.set_shader_parameter("trim_color2", accent)
 
 
 static func leather() -> ShaderMaterial:

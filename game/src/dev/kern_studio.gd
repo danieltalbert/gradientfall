@@ -45,9 +45,9 @@ func _build_stage() -> void:
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 0.95
 	env.glow_enabled = true
-	env.glow_intensity = 0.22
-	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.1
+	env.glow_intensity = 0.13
+	env.glow_bloom = 0.02
+	env.glow_hdr_threshold = 1.25
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.5
 	env.ssao_radius = 0.4
@@ -119,6 +119,10 @@ func _spawn_kern() -> void:
 	# actually show Kern's face.
 	if _visual != null:
 		_visual.rotation.y = PI
+		# Force the arcane awaken level for the shoot (rest vs charged).
+		var aw: String = _arg("--awaken=")
+		if aw != "":
+			_visual.set("awaken_override", clampf(aw.to_float(), 0.0, 1.0))
 
 	# Drive a static animation pose if requested.
 	var anim: String = _arg("--anim=")
@@ -149,6 +153,8 @@ func _capture_all(dir: String) -> void:
 			"look": Vector3(0.0, 0.98, 0.0), "fov": 32.0},
 		{"name": "05_face", "pos": Vector3(0.18, eye_h + 0.02, 0.72),
 			"look": Vector3(0.0, eye_h, 0.0), "fov": 22.0},
+		{"name": "05b_eye", "pos": Vector3(0.0, eye_h, 0.34),
+			"look": Vector3(0.0, eye_h, 0.0), "fov": 12.0},
 		{"name": "06_face_profile", "pos": Vector3(0.78, eye_h, 0.28),
 			"look": Vector3(0.0, eye_h - 0.01, 0.0), "fov": 22.0},
 		{"name": "07_upperbody", "pos": Vector3(0.9, 1.5, 1.8),
@@ -159,8 +165,20 @@ func _capture_all(dir: String) -> void:
 			"look": Vector3(0.0, 0.95, 0.0), "fov": 34.0},
 		{"name": "10_sword", "pos": Vector3(1.2, 1.2, 1.2),
 			"look": Vector3(0.28, 1.05, 0.15), "fov": 30.0},
+		{"name": "11_boots", "pos": Vector3(0.35, 0.32, 0.85),
+			"look": Vector3(0.0, 0.10, 0.0), "fov": 26.0},
+		{"name": "12_hem_trim", "pos": Vector3(0.15, 0.95, 0.9),
+			"look": Vector3(0.0, 0.86, 0.0), "fov": 26.0},
 	]
 	for shot in shots:
+		# Hide the held sword for face/portrait shots so the blade doesn't
+		# bisect the head.
+		var name_s: String = shot["name"]
+		var portrait: bool = name_s.begins_with("05") or name_s.begins_with("06")
+		var sword: Node = _visual.get_node_or_null("KernSkeleton/HandRAttach/TravelerSword") \
+			if _visual != null else null
+		if sword != null and "visible" in sword:
+			sword.set("visible", not portrait)
 		_camera.fov = float(shot["fov"])
 		_camera.position = shot["pos"]
 		_camera.look_at(shot["look"])

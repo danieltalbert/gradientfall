@@ -39,7 +39,11 @@ static func _build_cloak(skeleton: Skeleton3D, bones: Dictionary) -> void:
 	var rows: int = 12
 	var cols: int = 15
 	var attach_top: Vector3 = KM.CLOAK_A
-	var mat: ShaderMaterial = MAT.cloth(180.0, 0.006)
+	# Cloak v runs 0 (shoulders) -> ~1.6 (hem). Gold border along the hem, and
+	# the strongest wind on the character (it's the loosest cloth).
+	var mat: ShaderMaterial = MAT.cloth(180.0, 0.038)
+	MAT.add_trim(mat, Vector2(1.50, 0.075), Vector2(-1.0, 0.05), 20.0,
+		Color(0.80, 0.64, 0.28), Color(0.30, 0.20, 0.13))
 
 	var rings: Array = []
 	for i in rows:
@@ -343,7 +347,7 @@ static func _build_scarf(skeleton: Skeleton3D, bones: Dictionary) -> void:
 		rings.append(ring)
 		i += 1
 	var scarf: Dictionary = ML.loft(rings, true, false, false, true)
-	var mat: ShaderMaterial = MAT.cloth(120.0, 0.006)  # chunky knit, loose
+	var mat: ShaderMaterial = MAT.cloth(120.0, 0.022)  # chunky knit, loose, windy
 	var mi: MeshInstance3D = ML.make_instance(scarf, mat, "Scarf")
 	skeleton.add_child(mi)
 	mi.skin = skeleton.create_skin_from_rest_transforms()
@@ -442,25 +446,57 @@ static func _build_boot(foot_attach: BoneAttachment3D, right: bool) -> void:
 	sole_box.position = Vector3(0.0, -0.028, -0.085)
 	root.add_child(sole_box)
 
-	# Cross-laces up the front of the shaft.
+	# Cross-laces up the front of the shaft, with eyelet knots at each rung.
 	var lace_parts: Array[Dictionary] = []
-	for k in 4:
-		var yy: float = 0.03 + 0.028 * k
+	var rungs: int = 6
+	for k in rungs:
+		var yy: float = 0.022 + 0.020 * k
+		var z: float = -0.076 - 0.001 * k
 		for dir in [-1.0, 1.0]:
-			var p0: Vector3 = Vector3(-0.02 * dir, yy, -0.075)
-			var p1: Vector3 = Vector3(0.02 * dir, yy + 0.028, -0.078)
-			var radii: PackedFloat32Array = PackedFloat32Array([0.0026, 0.0026])
+			var p0: Vector3 = Vector3(-0.021 * dir, yy, z)
+			var p1: Vector3 = Vector3(0.021 * dir, yy + 0.020, z - 0.002)
+			var radii: PackedFloat32Array = PackedFloat32Array([0.0024, 0.0024])
 			var rr: Array = ML.tube_rings([p0, p1], radii, 6)
 			for r_any in rr:
 				var ring: ML.Ring = r_any
 				ring.color = MAT.GRIP_BROWN
 			lace_parts.append(ML.loft(rr, true, true, true))
+		# Eyelet knots (little metal-ish beads) at the rung sides.
+		for dir2 in [-1.0, 1.0]:
+			lace_parts.append(_lace_knot(Vector3(0.021 * dir2, yy, z - 0.001)))
 	var laces: Dictionary = ML.merge(lace_parts)
 	if not right:
 		laces = ML.mirror_x(laces)
 	root.add_child(ML.make_instance(laces, MAT.leather(), "BootLaces"))
 
+	# Ankle strap with a small buckle wrapping the shaft.
+	var strap: MeshInstance3D = _make_leather_box(
+		Vector3(0.115, 0.016, 0.115), MAT.BELT_BROWN, "BootStrap")
+	strap.position = Vector3(0.0, 0.085, -0.006)
+	root.add_child(strap)
+	var strap_buckle: MeshInstance3D = _make_metal_box(
+		Vector3(0.018, 0.020, 0.010), MAT.BUCKLE_IRON, "BootBuckle")
+	strap_buckle.position = Vector3(0.0, 0.085, -0.066)
+	root.add_child(strap_buckle)
+
 	foot_attach.add_child(root)
+
+
+static func _lace_knot(pos: Vector3) -> Dictionary:
+	var rings: Array = []
+	for i in 2:
+		var ring: ML.Ring = ML.Ring.new()
+		var n: int = 6
+		ring.points.resize(n)
+		var r: float = 0.0032 * (1.0 if i == 0 else 0.7)
+		for j in n:
+			var a: float = TAU * float(j) / float(n)
+			ring.points[j] = pos + Vector3(cos(a) * r, sin(a) * r,
+				-0.002 * float(i) - 0.001)
+		ring.color = MAT.GRIP_BROWN.lightened(0.1)
+		ring.v = float(i)
+		rings.append(ring)
+	return ML.loft(rings, true, true, true)
 
 
 # --- Sword + scabbard -------------------------------------------------------
@@ -564,7 +600,7 @@ static func _build_sword() -> Node3D:
 	sigil_mesh.ring_segments = 10
 	sigil.name = "PommelSigil"
 	sigil.mesh = sigil_mesh
-	sigil.material_override = MAT.mark_glow(2.0)
+	sigil.material_override = MAT.glow()
 	sigil.position = Vector3(0.0, -0.168, 0.023)
 	sigil.rotation = Vector3(PI * 0.5, 0.0, 0.0)
 	sword.add_child(sigil)

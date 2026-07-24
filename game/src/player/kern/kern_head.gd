@@ -18,7 +18,7 @@ const KM: GDScript = preload("res://src/player/kern/kern_materials.gd")
 const CENTER_Z: float = 0.008
 const EYE_T: float = 0.435          # socket latitude
 const EYE_PSI: float = 0.33         # socket azimuth off the midline
-const EYE_R: float = 0.0125         # eyeball radius (life-size 24 mm ball)
+const EYE_R: float = 0.0140         # eyeball radius (reads better a touch large)
 
 var _pivot: Vector3 = Vector3.ZERO
 var _eye_l: Node3D
@@ -54,10 +54,11 @@ func build(pivot: Vector3) -> void:
 	_build_eye(true)
 
 
-## blink: 0 = open, 1 = closed. Upper lid does most of the travel.
+## blink: 0 = open, 1 = closed. Upper lid does most of the travel, rotating its
+## dome down over the aperture; the lower lid rises a little to meet it.
 func set_blink(blink: float) -> void:
-	var upper: float = -0.62 * blink
-	var lower: float = 0.20 * blink
+	var upper: float = -0.95 * blink
+	var lower: float = 0.42 * blink
 	_upper_lid_l.rotation.x = upper
 	_upper_lid_r.rotation.x = upper
 	_lower_lid_l.rotation.x = lower
@@ -78,20 +79,22 @@ func _shift(surface: Dictionary) -> void:
 
 ## Base cross-section profile per latitude t (0 crown -> 1 under-jaw pole):
 ## [t, y, rx, rz_front, rz_back, z_off]
+# Narrower cheeks and a more tapered jaw than a round head — a leaner, more
+# defined hero's face.
 const PROFILE: Array = [
 	[0.00, 1.7720, 0.0040, 0.0040, 0.0040, 0.004],
-	[0.07, 1.7625, 0.0430, 0.0470, 0.0520, 0.004],
-	[0.15, 1.7455, 0.0625, 0.0680, 0.0770, 0.002],
-	[0.24, 1.7185, 0.0730, 0.0820, 0.0930, 0.000],
-	[0.34, 1.6890, 0.0770, 0.0890, 0.1010, 0.000],
-	[0.44, 1.6595, 0.0780, 0.0855, 0.1015, 0.000],
-	[0.54, 1.6315, 0.0750, 0.0870, 0.0950, 0.000],
-	[0.64, 1.6065, 0.0685, 0.0860, 0.0830, -0.001],
-	[0.74, 1.5850, 0.0605, 0.0840, 0.0700, -0.002],
-	[0.84, 1.5655, 0.0505, 0.0780, 0.0580, -0.003],
-	[0.92, 1.5515, 0.0375, 0.0650, 0.0465, -0.002],
-	[0.97, 1.5445, 0.0220, 0.0430, 0.0330, 0.002],
-	[1.00, 1.5410, 0.0030, 0.0050, 0.0050, 0.008],
+	[0.07, 1.7625, 0.0420, 0.0460, 0.0510, 0.004],
+	[0.15, 1.7455, 0.0600, 0.0660, 0.0750, 0.002],
+	[0.24, 1.7185, 0.0700, 0.0800, 0.0910, 0.000],
+	[0.34, 1.6890, 0.0730, 0.0870, 0.0985, 0.000],
+	[0.44, 1.6595, 0.0728, 0.0835, 0.0985, 0.000],
+	[0.54, 1.6315, 0.0688, 0.0850, 0.0910, 0.000],
+	[0.64, 1.6050, 0.0608, 0.0835, 0.0770, -0.001],
+	[0.74, 1.5820, 0.0520, 0.0810, 0.0630, -0.002],
+	[0.84, 1.5610, 0.0420, 0.0740, 0.0510, -0.003],
+	[0.92, 1.5480, 0.0310, 0.0600, 0.0410, -0.002],
+	[0.97, 1.5430, 0.0190, 0.0400, 0.0300, 0.002],
+	[1.00, 1.5400, 0.0030, 0.0050, 0.0050, 0.008],
 ]
 
 
@@ -133,33 +136,48 @@ func _skull_point(t: float, psi: float) -> Vector3:
 	outward = outward.normalized()
 	var ap: float = absf(psi)
 	var d: float = 0.0
-	# Brow ridge, heaviest right above each eye.
-	d += 0.0055 * _g((t - 0.355) / 0.035) * _g(ap / 0.62) \
-		* (0.55 + 0.65 * _g((ap - 0.32) / 0.18))
-	# Eye sockets.
-	d -= 0.0090 * _g((t - EYE_T) / 0.048) * _g((ap - EYE_PSI) / 0.145)
-	# Nasal bridge riser between the eyes.
-	d += 0.0040 * _g(psi / 0.075) * _g((t - 0.44) / 0.05)
-	# Cheekbones.
-	d += 0.0050 * _g((t - 0.53) / 0.05) * _g((ap - 0.52) / 0.16)
-	# Soft cheek hollow beneath them.
-	d -= 0.0025 * _g((t - 0.62) / 0.06) * _g((ap - 0.42) / 0.18)
-	# Muzzle roundness (the dental arch pushing the mouth area forward).
-	d += 0.0045 * _g((t - 0.75) / 0.07) * _g(psi / 0.25)
-	# Philtrum groove above the upper lip.
-	d -= 0.0014 * _g(psi / 0.04) * _g((t - 0.725) / 0.028)
-	# Chin ball with a whisper of a central crease.
-	d += 0.0062 * _g((t - 0.885) / 0.048) * _g(psi / 0.15)
-	d -= 0.0010 * _g(psi / 0.03) * _g((t - 0.895) / 0.04)
+	# Brow ridge, heaviest right above each eye (sharper than before).
+	d += 0.0062 * _g((t - 0.350) / 0.028) * _g(ap / 0.60) \
+		* (0.5 + 0.75 * _g((ap - 0.33) / 0.16))
+	# Upper orbital rim: a firm ridge on the socket's top edge.
+	d += 0.0026 * _g((t - 0.392) / 0.022) * _g((ap - EYE_PSI) / 0.15)
+	# Eye sockets — deeper, so the eyeball reads as set into the skull.
+	d -= 0.0120 * _g((t - EYE_T) / 0.044) * _g((ap - EYE_PSI) / 0.135)
+	# Upper-lid crease: a groove just above the lash line.
+	d -= 0.0030 * _g((t - 0.415) / 0.016) * _g((ap - EYE_PSI) / 0.13)
+	# Lower-lid / tear trough: soft valley below the inner eye.
+	d -= 0.0026 * _g((t - 0.475) / 0.022) * _g((ap - EYE_PSI * 0.86) / 0.12)
+	d += 0.0014 * _g((t - 0.492) / 0.014) * _g((ap - EYE_PSI) / 0.13)  # lid bag ridge
+	# Nasal bridge riser between the eyes, tapering down the dorsum.
+	d += 0.0044 * _g(psi / 0.070) * _g((t - 0.44) / 0.05)
+	# Malar cheekbones — sharper and a touch higher.
+	d += 0.0056 * _g((t - 0.520) / 0.040) * _g((ap - 0.50) / 0.14)
+	# Cheek hollow beneath the bone.
+	d -= 0.0030 * _g((t - 0.610) / 0.055) * _g((ap - 0.44) / 0.17)
+	# Muzzle roundness (dental arch pushing the mouth area forward).
+	d += 0.0046 * _g((t - 0.75) / 0.065) * _g(psi / 0.24)
+	# Nasolabial fold: crease running from the nose wing toward the mouth
+	# corner (approximated as a valley on the cheek beside the mouth).
+	d -= 0.0030 * _g((t - 0.720) / 0.045) * _g((ap - 0.235) / 0.075)
+	# Philtrum groove above the upper lip, with its two flanking ridges.
+	d -= 0.0018 * _g(psi / 0.035) * _g((t - 0.725) / 0.026)
+	d += 0.0009 * _g((ap - 0.055) / 0.03) * _g((t - 0.725) / 0.03)
+	# Labiomental crease: horizontal groove between lower lip and chin.
+	d -= 0.0024 * _g((t - 0.828) / 0.018) * _g(psi / 0.16)
+	# Chin ball with a whisper of a central cleft.
+	d += 0.0068 * _g((t - 0.882) / 0.044) * _g(psi / 0.15)
+	d -= 0.0012 * _g(psi / 0.028) * _g((t - 0.892) / 0.038)
 	# Gonial jaw corners and the jawline edge that separates face from neck.
-	d += 0.0045 * _g((t - 0.72) / 0.07) * _g((ap - 0.95) / 0.18)
-	d += 0.0020 * _g((t - 0.80) / 0.045) * _g((ap - 0.75) / 0.35)
+	d += 0.0050 * _g((t - 0.72) / 0.065) * _g((ap - 0.95) / 0.17)
+	d += 0.0022 * _g((t - 0.80) / 0.042) * _g((ap - 0.75) / 0.33)
 	# Temple flats.
-	d -= 0.0028 * _g((t - 0.30) / 0.06) * _g((ap - 0.75) / 0.16)
+	d -= 0.0030 * _g((t - 0.30) / 0.055) * _g((ap - 0.75) / 0.15)
 	# Occipital swell at the back of the skull.
-	d += 0.0040 * _g((t - 0.33) / 0.10) * _g((ap - PI) / 0.5)
+	d += 0.0042 * _g((t - 0.33) / 0.10) * _g((ap - PI) / 0.5)
 	# Slight dish where the ears mount (hides the ear seam).
-	d -= 0.0022 * _g((t - 0.50) / 0.06) * _g((ap - 1.42) / 0.12)
+	d -= 0.0022 * _g((t - 0.52) / 0.06) * _g((ap - 1.62) / 0.12)
+	# Faint asymmetry so the face isn't mirror-perfect (reads more alive).
+	d += 0.0006 * sin(psi * 3.0) * _g((t - 0.55) / 0.25)
 	return p + outward * d
 
 
@@ -172,8 +190,8 @@ func _skull_normal_out(t: float, psi: float) -> Vector3:
 
 
 func _skull_surface() -> Dictionary:
-	var rows: int = 46
-	var n: int = 60
+	var rows: int = 72
+	var n: int = 96
 	var rings: Array = []
 	for i in rows:
 		var t: float = float(i) / float(rows - 1)
@@ -196,16 +214,30 @@ func _skin_paint(t: float, psi: float) -> Color:
 	var c: Color = KM.SKIN_BASE
 	# Forehead catches a touch more light-value.
 	c = c.lightened(0.03 * _g((t - 0.28) / 0.08) * _g(ap / 0.7))
-	# Socket shadow tint.
-	c = c.lerp(KM.SKIN_SHADOWED, 0.55 * _g((t - EYE_T) / 0.05) * _g((ap - EYE_PSI) / 0.15))
+	# Socket shadow tint (the eye sits in shadow — bake the ambient occlusion).
+	c = c.lerp(KM.SKIN_SHADOWED, 0.60 * _g((t - EYE_T) / 0.05) * _g((ap - EYE_PSI) / 0.15))
 	# Cheek flush.
 	c = c.lerp(KM.SKIN_FLUSH, 0.42 * _g((t - 0.57) / 0.07) * _g((ap - 0.48) / 0.22))
 	# Warmth around the mouth / chin shadow under the lip.
 	c = c.lerp(KM.LIP_COLOR, 0.16 * _g((t - 0.77) / 0.05) * _g(psi / 0.22))
-	c = c.darkened(0.07 * _g((t - 0.845) / 0.02) * _g(psi / 0.18))
+	# --- Baked crease occlusion: darken the valleys the sculpt now carries so
+	# they read as real creases even under flat light. ---
+	var ao: float = 0.0
+	ao += 0.22 * _g((t - 0.415) / 0.014) * _g((ap - EYE_PSI) / 0.13)   # upper-lid crease
+	ao += 0.16 * _g((t - 0.475) / 0.020) * _g((ap - EYE_PSI * 0.86) / 0.11)  # tear trough
+	ao += 0.20 * _g((t - 0.720) / 0.040) * _g((ap - 0.235) / 0.070)   # nasolabial
+	ao += 0.14 * _g((t - 0.828) / 0.016) * _g(psi / 0.15)             # labiomental
+	ao += 0.12 * _g(psi / 0.032) * _g((t - 0.725) / 0.024)            # philtrum
+	ao += 0.10 * _g((t - 0.612) / 0.05) * _g((ap - 0.44) / 0.16)      # cheek hollow
+	c = c.darkened(clampf(ao, 0.0, 0.4))
+	# Malar highlight: the cheekbone catches a hair more light.
+	c = c.lightened(0.04 * _g((t - 0.520) / 0.035) * _g((ap - 0.50) / 0.13))
 	# Under-jaw ambient shadow.
-	c = c.darkened(0.10 * clampf((t - 0.90) / 0.08, 0.0, 1.0))
-	c.a = 0.85
+	c = c.darkened(0.12 * clampf((t - 0.90) / 0.08, 0.0, 1.0))
+	# Thinness (COLOR.a): thin at nostril rims / lip edge / ear-adjacent skin.
+	var thin: float = 0.85
+	thin -= 0.25 * _g((t - 0.79) / 0.03) * _g(psi / 0.20)  # lips edge translucency
+	c.a = clampf(thin, 0.4, 1.0)
 	return c
 
 
@@ -330,42 +362,55 @@ func _lip_row(cols: int, half_angle: float, spec: Callable) -> ML.Ring:
 # --- Ears (built at +X, mirrored for the left) ------------------------------
 
 func _ear_surface() -> Dictionary:
-	var mount: Vector3 = _skull_point(0.50, 1.42)
+	# Ears mount behind the jaw hinge (roughly the coronal midline), not on the
+	# cheek. psi ~1.62 sits just aft of the true side.
+	var mount: Vector3 = _skull_point(0.52, 1.62)
 	var parts: Array[Dictionary] = []
-	# Ear-local frame: +X out from the head, slight backward yaw + outward tilt.
+	# Ear-local frame: +X out from the head, backward yaw + slight outward tilt.
 	var basis: Basis = Basis.IDENTITY
-	basis = basis.rotated(Vector3.UP, -0.20)
+	basis = basis.rotated(Vector3.UP, -0.32)
 	basis = basis.rotated(Vector3.FORWARD, 0.16)
 	var xf: Transform3D = Transform3D(basis, mount)
 
 	# Outline of the auricle in the ear's own YZ plane (y up, z toward the
-	# face): a slightly pointed oval, fuller at the lobe.
+	# face): a long Hylian point — the upper helix pulls up-and-back to a tip,
+	# the lobe stays small and rounded (Link-signature elf ear).
 	var outline: Array[Vector3] = []
-	var samples: int = 16
+	var samples: int = 20
 	for i in samples:
 		var a: float = TAU * float(i) / float(samples)
-		var ry: float = 0.031
-		var rz: float = 0.017
-		var y: float = sin(a) * ry
+		var s: float = sin(a)
+		var ry: float = 0.030
+		var rz: float = 0.016
+		var y: float = s * ry
 		var z: float = cos(a) * rz
-		if sin(a) < -0.3:
-			y *= 0.86  # lobe sits lower and rounder
-			z *= 0.80
-		if sin(a) > 0.55:
-			z *= 0.88  # upper helix leans back a touch
+		if s < -0.3:
+			y *= 0.72  # small lobe
+			z *= 0.78
+		if s > 0.2:
+			# Draw the upper helix out to a point: extend upward and back, and
+			# pinch the width toward the tip.
+			var up: float = smoothstep(0.2, 1.0, s)
+			y += up * 0.028                 # elongate upward
+			z += up * 0.014                 # and rearward (toward +z = back)
+			z *= (1.0 - up * 0.55)          # pinch to a tip
 		outline.append(Vector3(0.0, y + 0.002, z - 0.002))
 	outline.append(outline[0])
 
-	# Helix rim: tube around the outline.
+	# Helix rim: tube around the outline, thinning toward the pointed tip.
 	var radii: PackedFloat32Array = PackedFloat32Array()
 	for i in outline.size():
 		var a: float = TAU * float(i % samples) / float(samples)
-		radii.append(0.0048 if sin(a) < -0.3 else 0.0038)
+		var s: float = sin(a)
+		var r: float = 0.0046 if s < -0.3 else 0.0036
+		if s > 0.4:
+			r = lerpf(0.0036, 0.0018, smoothstep(0.4, 1.0, s))  # taper to tip
+		radii.append(r)
 	var rim_rings: Array = ML.tube_rings(outline, radii, 8)
 	for r_any in rim_rings:
 		var ring: ML.Ring = r_any
-		var c: Color = KM.SKIN_BASE.lerp(KM.SKIN_FLUSH, 0.45)
-		c.a = 0.30  # the thinnest skin on the body: ears glow backlit
+		var c: Color = KM.SKIN_BASE.lerp(KM.SKIN_FLUSH, 0.30)
+		c.a = 0.62  # thin, but not so thin it glows lantern-orange in daylight
 		ring.color = c
 	parts.append(ML.loft(rim_rings, true))
 
@@ -381,7 +426,7 @@ func _ear_surface() -> Dictionary:
 			ring.points[i] = Vector3(float(sink[k]),
 				p.y * float(scales[k]), p.z * float(scales[k]))
 		var c: Color = KM.SKIN_BASE.lerp(KM.SKIN_FLUSH, 0.5).darkened(0.10 * float(k))
-		c.a = 0.35
+		c.a = 0.58
 		ring.color = c
 		ring.v = float(k) * 0.5
 		bowl.append(ring)
@@ -397,7 +442,7 @@ func _ear_surface() -> Dictionary:
 	for r_any in anti:
 		var ring: ML.Ring = r_any
 		var c: Color = KM.SKIN_BASE.lerp(KM.SKIN_FLUSH, 0.4)
-		c.a = 0.35
+		c.a = 0.58
 		ring.color = c
 	parts.append(ML.loft(anti, true, true, true))
 
@@ -411,7 +456,7 @@ func _ear_surface() -> Dictionary:
 	for r_any in tragus:
 		var ring: ML.Ring = r_any
 		var c: Color = KM.SKIN_BASE.lerp(KM.SKIN_FLUSH, 0.35)
-		c.a = 0.4
+		c.a = 0.6
 		ring.color = c
 	parts.append(ML.loft(tragus, true, true, true))
 
@@ -426,13 +471,14 @@ func _brow_surface(side: float) -> Dictionary:
 	var samples: int = 10
 	for i in samples:
 		var s: float = float(i) / float(samples - 1)
-		var psi: float = side * (0.115 + 0.44 * s)
-		var t: float = 0.352 - 0.012 * _g((s - 0.55) / 0.35) + 0.014 * pow(s, 3.0)
-		path.append(_skull_point(t, psi) + _skull_normal_out(t, psi) * 0.0038)
+		var psi: float = side * (0.130 + 0.40 * s)
+		# Sit low on the brow ridge, just above the eye, arching gently.
+		var t: float = 0.392 - 0.014 * _g((s - 0.40) / 0.32) + 0.010 * pow(s, 3.0)
+		path.append(_skull_point(t, psi) + _skull_normal_out(t, psi) * 0.0030)
 	var radii: PackedFloat32Array = PackedFloat32Array()
 	for i in samples:
 		var s: float = float(i) / float(samples - 1)
-		radii.append(lerpf(0.0042, 0.0014, pow(s, 1.4)))
+		radii.append(lerpf(0.0026, 0.0009, pow(s, 1.2)))
 	var rings: Array = ML.tube_rings(path, radii, 7, 0.5)
 	for i in rings.size():
 		var ring: ML.Ring = rings[i]
@@ -448,36 +494,39 @@ func _build_eye(right: bool) -> void:
 	var side: float = 1.0 if right else -1.0
 	var socket: Vector3 = _skull_point(EYE_T, side * EYE_PSI)
 	var out_dir: Vector3 = _skull_normal_out(EYE_T, side * EYE_PSI)
-	var center: Vector3 = socket - out_dir * 0.0055 - _pivot
-	var fwd: Basis = Basis.IDENTITY.rotated(Vector3.UP, side * -0.07)
+	# A near-flat almond eye set flush into the socket — no protruding orb to
+	# cover, so it never goes bug-eyed. The sculpted socket + lash lines frame
+	# it; the sclera/iris/pupil/catchlight give it life.
+	var center: Vector3 = socket - out_dir * 0.0020 - _pivot
+	var fwd: Basis = Basis.IDENTITY.rotated(Vector3.UP, side * -0.06)
 
 	var eye_root: Node3D = Node3D.new()
 	eye_root.name = "EyeR" if right else "EyeL"
 	eye_root.position = center
 	eye_root.basis = fwd
 	add_child(eye_root)
-	var ball: MeshInstance3D = ML.make_instance(_eyeball_surface(), KM.eye(), "Ball")
-	eye_root.add_child(ball)
+	_build_eyeball(eye_root)
 	if right:
 		_eye_r = eye_root
 	else:
 		_eye_l = eye_root
 
+	# Upper + lower lash lines frame the almond. The upper is a thick dark
+	# curve (the lid margin), the lower a fine one. Built on blink pivots so a
+	# blink can drop the upper line + a skin shutter over the eye.
 	var upper: Node3D = Node3D.new()
 	upper.name = "UpperLid"
 	upper.position = center
 	upper.basis = fwd
 	add_child(upper)
-	upper.add_child(ML.make_instance(
-		_lid_surface(true), KM.skin(), "UpperLidMesh"))
-	upper.add_child(ML.make_instance(_lash_surface(side), KM.brow(), "Lashes"))
+	upper.add_child(_lash_line(side, true))
+
 	var lower: Node3D = Node3D.new()
 	lower.name = "LowerLid"
 	lower.position = center
 	lower.basis = fwd
 	add_child(lower)
-	lower.add_child(ML.make_instance(
-		_lid_surface(false), KM.skin(), "LowerLidMesh"))
+	lower.add_child(_lash_line(side, false))
 	if right:
 		_upper_lid_r = upper
 		_lower_lid_r = lower
@@ -487,42 +536,135 @@ func _build_eye(right: bool) -> void:
 
 	# Caruncle: the small pink inner-corner wedge.
 	var caruncle: SphereMesh = SphereMesh.new()
-	caruncle.radius = 0.0021
-	caruncle.height = 0.0042
+	caruncle.radius = 0.0020
+	caruncle.height = 0.0040
 	caruncle.radial_segments = 8
 	caruncle.rings = 4
 	var car_node: MeshInstance3D = MeshInstance3D.new()
 	car_node.name = "CaruncleR" if right else "CaruncleL"
 	car_node.mesh = caruncle
 	var car_mat: StandardMaterial3D = StandardMaterial3D.new()
-	car_mat.albedo_color = Color(0.78, 0.42, 0.38)
+	car_mat.albedo_color = Color(0.74, 0.40, 0.36)
 	car_mat.roughness = 0.4
 	car_node.material_override = car_mat
-	car_node.position = center + Vector3(-side * 0.0118, -0.0012, -0.0035)
+	car_node.position = center + fwd * Vector3(side * 0.0130, -0.0008, -EYE_R * 0.30)
 	add_child(car_node)
 
 
-## Eyeball around -Z with polar UVs the eye shader expects (v = 0 at the
-## pupil pole). Includes the corneal bulge that catches the wet glint.
-func _eyeball_surface() -> Dictionary:
-	var rings: Array = []
-	var rows: int = 20
-	for i in rows:
-		var theta: float = lerpf(0.0, PI * 0.8, float(i) / float(rows - 1))
-		var bulge: float = 1.0 + 0.055 * _g(theta / 0.32)
-		var r: float = EYE_R * bulge
-		var ring_r: float = r * sin(theta)
-		var ring: ML.Ring = ML.Ring.new()
-		var n: int = 20
-		ring.points.resize(n)
-		for j in n:
-			var a: float = TAU * float(j) / float(n)
-			ring.points[j] = Vector3(
-				cos(a) * ring_r, sin(a) * ring_r, -r * cos(theta))
-		ring.v = theta / PI
-		ring.color = Color(1.0, 1.0, 1.0)
-		rings.append(ring)
-	return ML.loft(rings, true, false, true)
+## A lash / lid-margin line: a tube arc across the top (or bottom) of the almond
+## eye opening, in the eye-local XY plane just proud of the sclera.
+func _lash_line(side: float, upper: bool) -> MeshInstance3D:
+	var hw: float = EYE_R * 1.28
+	var hh: float = EYE_R * 0.66
+	var samples: int = 11
+	var path: Array[Vector3] = []
+	for i in samples:
+		var f: float = float(i) / float(samples - 1)
+		var x: float = lerpf(-hw, hw, f)
+		var arc: float = 1.0 - pow(x / hw, 2.0)
+		var y: float
+		if upper:
+			y = hh * arc
+			# Outer corner (away from nose) dips a touch for an almond, not round.
+			y -= EYE_R * 0.12 * smoothstep(0.0, 1.0, (x * side + hw) / (2.0 * hw))
+		else:
+			y = -hh * 0.72 * arc
+		path.append(Vector3(x, y, -EYE_R * 0.30 - EYE_R * 0.18 * arc))
+	var radii: PackedFloat32Array = PackedFloat32Array()
+	for i in samples:
+		var f: float = float(i) / float(samples - 1)
+		var taper: float = pow(1.0 - abs(f - 0.5) * 2.0, 0.4)  # thin at corners
+		if upper:
+			radii.append(lerpf(0.0007, 0.0016, taper))
+		else:
+			radii.append(lerpf(0.0004, 0.0008, taper))
+	var rings: Array = ML.tube_rings(path, radii, 7, 0.7)
+	for r_any in rings:
+		var ring: ML.Ring = r_any
+		ring.color = Color(0.13, 0.09, 0.07) if upper else Color(0.35, 0.24, 0.20)
+	return ML.make_instance(ML.loft(rings, true, true, true), KM.brow(),
+		"UpperLash" if upper else "LowerLash")
+
+
+## The eye as simple layered meshes — the robust way stylized games build eyes,
+## and immune to the UV-sphere pitfalls that made the analytic version render as
+## a ring: a warm-white sclera sphere, a domed dark iris, a black pupil, and a
+## bright catchlight dot. The cornea (iris/pupil/glint) faces -Z (forward).
+func _build_eyeball(eye_root: Node3D) -> void:
+	# Sclera: a flattened almond lens (wider than tall, shallow front-back) so
+	# it seats flush in the socket. Iris fills the height; sclera shows as thin
+	# crescents at the inner/outer corners — exactly a real eye.
+	var sclera_mesh: SphereMesh = SphereMesh.new()
+	sclera_mesh.radius = EYE_R
+	sclera_mesh.height = EYE_R * 2.0
+	sclera_mesh.radial_segments = 24
+	sclera_mesh.rings = 14
+	var sclera: MeshInstance3D = MeshInstance3D.new()
+	sclera.name = "Sclera"
+	sclera.mesh = sclera_mesh
+	sclera.scale = Vector3(1.30, 0.66, 0.42)
+	var sclera_mat: StandardMaterial3D = StandardMaterial3D.new()
+	sclera_mat.albedo_color = Color(0.84, 0.81, 0.77)
+	sclera_mat.roughness = 0.28
+	sclera_mat.metallic_specular = 0.55
+	sclera.material_override = sclera_mat
+	eye_root.add_child(sclera)
+
+	# Iris: a flat disc facing -Z (forward) wearing the iris shader — radial
+	# gradient, fibres, and a gradient-hue shimmer + inner glow that swell with
+	# `awaken` (his eyes light from within as the First Model surfaces).
+	var iris: MeshInstance3D = _eye_disc(EYE_R * 0.60, EYE_R * 0.05,
+		Color(0.20, 0.31, 0.19), -EYE_R * 0.40, "Iris")
+	var iris_mat: ShaderMaterial = KM.iris()
+	iris_mat.set_shader_parameter("iris_radius", EYE_R * 0.60)
+	iris.material_override = iris_mat
+	iris.scale = Vector3(1.0, 1.02, 1.0)
+	eye_root.add_child(iris)
+
+	# Pupil: a small near-black disc.
+	var pupil: MeshInstance3D = _eye_disc(EYE_R * 0.24, EYE_R * 0.06,
+		Color(0.02, 0.02, 0.03), -EYE_R * 0.46, "Pupil")
+	eye_root.add_child(pupil)
+
+	# Catchlight: a tiny bright unshaded dot up and to the nasal side of the
+	# pupil — the single strongest "alive" cue.
+	var glint_mesh: SphereMesh = SphereMesh.new()
+	glint_mesh.radius = EYE_R * 0.13
+	glint_mesh.height = EYE_R * 0.26
+	glint_mesh.radial_segments = 10
+	glint_mesh.rings = 6
+	var glint: MeshInstance3D = MeshInstance3D.new()
+	glint.name = "Catchlight"
+	glint.mesh = glint_mesh
+	glint.position = Vector3(-EYE_R * 0.20, EYE_R * 0.20, -EYE_R * 0.52)
+	var glint_mat: StandardMaterial3D = StandardMaterial3D.new()
+	glint_mat.albedo_color = Color(1.0, 1.0, 1.0)
+	glint_mat.emission_enabled = true
+	glint_mat.emission = Color(1.0, 1.0, 1.0)
+	glint_mat.emission_energy_multiplier = 1.8
+	glint_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glint.material_override = glint_mat
+	eye_root.add_child(glint)
+
+
+## A thin cylinder disc facing -Z (forward) for the flat eye layers.
+func _eye_disc(radius: float, thickness: float, color: Color, z: float,
+		disc_name: String) -> MeshInstance3D:
+	var mesh: CylinderMesh = CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = thickness
+	mesh.radial_segments = 24
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.name = disc_name
+	mi.mesh = mesh
+	mi.rotation = Vector3(PI * 0.5, 0.0, 0.0)  # axis Y -> Z, disc faces -Z
+	mi.position = Vector3(0.0, 0.0, z)
+	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.roughness = 0.25
+	mi.material_override = mat
+	return mi
 
 
 ## Lid shell hugging the eyeball; open strip across the top (or bottom) arc.
@@ -593,53 +735,72 @@ func _lash_surface(side: float) -> Dictionary:
 
 func _hairline_t(psi: float) -> float:
 	var ap: float = absf(psi)
-	return 0.24 + 0.08 * smoothstep(0.35, 1.0, ap) + 0.26 * smoothstep(1.2, 2.9, ap)
+	# Forehead hairline high; drops past the temples and low around the back so
+	# the cap of hair fully covers the skull between clumps.
+	return 0.235 + 0.14 * smoothstep(0.35, 1.0, ap) + 0.34 * smoothstep(1.1, 2.9, ap)
 
 
 func _hair_surface() -> Dictionary:
 	var parts: Array[Dictionary] = []
 	parts.append(_scalp_shell())
 	# Clump layout: [t, psi, length, radius, flow] where flow steers the tip.
+	# Clumps are wide and overlapping so the cut reads as a full head of hair,
+	# not spikes — three staggered layers (under, mid, surface) per zone.
 	var specs: Array = []
-	# Fringe: sweeps across the forehead toward Kern's left (-X).
-	for k in 10:
-		var f: float = float(k) / 9.0
-		var psi: float = lerpf(-0.62, 0.62, f)
-		specs.append([0.205 + 0.02 * ML.hash1(float(k) * 7.1), psi,
-			0.095 + 0.020 * ML.hash1(float(k) * 3.3), 0.0105,
-			Vector3(-0.55 - 0.2 * f, -0.72, -0.30)])
-	# Temple sweeps over the ear tops.
-	for k in 3:
-		for side in [-1.0, 1.0]:
-			var psi: float = float(side) * (0.78 + 0.17 * float(k))
-			specs.append([0.28 + 0.035 * float(k), psi, 0.072, 0.0095,
-				Vector3(float(side) * 0.42, -0.85, -0.05)])
-	# Sides and back: falling flow, shorter toward the nape.
+	# Fringe: parted and swept across the brow toward Kern's left (-X) so it
+	# frames the face and clears the eyes instead of curtaining over them.
 	for k in 16:
 		var f: float = float(k) / 15.0
+		var psi: float = lerpf(-0.72, 0.72, f)
+		var jt: float = ML.hash1(float(k) * 7.1)
+		# Strong sideways sweep, only a little drop — tips ride above the eyes.
+		specs.append([0.205 + 0.03 * jt, psi,
+			0.060 + 0.022 * ML.hash1(float(k) * 3.3), 0.019,
+			Vector3(-1.05 - 0.15 * f, -0.42, -0.30)])
+	# Upper-fringe underlayer, shorter, filling gaps at the part.
+	for k in 12:
+		var f: float = float(k) / 11.0
+		specs.append([0.155 + 0.02 * ML.hash1(float(k) * 9.9), lerpf(-0.62, 0.62, f),
+			0.045, 0.018, Vector3(-0.85 - 0.15 * f, -0.35, -0.28)])
+	# Temple + over-ear sweeps, both sides, layered.
+	for k in 5:
+		for side in [-1.0, 1.0]:
+			var psi: float = float(side) * (0.72 + 0.14 * float(k))
+			specs.append([0.24 + 0.045 * float(k), psi, 0.078, 0.020,
+				Vector3(float(side) * 0.40, -0.86, -0.02)])
+	# Sides and back: falling flow, full coverage, shorter toward the nape.
+	for k in 26:
+		var f: float = float(k) / 25.0
 		var psi: float = lerpf(-PI, PI, f)
-		if absf(psi) < 0.95:
+		if absf(psi) < 0.88:
 			continue
-		specs.append([0.30 + 0.05 * ML.hash1(float(k) * 11.7), psi,
-			0.065 + 0.015 * ML.hash1(float(k) * 5.9), 0.0100,
-			Vector3(signf(psi) * 0.25, -0.90, 0.18)])
-	# Crown whorl radiating from a rear-top point, slightly off-centre.
+		specs.append([0.26 + 0.10 * ML.hash1(float(k) * 11.7), psi,
+			0.070 + 0.022 * ML.hash1(float(k) * 5.9), 0.020,
+			Vector3(signf(psi) * 0.22, -0.92, 0.16)])
+	# Crown whorl radiating from a rear-top point — the mass on top.
+	for k in 14:
+		var wa: float = TAU * float(k) / 14.0
+		specs.append([0.085 + 0.05 * ML.hash1(float(k) * 4.4), 0.35,
+			0.078, 0.020, Vector3(cos(wa) * 0.7, -0.40, sin(wa) * 0.7)])
+	# Crown cap: short clumps laid flat over the very top so no dark scalp
+	# shows through the whorl centre.
 	for k in 8:
 		var wa: float = TAU * float(k) / 8.0
-		specs.append([0.10, 0.35 + 0.0 * wa, 0.075, 0.0100,
-			Vector3(cos(wa) * 0.7, -0.35, sin(wa) * 0.7)])
-	# Nape shorts.
-	for k in 6:
-		var psi: float = lerpf(-0.6, 0.6, float(k) / 5.0) + PI
-		specs.append([0.50, wrapf(psi, -PI, PI), 0.048, 0.0085,
-			Vector3(0.0, -0.95, 0.30)])
+		specs.append([0.045, wrapf(0.35 + wa * 0.4, -PI, PI),
+			0.055, 0.019, Vector3(cos(wa) * 0.45, -0.30, sin(wa) * 0.45 + 0.2)])
+	# Nape shorts, layered.
+	for k in 9:
+		var psi: float = lerpf(-0.7, 0.7, float(k) / 8.0) + PI
+		specs.append([0.48, wrapf(psi, -PI, PI), 0.052, 0.018,
+			Vector3(0.0, -0.95, 0.28)])
 	var idx: int = 0
 	for spec in specs:
 		parts.append(_hair_clump(spec[0], spec[1], spec[2], spec[3], spec[4], idx))
 		idx += 1
-	# Two thin flyaways at the crown — the unruly detail.
-	parts.append(_hair_clump(0.06, 0.2, 0.055, 0.0018, Vector3(0.3, 0.45, -0.3), 97))
-	parts.append(_hair_clump(0.08, -0.4, 0.048, 0.0016, Vector3(-0.3, 0.5, 0.2), 98))
+	# A few finer flyaways at the crown — the unruly detail on top of the mass.
+	parts.append(_hair_clump(0.06, 0.2, 0.055, 0.004, Vector3(0.3, 0.45, -0.3), 197))
+	parts.append(_hair_clump(0.08, -0.4, 0.050, 0.004, Vector3(-0.3, 0.5, 0.2), 198))
+	parts.append(_hair_clump(0.05, 1.6, 0.048, 0.004, Vector3(0.5, 0.4, 0.4), 199))
 	return ML.merge(parts)
 
 
@@ -660,8 +821,10 @@ func _scalp_shell() -> Dictionary:
 			var up_mix: float = clampf(1.0 - t * 2.2, 0.0, 1.0)
 			var out: Vector3 = _skull_normal_out(t, psi)
 			out = (out * (1.0 - up_mix) + Vector3.UP * up_mix).normalized()
-			ring.points[j] = p + out * 0.0045
-			var mul: float = 0.85 + 0.3 * ML.hash1(float(j) * 1.7 + float(i) * 3.1)
+			# Puff the cap outward for hair volume (thicker over the crown).
+			var puff: float = 0.010 + 0.006 * up_mix
+			ring.points[j] = p + out * puff
+			var mul: float = 0.80 + 0.28 * ML.hash1(float(j) * 1.7 + float(i) * 3.1)
 			pc.append(Color(mul, mul, mul))
 		ring.point_colors = pc
 		ring.v = f * 0.30

@@ -28,12 +28,12 @@ uniform float sheen_strength : hint_range(0.0, 1.0) = 0.30;
 
 group_uniforms rim;
 uniform vec4 rim_color : source_color = vec4(0.72, 0.86, 1.0, 1.0);
-uniform float rim_amount : hint_range(0.0, 1.0) = 0.26;
-uniform float rim_width : hint_range(0.0, 1.0) = 0.66;
+uniform float rim_amount : hint_range(0.0, 1.0) = 0.16;
+uniform float rim_width : hint_range(0.0, 1.0) = 0.70;
 
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.34, 0.45, 0.68, 1.0);
-uniform float fill_amount : hint_range(0.0, 0.6) = 0.09;
+uniform float fill_amount : hint_range(0.0, 0.6) = 0.05;
 
 varying vec3 v_col;
 varying vec3 v_opos;

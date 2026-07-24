@@ -33,8 +33,8 @@ const CLOAK_A: Vector3 = Vector3(0.0, 1.425, 0.085)
 const CLOAK_B: Vector3 = Vector3(0.0, 1.03, 0.135)
 const CLOAK_C: Vector3 = Vector3(0.0, 0.60, 0.175)
 
-const RING_N: int = 16               # radial segments for limbs
-const TORSO_N: int = 24
+const RING_N: int = 20               # radial segments for limbs
+const TORSO_N: int = 32
 
 
 ## Assembles skeleton + skinned body under `parent`. Returns:
@@ -179,22 +179,25 @@ static func _build_neck(skeleton: Skeleton3D, bones: Dictionary) -> void:
 static func _build_tunic(skeleton: Skeleton3D, bones: Dictionary) -> void:
 	var rings: Array = []
 	# [y, rx, rz_front, rz_back, z_off, fold ripple amp]
+	# An athletic V-taper: broad chest/shoulders -> narrow waist -> flaring
+	# skirt (the Link tunic line), rather than a barrel.
 	var rows: Array = [
-		[1.490, 0.062, 0.056, 0.058, -0.004, 0.000],   # collar band
-		[1.472, 0.075, 0.066, 0.070, -0.002, 0.000],
-		[1.452, 0.108, 0.080, 0.086, 0.000, 0.000],    # shoulder slope
-		[1.430, 0.148, 0.092, 0.098, 0.000, 0.000],    # armpit shelf
-		[1.380, 0.157, 0.100, 0.102, 0.000, 0.001],    # chest
-		[1.310, 0.153, 0.102, 0.100, 0.000, 0.001],
-		[1.240, 0.146, 0.099, 0.096, 0.002, 0.002],
-		[1.170, 0.138, 0.095, 0.094, 0.003, 0.002],
-		[1.100, 0.132, 0.092, 0.093, 0.004, 0.003],    # waist taper
-		[1.040, 0.130, 0.091, 0.094, 0.005, 0.003],
-		[1.005, 0.134, 0.093, 0.097, 0.005, 0.002],    # under the belt
-		[0.965, 0.146, 0.099, 0.104, 0.006, 0.004],    # skirt starts
-		[0.925, 0.158, 0.106, 0.112, 0.006, 0.006],
-		[0.888, 0.169, 0.113, 0.120, 0.007, 0.008],
-		[0.856, 0.178, 0.119, 0.127, 0.007, 0.010],    # hem
+		[1.500, 0.048, 0.046, 0.048, -0.004, 0.000],   # high collar at the neck
+		[1.480, 0.062, 0.056, 0.060, -0.002, 0.000],   # collar base
+		[1.458, 0.092, 0.070, 0.080, 0.000, 0.000],    # trapezius slope
+		[1.432, 0.136, 0.084, 0.094, 0.000, 0.000],    # deltoid cap
+		[1.398, 0.148, 0.094, 0.100, 0.000, 0.001],    # broad chest top
+		[1.350, 0.142, 0.100, 0.100, 0.000, 0.001],    # pecs
+		[1.295, 0.129, 0.096, 0.096, 0.001, 0.001],    # lower ribs
+		[1.235, 0.115, 0.090, 0.090, 0.002, 0.002],    # upper waist
+		[1.175, 0.106, 0.084, 0.086, 0.003, 0.002],    # narrow waist
+		[1.120, 0.110, 0.085, 0.090, 0.004, 0.003],    # waist / belt line
+		[1.070, 0.121, 0.090, 0.098, 0.004, 0.003],    # hips
+		[1.015, 0.134, 0.097, 0.106, 0.005, 0.002],    # under the belt
+		[0.968, 0.148, 0.101, 0.112, 0.006, 0.004],    # skirt starts
+		[0.922, 0.161, 0.108, 0.120, 0.006, 0.006],
+		[0.882, 0.171, 0.114, 0.127, 0.007, 0.008],
+		[0.850, 0.179, 0.120, 0.132, 0.007, 0.010],    # hem flare
 	]
 	var row_i: int = 0
 	for row in rows:
@@ -211,6 +214,14 @@ static func _build_tunic(skeleton: Skeleton3D, bones: Dictionary) -> void:
 		c.a = clampf(float(row_i - 10) / 4.0, 0.0, 1.0) * 0.5  # skirt swings
 		ring.color = c
 		_torso_weights(ring, y, bones)
+		# Shoulder slope: drop the outer (side) vertices at the top rows so the
+		# shoulders angle down to the arms instead of forming a flat shelf.
+		if y >= 1.43:
+			var n_pts: int = ring.points.size()
+			for j in n_pts:
+				var a2: float = TAU * float(j) / float(n_pts)
+				var side_f: float = absf(cos(a2))  # 1 at the sides
+				ring.points[j].y -= 0.072 * pow(side_f, 1.6)
 		# Hem dips: the skirt bottom edge waves so it doesn't cut a laser line.
 		if row_i == rows.size() - 1:
 			for j in ring.points.size():
@@ -219,7 +230,11 @@ static func _build_tunic(skeleton: Skeleton3D, bones: Dictionary) -> void:
 		rings.append(ring)
 		row_i += 1
 	var surface: Dictionary = ML.loft(rings, true, false, false, true)
-	_skinned(skeleton, surface, KM.cloth(210.0, 0.004), "Tunic")
+	# Tunic v runs 0 (collar) -> ~1.8 (hem). Gold trim at the collar and hem,
+	# a little wind in the loose skirt.
+	var tunic_mat: ShaderMaterial = KM.cloth(210.0, 0.018)
+	KM.add_trim(tunic_mat, Vector2(0.06, 0.055), Vector2(1.70, 0.075), 14.0)
+	_skinned(skeleton, surface, tunic_mat, "Tunic")
 
 	# Cross-lacing at the collar front: the small handmade detail that reads
 	# at conversation distance. Two crossed cords + three eyelet knots.
@@ -348,15 +363,19 @@ static func _build_sleeve(skeleton: Skeleton3D, bones: Dictionary, right: bool) 
 			ring.point_colors = pc
 	var surface: Dictionary = ML.loft(rings, true, false, false, true)
 	var side: String = "R" if right else "L"
-	_skinned(skeleton, surface, KM.cloth(230.0, 0.0), "Sleeve" + side)
+	# Sleeve v runs 0 (shoulder) -> ~1.4 (cuff). Trim at the cuff; a little wind.
+	var sleeve_mat: ShaderMaterial = KM.cloth(230.0, 0.010)
+	KM.add_trim(sleeve_mat, Vector2(1.34, 0.055), Vector2(-1.0, 0.05), 8.0)
+	_skinned(skeleton, surface, sleeve_mat, "Sleeve" + side)
 
 
 static func _sleeve_radius(t: float) -> float:
 	# Shoulder cap -> deltoid -> biceps -> elbow -> forearm swell -> cuff.
+	# Slimmer and more tapered than before for a lean, athletic arm.
 	var keys: Array = [
-		[0.00, 0.0640], [0.08, 0.0620], [0.20, 0.0540], [0.34, 0.0480],
-		[0.50, 0.0430], [0.60, 0.0450], [0.72, 0.0430], [0.86, 0.0380],
-		[1.00, 0.0335],
+		[0.00, 0.0560], [0.08, 0.0525], [0.20, 0.0455], [0.34, 0.0405],
+		[0.50, 0.0365], [0.60, 0.0385], [0.72, 0.0360], [0.86, 0.0320],
+		[1.00, 0.0285],
 	]
 	for i in keys.size() - 1:
 		var a: Array = keys[i]
@@ -387,9 +406,10 @@ static func _build_trouser(skeleton: Skeleton3D, bones: Dictionary, right: bool)
 	var radii: PackedFloat32Array = PackedFloat32Array()
 	for i in rows:
 		var t: float = float(i) / float(rows - 1)
+		# Slimmer leg: thigh -> knee -> calf swell -> ankle cuff.
 		var keys: Array = [
-			[0.00, 0.0840], [0.16, 0.0800], [0.36, 0.0720], [0.55, 0.0620],
-			[0.62, 0.0590], [0.74, 0.0640], [0.88, 0.0560], [1.00, 0.0500],
+			[0.00, 0.0730], [0.16, 0.0690], [0.36, 0.0610], [0.55, 0.0510],
+			[0.62, 0.0485], [0.74, 0.0540], [0.88, 0.0460], [1.00, 0.0405],
 		]
 		var r: float = 0.05
 		for k in keys.size() - 1:
@@ -446,13 +466,18 @@ static func _build_hand(right: bool) -> Node3D:
 	var finger_r: Array = [0.0085, 0.0088, 0.0082, 0.0072]
 	for f in 4:
 		var curl: Vector3
+		var splay: float
 		if grip:
-			curl = Vector3(1.30, 1.35, 0.95)
+			# Tighter, uniform curl so the four fingers close into a fist around
+			# the grip instead of splaying into separate ribbons.
+			curl = Vector3(1.15, 1.20, 1.05)
+			splay = 0.02 * (float(f) - 1.5)
 		else:
 			curl = Vector3(0.38 + 0.05 * float(f), 0.50, 0.34)
+			splay = 0.06 * (float(f) - 1.5)
 		parts.append(_finger_surface(
 			Vector3(finger_x[f], -0.096, 0.004),
-			finger_len[f], finger_r[f], curl, 0.06 * (float(f) - 1.5)))
+			finger_len[f], finger_r[f], curl, splay))
 	parts.append(_thumb_surface(grip))
 	var merged: Dictionary = ML.merge(parts)
 	if not right:
@@ -469,7 +494,36 @@ static func _build_hand(right: bool) -> Node3D:
 
 	if right:
 		root.add_child(_hand_mark())
+		_add_hand_threads(root)
 	return root
+
+
+## Latent threads: faint glowing filaments branching from the hand-mark across
+## the back of the hand and up onto the wrist — brighten with `awaken`.
+static func _add_hand_threads(root: Node3D) -> void:
+	var origin: Vector3 = Vector3(0.0, -0.055, -0.017)  # the mark, back of hand
+	var tips: Array = [
+		Vector3(-0.030, -0.015, -0.020),
+		Vector3(0.028, -0.020, -0.020),
+		Vector3(0.006, 0.010, -0.014),   # up toward the wrist
+		Vector3(-0.014, -0.088, -0.016),  # down toward the knuckles
+	]
+	var idx: int = 0
+	for tip_any in tips:
+		var tip: Vector3 = tip_any
+		var mid: Vector3 = origin.lerp(tip, 0.5) + Vector3(
+			(ML.hash1(float(idx) * 3.1) - 0.5) * 0.010, 0.0,
+			-0.004 - 0.004 * ML.hash1(float(idx) * 7.7))
+		var path: Array[Vector3] = ML.bezier_path(origin, mid,
+			mid.lerp(tip, 0.6), tip, 7)
+		var radii: PackedFloat32Array = PackedFloat32Array()
+		for i in path.size():
+			var f: float = float(i) / float(path.size() - 1)
+			radii.append(lerpf(0.0016, 0.0005, f))  # taper to nothing
+		var rings: Array = ML.tube_rings(path, radii, 6)
+		var surf: Dictionary = ML.loft(rings, true, true, true)
+		root.add_child(ML.make_instance(surf, KM.glow(), "HandThread%d" % idx))
+		idx += 1
 
 
 static func _palm_surface() -> Dictionary:
@@ -624,43 +678,64 @@ static func _nail_at(center: Vector3, size: float) -> Dictionary:
 	return ML.loft(rings, true, false, true)
 
 
-## The canon mark: a small emissive circuit-sigil flush on the back of the
-## right hand — a ring, three radiating ticks, and a centre node (the
-## perceptron motif from the project icon).
+## The canon mark: a small perceptron sigil flush on the back of the right hand
+## — an outer ring, a centre node, three input nodes wired to it, and one output
+## tail. Wears the living glow material, so it's a faint ember at rest and
+## blazes as `awaken` rises (near ancient machinery / knowledge charge). The
+## motif echoes the project's perceptron icon.
 static func _hand_mark() -> Node3D:
 	var mark: Node3D = Node3D.new()
 	mark.name = "HandMark"
-	var mat: StandardMaterial3D = KM.mark_glow()
+	var mat: ShaderMaterial = KM.glow()
+	var c: Vector3 = Vector3(0.0, -0.055, -0.017)  # mark centre, back of hand
+
+	# Outer ring.
 	var ring_mesh: TorusMesh = TorusMesh.new()
-	ring_mesh.inner_radius = 0.0085
-	ring_mesh.outer_radius = 0.0115
-	ring_mesh.rings = 24
-	ring_mesh.ring_segments = 12
+	ring_mesh.inner_radius = 0.0100
+	ring_mesh.outer_radius = 0.0122
+	ring_mesh.rings = 28
+	ring_mesh.ring_segments = 8
 	var ring_node: MeshInstance3D = MeshInstance3D.new()
 	ring_node.name = "SigilRing"
 	ring_node.mesh = ring_mesh
 	ring_node.material_override = mat
-	ring_node.position = Vector3(0.0, -0.055, -0.0175)
+	ring_node.position = c
 	ring_node.rotation = Vector3(PI * 0.5, 0.0, 0.0)
 	mark.add_child(ring_node)
-	var dot_mesh: SphereMesh = SphereMesh.new()
-	dot_mesh.radius = 0.0035
-	dot_mesh.height = 0.007
-	var dot: MeshInstance3D = MeshInstance3D.new()
-	dot.name = "SigilCore"
-	dot.mesh = dot_mesh
-	dot.material_override = mat
-	dot.position = Vector3(0.0, -0.055, -0.0185)
-	mark.add_child(dot)
+
+	# Centre (output) node.
+	mark.add_child(_glow_node(c + Vector3(0.0, 0.0, -0.001), 0.0028, mat, "SigilCore"))
+
+	# Three input nodes on the nasal-left arc, each wired to the centre.
 	for k in 3:
-		var a: float = TAU * float(k) / 3.0 + 0.5
-		var tick_mesh: BoxMesh = BoxMesh.new()
-		tick_mesh.size = Vector3(0.0016, 0.0075, 0.0014)
-		var tick: MeshInstance3D = MeshInstance3D.new()
-		tick.name = "SigilTick%d" % k
-		tick.mesh = tick_mesh
-		tick.material_override = mat
-		tick.position = Vector3(cos(a) * 0.0165, -0.055 + sin(a) * 0.0165, -0.0175)
-		tick.rotation = Vector3(0.0, 0.0, a - PI * 0.5)
-		mark.add_child(tick)
+		var a: float = PI * 0.5 + (float(k) - 1.0) * 0.7
+		var node_pos: Vector3 = c + Vector3(cos(a) * 0.0092, sin(a) * 0.0092, -0.001)
+		mark.add_child(_glow_node(node_pos, 0.0016, mat, "SigilIn%d" % k))
+		mark.add_child(_glow_edge(node_pos, c + Vector3(0.0, 0.0, -0.001), mat,
+			"SigilWire%d" % k))
+	# Output tail leaving the ring toward the wrist.
+	mark.add_child(_glow_edge(c + Vector3(0.0, 0.0, -0.001),
+		c + Vector3(0.0, 0.016, 0.0), mat, "SigilOut"))
 	return mark
+
+
+static func _glow_node(pos: Vector3, radius: float, mat: Material,
+		node_name: String) -> MeshInstance3D:
+	var mesh: SphereMesh = SphereMesh.new()
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh.radial_segments = 10
+	mesh.rings = 6
+	var mi: MeshInstance3D = MeshInstance3D.new()
+	mi.name = node_name
+	mi.mesh = mesh
+	mi.material_override = mat
+	mi.position = pos
+	return mi
+
+
+## A thin glowing wire between two points; UV.y runs a->b for the flow pulse.
+static func _glow_edge(a: Vector3, b: Vector3, mat: Material,
+		edge_name: String) -> MeshInstance3D:
+	var rings: Array = ML.tube_rings([a, b], PackedFloat32Array([0.0007, 0.0007]), 6)
+	return ML.make_instance(ML.loft(rings, true, true, true), mat, edge_name)

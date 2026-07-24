@@ -20,11 +20,23 @@ extends Node3D
 const BodyBuilder: GDScript = preload("res://src/player/kern/kern_body_builder.gd")
 const GearBuilder: GDScript = preload("res://src/player/kern/kern_gear_builder.gd")
 const HeadScene: GDScript = preload("res://src/player/kern/kern_head.gd")
+const KM: GDScript = preload("res://src/player/kern/kern_materials.gd")
+const BaseModel: GDScript = preload("res://src/player/kern/kern_base_model.gd")
+
+## The First Model showing through: 0 = ordinary disguised traveller, 1 = fully
+## lit. A faint rest ember, rising with the knowledge-charge meter (and, later,
+## machinery proximity / hallucination zones). Set >= 0 to force a level
+## (the character studio uses this to render rest vs charged).
+const AWAKEN_REST: float = 0.12
+var awaken_override: float = -1.0
+var _awaken: float = AWAKEN_REST
+var _charge01: float = 0.0
 
 # Sword carry pose in the right-hand frame (grip seated in the curled fingers,
-# blade up and angled back — a traveller's ready-but-relaxed hold).
-const SWORD_REST_POS: Vector3 = Vector3(0.0, 0.02, 0.0)
-const SWORD_REST_ROT: Vector3 = Vector3(-0.35, 0.0, 0.28)
+# blade up and canted out to the side + forward so it clears Kern's face — a
+# traveller's ready-but-relaxed hold rather than a ceremonial vertical salute).
+const SWORD_REST_POS: Vector3 = Vector3(0.02, 0.02, 0.0)
+const SWORD_REST_ROT: Vector3 = Vector3(-0.5, 0.0, 0.5)
 
 # Neutral joint offsets (radians) layered under all animation so the arms hang
 # with a little life instead of dead-vertical.
@@ -42,6 +54,11 @@ enum Combat { NONE, ATTACK, GUARD }
 var _body: CharacterBody3D
 var _skeleton: Skeleton3D
 var _bones: Dictionary
+
+# Imported CC0 base body (null until the .glb is dropped in).
+var _base_root: Node3D
+var _base_skeleton: Skeleton3D
+var _base_bones: Dictionary = {}
 var _head: KernHead
 var _sword: Node3D
 
@@ -72,6 +89,21 @@ var _prev_pos: Vector3 = Vector3.ZERO
 
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
+
+	# If the imported CC0 base body mesh is present (assets/models/README.md),
+	# report that it loaded and hand its rig to the animation via the bone map.
+	# Fitting the code-built gear onto it is the next pass — until then the
+	# procedural body stays the active path so the main line always runs.
+	var base: Dictionary = BaseModel.load_into(self)
+	if base["ok"]:
+		_base_root = base["root"]
+		_base_skeleton = base["skeleton"]
+		_base_bones = base["bones"]
+		print("KernVisual: base mesh loaded (%.2f m). Gear fitting pending." % [
+			BaseModel.measure_height(_base_root)])
+	elif String(base["reason"]) != "":
+		print("KernVisual: ", base["reason"])
+
 	var body_data: Dictionary = BodyBuilder.build(self)
 	_skeleton = body_data["skeleton"]
 	_bones = body_data["bones"]
@@ -83,6 +115,7 @@ func _ready() -> void:
 
 	var gear: Dictionary = GearBuilder.build(_skeleton, _bones, body_data)
 	_sword = gear["sword"]
+	_build_shards()
 	# The sword rides the right hand so combat poses move it for free.
 	var hand_attach: BoneAttachment3D = body_data["hand_r_attach"]
 	hand_attach.add_child(_sword)
@@ -91,6 +124,16 @@ func _ready() -> void:
 
 	if _body != null:
 		_prev_pos = _body.global_position
+
+	# The magic answers to the knowledge-charge meter (Combat v1 owns it).
+	if EventBus.knowledge_charge_changed and not \
+			EventBus.knowledge_charge_changed.is_connected(_on_charge_changed):
+		EventBus.knowledge_charge_changed.connect(_on_charge_changed)
+	KM.set_awaken(_awaken)
+
+
+func _on_charge_changed(fraction: float) -> void:
+	_charge01 = clampf(fraction, 0.0, 1.0)
 
 
 ## The head bone's global rest position — kern_head builds around this so its
@@ -122,6 +165,57 @@ func _process(delta: float) -> void:
 	_commit(pose)
 	_animate_cloak(delta, moving)
 	_animate_head_extras(delta, moving)
+	_drive_awaken(delta)
+
+
+## Ease the arcane glow toward its target and push it to every magical material.
+func _drive_awaken(delta: float) -> void:
+	var target: float = awaken_override
+	if target < 0.0:
+		target = maxf(AWAKEN_REST, _charge01)
+	_awaken = lerpf(_awaken, target, 1.0 - exp(-4.0 * delta))
+	KM.set_awaken(_awaken)
+	_orbit_shards(delta)
+
+
+# --- Orbiting data-shards (charged VFX) -------------------------------------
+
+const SHARD_COUNT: int = 11
+
+var _shards: Array = []
+var _shard_t: float = 0.0
+
+
+func _build_shards() -> void:
+	var mesh: PrismMesh = PrismMesh.new()
+	mesh.size = Vector3(0.03, 0.11, 0.03)
+	for i in SHARD_COUNT:
+		var shard: MeshInstance3D = MeshInstance3D.new()
+		shard.name = "DataShard%d" % i
+		shard.mesh = mesh
+		shard.material_override = KM.glow()
+		shard.visible = false
+		add_child(shard)
+		_shards.append(shard)
+
+
+func _orbit_shards(delta: float) -> void:
+	_shard_t += delta
+	var show: float = smoothstep(0.25, 0.6, _awaken)  # shards appear only when charged
+	for i in _shards.size():
+		var shard: MeshInstance3D = _shards[i]
+		if show <= 0.001:
+			shard.visible = false
+			continue
+		shard.visible = true
+		var f: float = float(i) / float(SHARD_COUNT)
+		var ang: float = f * TAU + _shard_t * (0.8 + 0.5 * f)
+		var radius: float = 0.42 + 0.18 * sin(_shard_t * 0.7 + f * 6.0)
+		var height: float = 0.65 + 1.05 * f + 0.06 * sin(_shard_t * 2.0 + f * 10.0)
+		shard.position = Vector3(cos(ang) * radius, height, sin(ang) * radius)
+		shard.rotation = Vector3(_shard_t * 1.4 + f, _shard_t * 1.1, _shard_t * 0.9 + f)
+		var s: float = show * (0.6 + 0.4 * sin(_shard_t * 3.0 + f * 8.0))
+		shard.scale = Vector3(s, s, s)
 
 
 # --- Locomotion -------------------------------------------------------------
@@ -303,7 +397,9 @@ func _animate_head_extras(delta: float, moving: float) -> void:
 		if _blink_cd <= 0.0:
 			_blinking = true
 			_blink_t = 0.0
-	_head.set_blink(_blink)
+	# Rest with the lids relaxed (covering the top sliver of the iris) rather
+	# than wide-eyed; a blink still closes them fully.
+	_head.set_blink(0.06 + _blink * 0.94)
 
 	# Saccades: dart the eyes to a new small target now and then; between darts
 	# the gaze eases and micro-jitters (fixational drift).

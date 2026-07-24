@@ -20,6 +20,20 @@ teaches you who you are — and why Echo has been searching for you.
 **Audience:** all-ages. Real stakes, zero gore — enemies dissolve into data shards.
 **Engine:** Godot 4.x, GDScript, everything generated in-code (no purchased assets).
 
+> **Amendment — 2026-07-21 (Danny's explicit sign-off).** The in-code rule is
+> relaxed for **one thing only: the player hero's base body mesh.** A long
+> look-dev pass established that procedural geometry plateaus at "soft stylized
+> figure" for a *face* (bodies generate fine; faces do not), and the bar for
+> Kern is photoreal, Link-quality. Kern may therefore use an imported,
+> permissively-licensed (**CC0**) rigged humanoid base mesh — currently
+> generated with MakeHuman/MPFB, whose output is CC0. Everything else about him
+> stays code-generated: clothing, cloak, hair, gear, sword, the arcane
+> hand-mark, all shaders, and all animation. No copyrighted character models,
+> and nothing from Mixamo (its licence forbids redistributing raw mesh files).
+> Provenance, the body spec, and export settings live in
+> `game/assets/models/README.md`. This applies to the hero only — the rest of
+> the game remains code-only.
+
 ## 2. Design pillars
 
 These four sentences win every argument:

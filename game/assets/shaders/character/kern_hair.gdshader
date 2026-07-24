@@ -26,16 +26,29 @@ uniform float shadow_tone : hint_range(0.0, 1.0) = 0.26;
 group_uniforms sheen;
 uniform vec4 sheen_color : source_color = vec4(0.95, 0.78, 0.52, 1.0);
 uniform float sheen_power : hint_range(8.0, 260.0) = 180.0;
-uniform float sheen_strength : hint_range(0.0, 2.0) = 0.34;
+uniform float sheen_strength : hint_range(0.0, 2.0) = 0.24;
 
 group_uniforms rim;
-uniform vec4 rim_color : source_color = vec4(0.72, 0.86, 1.0, 1.0);
-uniform float rim_amount : hint_range(0.0, 1.0) = 0.18;
-uniform float rim_width : hint_range(0.0, 1.0) = 0.70;
+// Hair clumps are thin tubes — fresnel is high across most of their visible
+// surface, so a blue rim here quickly turns the whole head silver. Keep it a
+// faint warm halo, not a blue wash.
+uniform vec4 rim_color : source_color = vec4(0.85, 0.80, 0.72, 1.0);
+uniform float rim_amount : hint_range(0.0, 1.0) = 0.05;
+uniform float rim_width : hint_range(0.0, 1.0) = 0.80;
 
 group_uniforms fill;
-uniform vec4 shadow_fill : source_color = vec4(0.34, 0.45, 0.68, 1.0);
-uniform float fill_amount : hint_range(0.0, 0.6) = 0.06;
+uniform vec4 shadow_fill : source_color = vec4(0.30, 0.24, 0.20, 1.0);
+uniform float fill_amount : hint_range(0.0, 0.6) = 0.03;
+
+group_uniforms magic;
+uniform float awaken : hint_range(0.0, 1.0) = 0.12;
+uniform vec4 glow_color : source_color = vec4(1.0, 0.74, 0.28, 1.0);
+
+group_uniforms motion;
+// Wind sways the hair tips (UV.y = root 0 -> tip 1), most at the ends.
+uniform float wind_strength : hint_range(0.0, 0.03) = 0.008;
+uniform vec3 wind_dir = vec3(1.0, 0.0, 0.35);
+uniform float wind_speed : hint_range(0.0, 6.0) = 1.9;
 
 varying vec3 v_col;
 varying vec2 v_uv;
@@ -51,6 +64,15 @@ float hash21(vec2 p) {
 void vertex() {
 	v_col = pow(COLOR.rgb, vec3(2.2));
 	v_uv = UV;
+	if (wind_strength > 0.00001) {
+		float tip = v_uv.y * v_uv.y;
+		vec3 wd = normalize(wind_dir);
+		float phase = dot(VERTEX, wd) * 9.0 - TIME * wind_speed * 2.6;
+		float sway = sin(phase) + 0.4 * sin(phase * 2.1 + 1.0);
+		VERTEX += wd * (sway * 0.5 + 0.35) * wind_strength * tip;
+		VERTEX += vec3(0.0, 1.0, 0.0)
+				* sin(TIME * wind_speed * 3.2 + VERTEX.x * 40.0) * wind_strength * 0.3 * tip;
+	}
 }
 
 void fragment() {
@@ -70,6 +92,8 @@ void fragment() {
 	EMISSION += shadow_fill.rgb * fill_amount * albedo;
 	float fres = 1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	EMISSION += rim_color.rgb * smoothstep(rim_width, 1.0, fres) * rim_amount;
+	// Charged: only the very ends take on a faint arcane ember.
+	EMISSION += glow_color.rgb * pow(clamp(v_uv.y, 0.0, 1.0), 5.0) * awaken * 0.05;
 }
 
 void light() {
