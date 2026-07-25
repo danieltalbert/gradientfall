@@ -6,6 +6,17 @@ extends Node3D
 ## a small adventurer rather than a capsule: layered tunic, wind cape, hooded
 ## head, limbs, boots, sword, and the canon glowing hand mark. The simple
 ## animation pass keeps the silhouette alive while walking or standing.
+##
+## Attached to the Visual child of player.tscn's CharacterBody3D, whose
+## `velocity` it reads each frame to drive the walk cycle — it never moves
+## the body itself. Every mesh is primitive geometry built in `_build_hero()`
+## and shaded with toon.gdshader; there are no imported assets or animation
+## resources. PlayerCombat calls `pose_attack()`, `pose_guard()`, and
+## `combat_release()` to take over the right arm and sword during swings and
+## guards; while it holds that override the idle/walk cycle leaves both
+## alone. All positions are meters in the body's local frame (Kern stands
+## about 1.75 m), rotations are radians, and -Z is forward (Godot's
+## convention), which is why the face and eyes sit at negative Z.
 
 const TOON_SHADER: String = "res://assets/shaders/toon.gdshader"
 
@@ -13,7 +24,10 @@ const TOON_SHADER: String = "res://assets/shaders/toon.gdshader"
 const SWORD_REST_POS: Vector3 = Vector3(0.30, 1.00, 0.30)
 const SWORD_REST_ROT: Vector3 = Vector3(0.10, 0.0, -0.62)
 
+## The parent CharacterBody3D; its velocity is the only animation input.
 var _body: CharacterBody3D
+## Rig roots. The torso carries every head/body part so bob and breathe move
+## them as one; the four limb pivots and the cape rotate independently.
 var _torso: Node3D
 var _cape: Node3D
 var _left_arm: Node3D
@@ -21,16 +35,28 @@ var _right_arm: Node3D
 var _left_leg: Node3D
 var _right_leg: Node3D
 var _sword: Node3D
+## Walk-cycle accumulator in radians, advanced by a speed-scaled rate.
 var _phase: float = 0.0
 ## While true, PlayerCombat owns the right arm + sword; idle/walk anim yields.
 var _combat_arm_override: bool = false
 
 
+## Cache the parent body and assemble the whole hero once at scene load.
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
 	_build_hero()
 
 
+## Procedural walk/idle cycle, driven entirely by horizontal speed.
+##
+## `moving` fades the whole cycle in between 0.15 and 2.5 m/s so a standing
+## Kern doesn't twitch, and the phase rate ramps from 1.4 to 8.5 rad/s as
+## speed approaches the 7.5 m/s sprint cap — faster movement, faster steps.
+## Arms and legs counter-swing (legs at 72% amplitude), the torso bobs at
+## twice the step frequency, and an independent slow sine breathes the torso
+## by ±1.2% (squashing width as height grows, so volume reads constant) —
+## the one motion that continues while standing still. The cape's lift is
+## the sum of a baseline, a speed term, and a slow flutter.
 func _process(delta: float) -> void:
 	if _body == null:
 		return
@@ -39,6 +65,7 @@ func _process(delta: float) -> void:
 	_phase += delta * lerpf(1.4, 8.5, clampf(speed / 7.5, 0.0, 1.0))
 	var swing: float = sin(_phase) * 0.52 * moving
 	_left_arm.rotation.x = swing
+	# The right arm belongs to PlayerCombat mid-swing or mid-guard.
 	if not _combat_arm_override:
 		_right_arm.rotation.x = -swing
 	_left_leg.rotation.x = -swing * 0.72
@@ -49,6 +76,10 @@ func _process(delta: float) -> void:
 	_cape.rotation.x = 0.11 + speed * 0.018 + sin(_phase * 1.37) * (0.025 + moving * 0.035)
 
 
+## Assemble the hero from primitives, in silhouette order: torso stack
+## (tunic, belt, mantle), head (hood, face, eyes, hair, scarf), then the
+## four limb pivots, the cape, and the sword. Parts that must animate hang
+## off their own pivot node; everything else parents to the torso rig.
 func _build_hero() -> void:
 	_torso = Node3D.new()
 	_torso.name = "TorsoRig"
@@ -132,6 +163,10 @@ func _build_hero() -> void:
 	_build_sword()
 
 
+## One arm: a pivot node at the shoulder (so `rotation.x` swings the whole
+## limb) carrying a sleeve capsule and a hand. `marked` adds the canon
+## glowing hand mark — an emissive sphere on Kern's right palm, the only
+## part not using the toon shader, since it must self-illuminate at night.
 func _build_limb(part_name: String, pos: Vector3, color: Color, marked: bool) -> Node3D:
 	var pivot: Node3D = Node3D.new()
 	pivot.name = part_name
@@ -169,6 +204,9 @@ func _build_limb(part_name: String, pos: Vector3, color: Color, marked: bool) ->
 	return pivot
 
 
+## One leg: a hip pivot carrying a trouser capsule and a boot. The boot is
+## rotated 90° about X so the capsule lies along Z (a foot pointing forward)
+## and stretched 1.35x in Z for toe length.
 func _build_leg(part_name: String, pos: Vector3) -> Node3D:
 	var pivot: Node3D = Node3D.new()
 	pivot.name = part_name
@@ -191,6 +229,9 @@ func _build_leg(part_name: String, pos: Vector3) -> Node3D:
 	return pivot
 
 
+## The wind cape: a pivot at the upper back (+Z is behind Kern) holding the
+## custom cape mesh plus two patches. The pivot is what `_process()` tilts,
+## so the whole cape lifts as one piece.
 func _build_cape() -> void:
 	_cape = Node3D.new()
 	_cape.name = "CapeRig"
@@ -210,6 +251,11 @@ func _build_cape() -> void:
 		Color(0.16, 0.28, 0.20), Vector3(0.72, 0.75, 1.0), Vector3(0.0, 0.0, 0.18))
 
 
+## Hand-authored cape: a narrow shoulder edge widening to a torn hem, built
+## from named corner points (top / mid / five ragged bottom vertices) whose
+## increasing Z gives the cloth a slight outward billow. Every triangle is
+## emitted twice with opposite winding and flipped normals so the cape is
+## lit correctly from both sides — it has no thickness to backface-cull.
 func _make_cape_mesh() -> ArrayMesh:
 	var st: SurfaceTool = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -234,6 +280,8 @@ func _make_cape_mesh() -> ArrayMesh:
 	return st.commit()
 
 
+## SurfaceTool helper: one flat-shaded triangle with an explicit normal
+## (winding order is the caller's responsibility).
 func _add_cape_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, normal: Vector3) -> void:
 	st.set_normal(normal)
 	st.add_vertex(a)
@@ -243,6 +291,9 @@ func _add_cape_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, normal: 
 	st.add_vertex(c)
 
 
+## The traveler's sword: blade, guard, and grip stacked along local Y, held
+## in a pivot at the rest pose so combat poses can rotate and translate the
+## whole weapon as one node.
 func _build_sword() -> void:
 	var sword: Node3D = Node3D.new()
 	sword.name = "TravelerSword"
@@ -267,6 +318,10 @@ func _build_sword() -> void:
 		Color(0.18, 0.09, 0.045), Vector3.ONE)
 
 
+## Attach one toon-shaded MeshInstance3D under `parent`. `part_scale`
+## squashes primitives into non-uniform shapes (a sphere into a face, for
+## instance) and `rot` is in radians. Returns the node so callers can keep
+## a reference; most don't need one.
 func _add_part(parent: Node3D, part_name: String, mesh: Mesh, pos: Vector3,
 		color: Color, part_scale: Vector3, rot: Vector3 = Vector3.ZERO) -> MeshInstance3D:
 	var part: MeshInstance3D = MeshInstance3D.new()
@@ -280,6 +335,11 @@ func _add_part(parent: Node3D, part_name: String, mesh: Mesh, pos: Vector3,
 	return part
 
 
+## Per-part toon material. `use_srgb_vertex` is off because these parts
+## carry no vertex colors — the tint comes from `albedo_tint`. The cool blue
+## rim and shadow fill are shared across every part so Kern reads as one
+## character under any of SkyCycle's palettes; `rim` varies per part (the
+## cape takes a stronger rim than the body).
 func _make_toon_material(color: Color, rim: float) -> ShaderMaterial:
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load(TOON_SHADER) as Shader
@@ -318,6 +378,10 @@ func pose_attack(phase: float) -> void:
 		_sword.position = Vector3(lerpf(0.05, 0.30, e2), lerpf(0.8, 1.0, e2), lerpf(0.55, 0.30, e2))
 
 
+## Enter or leave the guard stance. While `active`, the sword is held flat
+## across the body (rotation.x ≈ 1.45 rad lays the blade horizontal) and the
+## arm override is held so the walk cycle can't drag it back. Passing false
+## only clears the override — `combat_release()` restores the rest pose.
 func pose_guard(active: bool) -> void:
 	if _sword == null:
 		return
@@ -328,6 +392,8 @@ func pose_guard(active: bool) -> void:
 		_sword.position = Vector3(0.08, 1.12, -0.18)
 
 
+## Hand the right arm and sword back to the idle/walk cycle and snap the
+## sword to its rest pose. Safe to call when no override is held.
 func combat_release() -> void:
 	if not _combat_arm_override:
 		return
