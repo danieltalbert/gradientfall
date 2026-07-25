@@ -1,0 +1,3 @@
+# Python bytecode from tools/ — generated on every validator run, never committed.
+__pycache__/
+*.py[cod]

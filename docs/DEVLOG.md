@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-27 (repository recovery) — Perceptron Vault branch integrated
+
+**DONE**
+- Recovered the previously stranded milestone-12 branch onto the current
+  post-split `main` without replacing newer Kern, town, inventory, sky, or
+  meadow work.
+- Integrated the 2-3-1 walkable network dungeon, Gatekeeper encounter,
+  threshold/fount/weight-stone interactions, approved vault content, rune
+  shader, and five dungeon screenshot angles.
+- Reconciled screenshot positioning so existing terrain-relative, posed-Kern,
+  and new absolute-height interior shots share one capture path.
+
+**VERIFY BEFORE MERGE**
+- Content validation, Godot 4.7.1 parse/import, and the vault's runtime
+  self-checks remain the gates for this recovery branch.
+
+**NEXT UP**
+- Integrate the paired Iris collectible/compendium milestone, then render and
+  inspect the recovered visual surfaces before declaring the recovery done.
+
+---
+
 ## 2026-07-24 (live session, Kern/character lane) — BASE MESH GENERATED; FITTING GATED ON AN ENGINE BUG
 
 *Commits `613652f` → `8aaca35` (branch fast-forwarded to `main`). Danny gave

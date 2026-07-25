@@ -1,0 +1,12 @@
+[
+  {
+    "id": "poi_perceptron_vault",
+    "name": "The Perceptron Vault",
+    "region": "datasedge_meadows",
+    "kind": "mini_dungeon",
+    "description": "A half-buried monolith south-east of Bootstrap, its facade carved with two marks, then three, then one. Inside: a hall of founts, three chambers that each open for a sum rather than a key, and whatever has been counting in the dark since before the town had a mayor.",
+    "reward_items": ["item_threshold_stone"],
+    "reward_tokens": 120,
+    "bit_sense": false
+  }
+]
