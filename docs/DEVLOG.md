@@ -4,6 +4,159 @@
 
 ---
 
+## 2026-07-25 (agent session, Godot AVAILABLE) — the Town of Bootstrap
+
+**FIRST: this environment has a working Godot 4.7.1 and working git.** Every
+autonomous entry below this one had to ship "UNSEEN" and uncommitted. This one
+did not: the project imports clean, boots clean, the dialogue chain was driven
+end to end at runtime, and screenshots were captured. Details under VERIFIED.
+
+**DONE — roadmap milestone 8: Town of Bootstrap**
+New `game/src/town/`: `town_kit.gd` (shared code-art statics — the toon
+material, primitives, smoke, night-lit windows/lanterns, deterministic
+per-name RNG), `town_building.gd` (seven building styles), `town_props.gd`
+(market stalls, notice board, fingerpost, cart/barrels/crates/hay, fences,
+lamps, the east gate, sheep, gardens, stepping-stone roads, Jory's channel),
+`npc_visual.gd` (code-built villagers), `npc_actor.gd` (one villager in the
+world), `npc_interactor.gd` (the conversation state machine). New
+`game/src/ui/dialogue_ui.gd`. Wired: `event_bus.gd` (+7 dialogue signals),
+`input_setup.gd` (+`interact`), `player.gd` (dialogue lock), `main.gd` +
+`main.tscn` (`World/Town`, dialogue setup, 3 town screenshot angles).
+- **The town** (13 buildings, all generated at boot in ~37 ms): the mayor's
+  **hall** with portico and banner closing the north side of the square;
+  Clem's **bell tower** beside it (the bell is Confusion, and it swings); the
+  jettied two-storey **Warm Start Inn** with a hanging sign, dormer, chimney
+  smoke and a door lantern; Branna's open-fronted **forge** with live coals, a
+  fire-lit interior, a tool rack and the **notched beam** her approved
+  description insists on; Elowen's **ledger house** and Nessa's **mender's
+  cottage**, both with the wide working window; six more cottages; and out at
+  the millpond MeadowTerrain already carves, **the Mill** — which finds its own
+  bank by walking in from the pond's rim, then hangs its wheel off
+  `terrain.water_level` so the paddles actually dip, and turns. Bit has been
+  promising a lovely wheel since milestone 5; there is one now.
+- **The square**: stepping-stone roads (one MultiMesh each) with grass growing
+  through the gaps, market stalls for Tansy (honey pots, straw skeps, three
+  colored ribbons) and Orrin (brass scale, Queen Rootilda on one pan), notice
+  board, cart, lamp posts, the eastern gate with Rowan's chalk tally, Cedric's
+  fenced fold with five sheep, kitchen gardens, and a **fingerpost** whose four
+  arms are aimed at the real coordinates of the Seed Vault ruins, the Gradient
+  Peaks, the Old Millpond and the Whispering Well.
+- **All 13 approved NPCs placed**, each built from its ContentDB entry — role
+  and personality drive the body, and the props come from the approved text
+  (Tansy's veil, Orrin's turnip buttons, Clem's four hourglasses, Nessa's two
+  wooden needles, Jory's enormous boots and blue marble, Cedric's wool cape and
+  corded crook, the Mayor's shard chain of office, Rowan's acorn pouch, Fen's
+  scale-hung reed hat, Tilly's clover crown and Sir Nearest). Everyone breathes,
+  works at their trade (hammer, needle, shovel, rod, ladle, bell rope), and
+  turns to watch Kern when he comes near; Tilly gallops around the square.
+  Names float in on approach.
+- **Dialogue UI**: walk up → a "**E** Talk to Mara Mallow" chip; press → a
+  code-drawn box with a brass speaker tab, typed-out text, and a blinking
+  advance chevron. An exchange is greeting → two idle remarks → farewell, drawn
+  from shuffled bags so a short pool never repeats back to back. First press
+  finishes the typing, next turns the page, walking away ends it. Kern holds
+  still and keeps his sword sheathed while talking. First meeting sets a
+  `met_<npc_id>` flag in the already-serialized `GameState.flags` — **no save
+  format change, no `SAVE_VERSION` bump.**
+- **Night**: 38 windows and 8 lanterns crossfade from dark glass to hearthlight
+  on SkyCycle's dusk/dawn shoulders, the forge burns around the clock.
+
+**VERIFIED (this session, not claimed)**
+- `godot --headless --editor --path game --quit` — clean import, no
+  `SCRIPT ERROR` / `Parse Error` (the CI gate). One real parse error was found
+  and fixed this way (`Color` has no `distance_to`).
+- `godot --headless --path game --quit-after 300` — clean runtime boot:
+  `BootstrapTown: 13 buildings, 13 villagers, 38 windows, 8 lamps in 37 ms`,
+  zero errors, ContentDB 70 entries.
+- **Dialogue driven at runtime** by a temporary harness (deleted before commit)
+  that instanced the real main scene, stood Kern in front of Mara and pressed
+  the button: prompt → MET → START → the four lines in order → REVEALED after
+  each → END; then a second chat closed itself when he walked out of range,
+  with a different greeting than the first (the shuffle bag works). This also
+  caught a genuine bug: the "is the villager in front of Kern" test used the
+  CharacterBody3D's basis, which **never rotates** — player.gd turns the
+  `Visual` child instead. It now asks the camera rig, which is the honest
+  question in third person anyway. A second sign error fell out of checking the
+  yaw convention against player.gd: villagers were turning their **backs** to
+  Kern when he came near (`atan2(x, z)` where -Z-forward wants
+  `atan2(-x, -z)`).
+- **Screenshots**: no Vulkan ICD here, but Mesa software GL + xvfb runs the
+  project under `gl_compatibility`, so the town was actually looked at (see
+  `docs/progress/milestone8_*`). Caveat for the next live session: that path
+  has **no SDFGI, no TAA, no volumetric fog and no SSAO**, so these shots are
+  a composition/silhouette check, not the Forward+ look Danny judges.
+  Looking is worth it: the shots caught three things no lint would have —
+  **window panes were invisible** (a QuadMesh on a wall authored facing -Z
+  points its one face into the room; they draw both sides now, which is why
+  the night windows glow at all), the road's flagstones were **twice the size
+  they should be**, and the hand-picked mill coordinate put the wheel **1.4 m
+  underground** — the bank drops 2.5 m in the last few meters, so the mill now
+  finds its own site by walking in from the rim until the bank is a wheel's
+  soak above the water (it lands at (78.4, 4.0), 1.25 m up, wheel wet).
+- Scene cost after the town: **~2,600 nodes** total, town built in ~40 ms at
+  boot. Everything is code-generated primitives, so there is nothing to load.
+- `.uid` sidecars for the new scripts were generated by the real editor import
+  and are committed — clearing the debt milestones 5 and 6 both flagged.
+
+**Deliberate scope calls (autonomous, noted for review)**
+1. ROADMAP says "6–8 NPCs"; WORLDBOOK Part II says Bootstrap's 13 are approved
+   and the town is "complete". Followed the WORLDBOOK: **all 13 are placed.**
+2. **Buildings are exterior shells** — doors are painted, not portals.
+   Interiors (the inn's common room, the forge's floor) are their own scope and
+   want the vendor/quest milestones to exist first. Nothing in the docs asks
+   for interiors in this milestone.
+3. **Fen Reedwhistle and the Mill sit at the millpond**, ~77 m east along the
+   new road, not in the square — his approved description fishes *Bootstrap's
+   millpond*, and MeadowTerrain carves that pond at (95, 10). His tiny empty
+   chair for the day's most persuasive fish is there too.
+4. **The talk prompt suppresses jump** while it is showing. On a gamepad,
+   interact and jump are the same face button (A); rather than hop every time
+   you say hello, the villager wins the button inside the 3.4 m prompt bubble.
+   Keyboard `E` and `Space` are separate, so this only really bites on a pad —
+   revisit if it feels wrong hands-on.
+5. **Dialogue carries no quest hooks yet.** The quest system + journal is the
+   next milestone; `EventBus.npc_met` and the `met_<id>` flags are the seams it
+   will hook into.
+6. Villagers keep **no daily schedule** — they work their posts at 3 a.m. too.
+   A schedule pass is explicitly Phase 5 ("NPC schedule/flavor pass").
+
+**HALF-FORMED / for a live session**
+- The look is verified for composition only (software GL, above). A Forward+
+  pass with real eyes is still wanted before the box is called beautiful —
+  especially the roof/wall palette against the meadow, and whether the square
+  reads as busy enough at noon.
+- The prompt bubble is generous (3.4 m); in the tight market row two stalls'
+  keepers stand ~11 m apart, so it never contests, but a denser town later may
+  want the nearest-and-most-centred rule instead of nearest-in-cone.
+- `content/inbox/quests/batch_02.json` still lingers as `[]` — the note from
+  two entries ago; this session's mount could have deleted it, but it is not
+  this milestone's file to touch.
+
+**CROSS-SESSION NOTES (two sibling sessions are live)**
+- `event_bus.gd` was mine to edit per the task: the change is **purely
+  additive**, one new block of 7 signals at the end, no existing signature
+  touched.
+- I also touched, minimally: `input_setup.gd` (+2 lines binding `interact`),
+  `player.gd` (a dialogue lock reusing the existing `_downed` branch shape, and
+  the jump suppression above), `main.gd`/`main.tscn` (wiring, per
+  ARCHITECTURE.md), `docs/ROADMAP.md`, `docs/ARCHITECTURE.md`, `README.md`.
+  If a sibling session touched any of these, merge order matters — none of my
+  edits reorder or rewrite existing lines.
+
+**REPO GAP (needs Danny)** — `CLAUDE.md` is **not in this repository**. The
+publish commit stripped "agent-only metadata", but three devlog entries and
+ROADMAP Phase 0 cite it as the session contract (iron rules, id prefixes, the
+`.uid` convention, "trust the docs"). Autonomous sessions are currently
+following GDD + WORLDBOOK + ARCHITECTURE + ROADMAP and inferring the rest.
+Either restore it or fold its rules into `docs/`.
+
+**NEXT UP** — Phase 1 milestone 9: **quest system + journal** (main hook quest
++ 3 side quests, all already approved in ContentDB). Bootstrap is now the place
+to hand them out: Mayor Maxwell for the hook, Elowen for the Missing Ledger
+Pages, Tilly for the Goose Conspiracy, Mara for A Tonic for Everyone.
+
+---
+
 ## 2026-07-18 (scheduled autonomous run #2, no Godot) — Combat v1
 
 **DONE — content pipeline**

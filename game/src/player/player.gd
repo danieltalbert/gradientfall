@@ -34,6 +34,12 @@ var _was_on_floor: bool = true
 var _scale_tween: Tween
 var _knockback: Vector3 = Vector3.ZERO
 var _downed: bool = false
+## Kern holds still while someone is talking to him, and the talk prompt owns
+## the button a gamepad would otherwise jump with (both are the same face
+## button). Driven by EventBus, so any later modal — the quiz prompt, a
+## cutscene — can reuse the same pair of signals.
+var _in_dialogue: bool = false
+var _interact_ready: bool = false
 
 @onready var _visual: Node3D = $Visual
 @onready var _rig: CameraRig = $CameraRig
@@ -51,6 +57,9 @@ func _ready() -> void:
 	_health.changed.connect(_on_health_changed)
 	_health.died.connect(_on_health_died)
 	_combat.setup(self, _visual, _rig, _health)
+	EventBus.dialogue_started.connect(_on_dialogue_started)
+	EventBus.dialogue_ended.connect(_on_dialogue_ended)
+	EventBus.interact_target_changed.connect(_on_interact_target)
 	EventBus.player_spawned.emit(self)
 
 
@@ -64,7 +73,9 @@ func _on_health_changed(current: float, max_hearts: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if _downed:
+	# Downed or mid-conversation: gravity still applies, everything else waits.
+	# The sword stays sheathed too — no swinging at the innkeeper mid-sentence.
+	if _downed or _in_dialogue:
 		_apply_gravity(delta)
 		var h: Vector2 = Vector2(velocity.x, velocity.z).move_toward(Vector2.ZERO, GROUND_DECEL * delta)
 		velocity.x = h.x
@@ -74,7 +85,7 @@ func _physics_process(delta: float) -> void:
 	_combat.tick(delta)
 	_tick_timers(delta)
 	_apply_gravity(delta)
-	if not _combat.blocks_jump():
+	if not _combat.blocks_jump() and not _interact_ready:
 		_handle_jump()
 	_handle_move(delta)
 	_apply_knockback(delta)
@@ -202,6 +213,19 @@ func apply_hit(amount: float, from_position: Vector3, knockback: float) -> void:
 		_knockback = away.normalized() * knockback
 	EventBus.player_hit.emit(dmg)
 	EventBus.combat_shake.emit(0.16)
+
+
+func _on_dialogue_started(_npc_id: String, _speaker: String) -> void:
+	_in_dialogue = true
+	_jump_buffer_left = 0.0
+
+
+func _on_dialogue_ended(_npc_id: String) -> void:
+	_in_dialogue = false
+
+
+func _on_interact_target(npc_id: String, _prompt: String) -> void:
+	_interact_ready = npc_id != ""
 
 
 func _on_health_died() -> void:

@@ -12,9 +12,13 @@ extends Node3D
 @onready var _terrain: MeadowTerrain = $World/Terrain
 @onready var _bit: Bit = $Bit
 @onready var _landmarks: MeadowLandmarks = $World/Landmarks
+@onready var _town: BootstrapTown = $World/Town
+@onready var _sky: SkyCycle = $World/SkyCycle
 
 var _spawner: MonsterSpawner
 var _hud: CombatHud
+var _dialogue: DialogueUi
+var _interactor: NpcInteractor
 
 
 func _ready() -> void:
@@ -35,15 +39,18 @@ func _ready() -> void:
 
 	_spawn_player()
 	_landmarks.build(_terrain)
+	_town.build(_terrain, _sky)
 	_bit.setup(_player, _terrain)
 
 	# Screenshot mode is the visual-verification tool — keep it clean of HUD
-	# and roaming enemies. Normal play gets the combat HUD + monster spawner.
+	# and roaming enemies. Normal play gets the combat HUD + monster spawner,
+	# and the dialogue box that lets Bootstrap talk back.
 	var shot_dir: String = _screenshot_dir()
 	if shot_dir != "":
 		_capture_screens(shot_dir)
 	else:
 		_setup_combat()
+		_setup_dialogue()
 
 
 func _setup_combat() -> void:
@@ -58,6 +65,19 @@ func _setup_combat() -> void:
 	var spawn_pos: Vector3 = Vector3(sp.x, _terrain.get_height(sp.x, sp.y), sp.y)
 	_spawner.setup(_terrain, spawn_pos)
 	print("Combat v1 online: sword combo/dodge/block, hearts, monster spawner + proving ground.")
+
+
+func _setup_dialogue() -> void:
+	_dialogue = DialogueUi.new()
+	_dialogue.name = "DialogueUi"
+	add_child(_dialogue)
+	_interactor = NpcInteractor.new()
+	_interactor.name = "NpcInteractor"
+	add_child(_interactor)
+	_interactor.setup(_player)
+	print("Bootstrap online: %d villagers to talk to — walk up and press E." % [
+		get_tree().get_nodes_in_group(&"npc").size(),
+	])
 
 
 func _spawn_player() -> void:
@@ -79,7 +99,7 @@ func _capture_screens(dir: String) -> void:
 	# Angles chosen to judge the GDD §10 bar: the town-and-pond view, the
 	# Gradient Peaks vista, the sea horizon, and grass up close.
 	var rig: Node3D = _player.get_node("CameraRig")
-	var cycle: SkyCycle = get_node("World/SkyCycle") as SkyCycle
+	var cycle: SkyCycle = _sky
 	if cycle != null:
 		cycle.paused = true
 		cycle.set_hour(8.5)
@@ -95,6 +115,13 @@ func _capture_screens(dir: String) -> void:
 			"pos": Vector2(15.0, -60.0)},
 		{"name": "detail_grass_horizon", "yaw": deg_to_rad(20.0), "pitch": 0.02,
 			"pos": Vector2(-42.0, -82.0)},
+		# Bootstrap (milestone 8): the square from the south road, the market
+		# and inn across the crossroads, and the mill out at the pond.
+		{"name": "town_square", "yaw": 0.0, "pitch": -0.04, "pos": Vector2(0.0, 54.0)},
+		{"name": "town_market", "yaw": deg_to_rad(37.0), "pitch": -0.06,
+			"pos": Vector2(19.0, 45.0)},
+		{"name": "town_mill", "yaw": deg_to_rad(-42.0), "pitch": -0.08,
+			"pos": Vector2(61.0, 21.0)},
 	]
 	for i in 110:  # let terrain, shadows, TAA, and SDFGI converge
 		await get_tree().process_frame

@@ -45,6 +45,10 @@ static func ensure() -> void:
 	_pad_button(&"special", JOY_BUTTON_Y)
 	# Dev-only: fill the focus meter to verify the special without a quiz UI.
 	_key(&"debug_charge", KEY_F)
+	# Talk / advance dialogue (milestone 8). The gamepad's A is also jump, so
+	# player.gd hands the button to the villager while a talk prompt is up.
+	_key(&"interact", KEY_E)
+	_pad_button(&"interact", JOY_BUTTON_A)
 
 
 static func _action(action: StringName) -> void:

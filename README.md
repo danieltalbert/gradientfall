@@ -15,6 +15,7 @@ Gradientfall is an in-development 3D action-adventure that turns machine-learnin
 - Third-person movement and camera controls in a generated 3D landscape.
 - Melee/ranged combat foundations, enemy spawning, health, damage shards, and combat HUD.
 - Bit companion behavior and landmark reactions.
+- The town of Bootstrap: procedurally generated buildings, all 13 approved townsfolk placed and animated, and a code-drawn dialogue UI.
 - Dynamic sky, celestial layers, clouds, water, terrain, grass, vegetation, particles, and painterly shaders.
 - Schema-validated JSON pipeline for quests, NPCs, items, monsters, quizzes, lore, and points of interest.
 - 70 approved content entries plus 15 staged inbox entries in the preserved active-work snapshot.
