@@ -22,6 +22,7 @@ var _interactor: NpcInteractor
 var _pack: InventoryScreen
 var _forage: MeadowForage
 var _vault: PerceptronVault
+var _compendium: CompendiumUi
 
 
 func _ready() -> void:
@@ -53,6 +54,7 @@ func _ready() -> void:
 		_capture_screens(shot_dir)
 	else:
 		_setup_combat()
+		_setup_compendium()
 
 
 ## Dungeon 1 — the Perceptron Vault. Built in both modes on purpose: it is
@@ -61,6 +63,15 @@ func _ready() -> void:
 ## screenshot run never does.
 func _setup_vault() -> void:
 	_vault = PerceptronVault.build($World, _terrain)
+
+
+## Compendium v1 — Kern's field notebook, opened with J. Normal play only:
+## it is UI, and screenshot captures stay clean of UI. It reads the meadow's
+## iris specimens straight off the field MeadowFlora built.
+func _setup_compendium() -> void:
+	var flora: MeadowFlora = $World/Flora as MeadowFlora
+	if flora != null and flora.iris_field != null:
+		_compendium = CompendiumUi.build(self, flora.iris_field)
 
 
 func _setup_combat() -> void:

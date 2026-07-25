@@ -4,7 +4,7 @@
 
 ---
 
-## 2026-07-27 (repository recovery) — Perceptron Vault branch integrated
+## 2026-07-27 (repository recovery) — Vault and Iris branches integrated
 
 **DONE**
 - Recovered the previously stranded milestone-12 branch onto the current
@@ -15,14 +15,18 @@
   shader, and five dungeon screenshot angles.
 - Reconciled screenshot positioning so existing terrain-relative, posed-Kern,
   and new absolute-height interior shots share one capture path.
+- Recovered the milestone-13 Iris field and compendium without reverting the
+  newer photoreal multi-carpet grass system: 700 blooms now carry generated
+  Fisher-statistic specimens, proximity collection, boundary-bloom markings,
+  and a J/Back field notebook.
 
 **VERIFY BEFORE MERGE**
-- Content validation, Godot 4.7.1 parse/import, and the vault's runtime
-  self-checks remain the gates for this recovery branch.
+- Content validation, Godot 4.7.1 parse/import, the vault runtime checks, and
+  the Iris classifier/collection checks remain the recovery gates.
 
 **NEXT UP**
-- Integrate the paired Iris collectible/compendium milestone, then render and
-  inspect the recovered visual surfaces before declaring the recovery done.
+- Render and inspect the recovered dungeon and Iris surfaces before declaring
+  the recovery done.
 
 ---
 
