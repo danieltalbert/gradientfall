@@ -36,6 +36,7 @@ const DEATH_SHRINK: float = 0.16
 const TUNING: Dictionary = {
 	"swarm": {"speed": 4.4, "reach": 1.5, "windup": 0.28, "recover": 0.5, "lunge": 6.0},
 	"melee": {"speed": 3.3, "reach": 1.9, "windup": 0.44, "recover": 0.66, "lunge": 6.5},
+	"ambush": {"speed": 4.0, "reach": 1.6, "windup": 0.38, "recover": 0.75, "lunge": 7.5},
 	"ranged": {"speed": 2.7, "reach": RANGED_PREFERRED, "windup": 0.52, "recover": 0.9, "lunge": 0.0},
 	"dummy": {"speed": 0.0, "reach": 0.0, "windup": 0.0, "recover": 0.0, "lunge": 0.0},
 }
@@ -77,8 +78,8 @@ func _ready() -> void:
 	add_to_group(&"enemy")
 	add_to_group(&"hittable")
 	_apply_config()
-	_build_body()
 	_build_visual()
+	_build_body()
 	_build_health()
 	_build_melee_hitbox()
 	_spawn_pos = global_position
@@ -102,11 +103,17 @@ func _build_body() -> void:
 	collision_layer = CombatLayers.ENEMY
 	collision_mask = CombatLayers.WORLD
 	var shape: CollisionShape3D = CollisionShape3D.new()
-	var cap: CapsuleShape3D = CapsuleShape3D.new()
-	cap.radius = 0.32
-	cap.height = 1.0 if behavior != "dummy" else 1.6
-	shape.shape = cap
-	shape.position = Vector3(0.0, cap.height * 0.5, 0.0)
+	if _visual != null and _visual.body_length > 0.0:
+		var box := BoxShape3D.new()
+		box.size = Vector3(_visual.body_radius * 2.0, _visual.body_height, _visual.body_length)
+		shape.shape = box
+		shape.position = Vector3(0.0, _visual.body_center_y, 0.0)
+	else:
+		var cap := CapsuleShape3D.new()
+		cap.radius = _visual.body_radius if _visual != null else 0.32
+		cap.height = maxf(_visual.body_height if _visual != null else 1.0, cap.radius * 2.0)
+		shape.shape = cap
+		shape.position = Vector3(0.0, _visual.body_center_y if _visual != null else cap.height * 0.5, 0.0)
 	add_child(shape)
 
 
@@ -114,7 +121,10 @@ func _build_visual() -> void:
 	_visual = EnemyVisual.new()
 	add_child(_visual)
 	var base: Color = _base_color()
-	_visual.setup(behavior, base, base.lerp(Color(1, 1, 1), 0.35), _size_for_tier(), variant)
+	_visual.setup(monster_id, behavior, base, base.lerp(Color(1, 1, 1), 0.35), _size_for_tier(), variant)
+	if behavior not in ["ranged", "dummy"]:
+		_tune = _tune.duplicate()
+		_tune["reach"] = _visual.melee_reach
 
 
 func _build_health() -> void:
@@ -134,9 +144,9 @@ func _build_melee_hitbox() -> void:
 	_melee_hitbox.monitoring = false
 	_melee_shape = CollisionShape3D.new()
 	var box: BoxShape3D = BoxShape3D.new()
-	box.size = Vector3(1.1, 1.2, float(_tune["reach"]) + 0.4)
+	box.size = Vector3(_visual.melee_width, _visual.melee_height, _visual.melee_reach + 0.35)
 	_melee_shape.shape = box
-	_melee_shape.position = Vector3(0.0, 0.7, -(float(_tune["reach"]) * 0.5))
+	_melee_shape.position = Vector3(0.0, _visual.melee_origin_y, -(_visual.melee_reach * 0.5))
 	_melee_hitbox.add_child(_melee_shape)
 	_melee_hitbox.body_entered.connect(_on_melee_body_entered)
 	add_child(_melee_hitbox)
@@ -299,7 +309,8 @@ func _on_melee_body_entered(body: Node) -> void:
 func _fire_projectile(to_player: Vector3) -> void:
 	if _player == null:
 		return
-	var origin: Vector3 = global_position + Vector3(0.0, _visual.height * 0.85 if _visual != null else 0.9, 0.0)
+	var origin: Vector3 = _visual.to_global(_visual.muzzle_local_position) if _visual != null \
+		else global_position + Vector3(0.0, 0.9, 0.0)
 	var target: Vector3 = _player.global_position + Vector3(0.0, 0.9, 0.0)
 	var dir: Vector3 = (target - origin).normalized()
 	Projectile.spawn(get_tree().current_scene, origin, dir, PROJECTILE_SPEED, attack_damage, _base_color().lerp(Color(0.8, 0.4, 1.0), 0.6))

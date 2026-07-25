@@ -108,13 +108,14 @@ func _height_raw(x: float, z: float) -> float:
 func _vertex_color(x: float, z: float, h: float, normal: Vector3) -> Color:
 	# The ground the player glimpses BETWEEN and UNDER the blades is soil, not
 	# green — real dirt and thatch with mossy patches where roots are thick.
-	# Warm mid-tone earth (not near-black green, which linearizes to a gray-blue
-	# void under sky ambient). The blade carpet supplies the green on top.
-	var soil_dark: Color = Color(0.21, 0.145, 0.095)   # damp earth in the hollows
-	var soil: Color = Color(0.33, 0.245, 0.155)        # plain dirt
-	var soil_dry: Color = Color(0.46, 0.37, 0.23)      # sun-baked dusty dirt
-	var moss: Color = Color(0.25, 0.30, 0.135)         # mossy root mat, dark green
-	var rock: Color = Color(0.42, 0.41, 0.34)
+	# Values are deliberately BRIGHT for display: the shader linearizes them
+	# (pow 2.2), so anything under ~0.4 crushes to a near-black void — which is
+	# exactly what read as "gray and hollow." The blade carpet dims it on top.
+	var soil_dark: Color = Color(0.27, 0.185, 0.115)   # damp earth in the hollows
+	var soil: Color = Color(0.42, 0.30, 0.185)         # plain dirt
+	var soil_dry: Color = Color(0.55, 0.44, 0.28)      # sun-baked dusty dirt
+	var moss: Color = Color(0.34, 0.40, 0.19)          # mossy root mat over the dirt
+	var rock: Color = Color(0.46, 0.44, 0.37)
 	var sand: Color = Color(0.72, 0.62, 0.38)
 
 	# Two independent noise bands: earth value drift, and where the root mat
@@ -122,10 +123,10 @@ func _vertex_color(x: float, z: float, h: float, normal: Vector3) -> Color:
 	var t: float = clampf(_tint.get_noise_2d(x, z) * 0.5 + 0.5, 0.0, 1.0)
 	var mossiness: float = clampf(_tint.get_noise_2d(x - 500.0, z + 500.0) * 0.5 + 0.5, 0.0, 1.0)
 	var col: Color = soil_dark.lerp(soil, t)
-	col = col.lerp(moss, smoothstep(0.35, 0.85, mossiness) * 0.7)
+	col = col.lerp(moss, smoothstep(0.4, 0.85, mossiness) * 0.5)
 	# Sun-dried dusty patches (its own noise band, meadow character).
 	var dry: float = smoothstep(0.55, 0.8, _tint.get_noise_2d(x + 900.0, z - 900.0) * 0.5 + 0.5)
-	col = col.lerp(soil_dry, dry * 0.4)
+	col = col.lerp(soil_dry, dry * 0.45)
 	# Steep ground reads as worn rock.
 	col = col.lerp(rock, smoothstep(0.82, 0.6, normal.y))
 	# Pond bed and rim read as sand.
@@ -203,14 +204,18 @@ func _build_mesh_and_collision() -> void:
 	mat.set_shader_parameter("albedo_boost", 1.04)
 	mat.set_shader_parameter("rim_amount", 0.08)
 	mat.set_shader_parameter("rim_width", 0.82)
-	mat.set_shader_parameter("fill_amount", 0.20)
+	mat.set_shader_parameter("fill_amount", 0.24)
 	# Warm earthy fill so shadowed soil stays dirt-brown, not sky-blue-gray —
 	# the exact thing that made the exposed ground read as a hollow void.
-	mat.set_shader_parameter("shadow_fill", Color(0.34, 0.27, 0.17))
-	# Strong fine grain + crevice darkening turns the flat plane into real dirt.
-	mat.set_shader_parameter("noise_amount", 0.22)
+	mat.set_shader_parameter("shadow_fill", Color(0.40, 0.31, 0.19))
+	# Fine grain + gentle crevice darkening turns the flat plane into real dirt.
+	mat.set_shader_parameter("noise_amount", 0.20)
 	mat.set_shader_parameter("noise_scale", 1.05)
-	mat.set_shader_parameter("earth_grain", 0.6)
+	mat.set_shader_parameter("earth_grain", 0.45)
+	# Warm ambient floor so shadowed / north-facing ground stays visible damp
+	# earth instead of the black void that read as "gray and hollow."
+	mat.set_shader_parameter("ambient_floor", 0.3)
+	mat.set_shader_parameter("ambient_floor_tint", Color(1.0, 0.76, 0.5))
 	mesh.surface_set_material(0, mat)
 
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()

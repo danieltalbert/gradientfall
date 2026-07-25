@@ -224,11 +224,13 @@ float cirrus_veil(vec3 dir) {
 		return 0.0;
 	}
 	// Project the ray onto a very high plane and streak the noise with the wind.
+	// Restrained stretch + a high threshold keep it delicate and feathery rather
+	// than a bold horizontal haze band across the midday sky.
 	vec3 hit = dir * (7000.0 / max(dir.y, 0.02));
 	vec2 uv = hit.xz * 0.00022 + wind_dir * TIME * 0.004;
-	float streak = fbm(vec3(uv.x * 0.6, uv.y * 3.4, 0.0), 4);
-	streak = smoothstep(0.52, 0.85, streak);
-	float fade = smoothstep(0.02, 0.35, dir.y);
+	float streak = fbm(vec3(uv.x * 0.7, uv.y * 2.3, 0.0), 4);
+	streak = smoothstep(0.60, 0.9, streak);
+	float fade = smoothstep(0.03, 0.42, dir.y);
 	return streak * fade * cirrus_amount;
 }
 
@@ -253,8 +255,10 @@ vec3 atmosphere(vec3 dir) {
 	float horizon = pow(1.0 - up, 5.0) * haze_strength;
 	sky = mix(sky, sky_horizon_color, clamp(horizon, 0.0, 0.85));
 
-	// Below the horizon reads as hazy ground, not black.
-	sky = mix(ground_color, sky, smoothstep(-0.05, 0.02, dir.y));
+	// Below the horizon reads as a hazy ground band, not black — in play the
+	// terrain covers this, but a distant sliver under the vistas stays soft.
+	vec3 below = mix(ground_color, sky_horizon_color, 0.32);
+	sky = mix(below, sky, smoothstep(-0.06, 0.02, dir.y));
 	return sky;
 }
 
@@ -372,9 +376,9 @@ void sky() {
 
 		// High cirrus first (behind cumulus is fine — it's a thin tint).
 		float cirrus = cirrus_veil(dir);
-		vec3 cirrus_col = mix(sky_horizon_color, vec3(1.0), 0.6) * (0.6 + 0.6 * day_amount);
+		vec3 cirrus_col = mix(sky_horizon_color, vec3(1.0), 0.5) * (0.6 + 0.6 * day_amount);
 		cirrus_col += sun_color * pow(max(dot(dir, normalize(sun_direction)), 0.0), 8.0) * 0.4 * sun_energy;
-		sky = mix(sky, cirrus_col, cirrus * 0.7);
+		sky = mix(sky, cirrus_col, cirrus * 0.5);
 
 		// Volumetric cumulus.
 		vec4 clouds = march_clouds(eye_h, dir, jitter);

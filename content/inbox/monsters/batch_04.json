@@ -1,7 +1,7 @@
 [
   {
     "id": "mon_meanwing_finch",
-    "name": "Meanwing Finch",
+    "name": "Mean-Seeking Finch",
     "regions": ["datasedge_meadows"],
     "tier": "fodder",
     "hearts": 1.5,
@@ -18,7 +18,7 @@
   },
   {
     "id": "mon_trail_loop_leveret",
-    "name": "Trail-Loop Leveret",
+    "name": "Overfit Loop Leveret",
     "regions": ["datasedge_meadows"],
     "tier": "fodder",
     "hearts": 2,
@@ -34,7 +34,7 @@
   },
   {
     "id": "mon_patchmunch_bramblehog",
-    "name": "Patchmunch Bramblehog",
+    "name": "Mini-Batch Bramblehog",
     "regions": ["datasedge_meadows"],
     "tier": "fodder",
     "hearts": 3,
@@ -51,7 +51,7 @@
   },
   {
     "id": "mon_middleset_mossram",
-    "name": "Middleset Mossram",
+    "name": "Centroid Mossram",
     "regions": ["datasedge_meadows"],
     "tier": "standard",
     "hearts": 6,
@@ -68,7 +68,7 @@
   },
   {
     "id": "mon_rustlewatch_prowler",
-    "name": "Rustlewatch Prowler",
+    "name": "Single-Feature Prowler",
     "regions": ["datasedge_meadows"],
     "tier": "standard",
     "hearts": 5,
@@ -84,7 +84,7 @@
   },
   {
     "id": "mon_lilywise_newt",
-    "name": "Lilywise Newt",
+    "name": "K-Nearest Newt",
     "regions": ["datasedge_meadows"],
     "tier": "standard",
     "hearts": 4.5,
@@ -101,7 +101,7 @@
   },
   {
     "id": "mon_lastlook_jackdaw",
-    "name": "Lastlook Jackdaw",
+    "name": "Recency-Bias Jackdaw",
     "regions": ["datasedge_meadows"],
     "tier": "standard",
     "hearts": 5.5,
@@ -114,11 +114,11 @@
       {"item_id": "item_meadow_honey", "chance": 0.2}
     ],
     "ml_flavor": "It copies only the most recent action it observed, a simple form of recency bias that forgets older examples too quickly.",
-    "description": "Jackdaw-sized—36 cm long, 70 cm across the wings, and about 230 g—this blue-black ruin bird has layered flight feathers, a silver nape, and pale watchful eyes. It nests in mortar gaps and feeds on grain, beetles, and pilfered honeycomb. During a standoff it copies only Kern's latest move: side-hopping after a dodge, flaring after a swing, then snapping a data bolt from its bill. Its bill clicks."
+    "description": "Jackdaw-sized—36 cm long, 70 cm across the wings, and about 230 g—this blue-black ruin bird has layered flight feathers, a silver nape, and pale eyes. It nests in mortar gaps and feeds on grain, beetles, and pilfered honeycomb. During a standoff it copies only Kern's latest move: side-hopping after a dodge, flaring after a swing, then snapping a data bolt from its bill. Its bill clicks."
   },
   {
     "id": "mon_brackenhoof_keeper_of_forks",
-    "name": "Brackenhoof, Keeper of Forks",
+    "name": "Brackenhoof, Keeper of the Decision Tree",
     "regions": ["datasedge_meadows"],
     "tier": "elite",
     "hearts": 18,

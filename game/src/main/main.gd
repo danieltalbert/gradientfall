@@ -108,6 +108,23 @@ func _capture_screens(dir: String) -> void:
 			"pos": Vector2(-42.0, -82.0)},
 		{"name": "detail_grass_closeup", "yaw": deg_to_rad(20.0), "pitch": -0.34,
 			"pos": Vector2(-42.0, -82.0), "eye": 0.55},
+		# In-game third-person shots: Kern visible in the dense meadow at the
+		# normal ~4.5 m behind-and-above framing — "how it actually looks in
+		# play." Camera is placed explicitly behind him (rig frozen, spring 0)
+		# because the spring arm mis-settles under teleport. `face` turns Kern
+		# into the view. `pos` = camera, `player_at` = where Kern stands.
+		{"name": "ingame_kern_meadow", "yaw": deg_to_rad(18.0), "pitch": -0.16,
+			"pos": Vector2(-40.6, -77.7), "eye": 2.0, "show_kern": true,
+			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(-42.0, -82.0),
+			"face": deg_to_rad(18.0)},
+		{"name": "ingame_kern_field", "yaw": deg_to_rad(-70.0), "pitch": -0.15,
+			"pos": Vector2(17.8, -42.5), "eye": 2.0, "show_kern": true,
+			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(22.0, -44.0),
+			"face": deg_to_rad(-70.0)},
+		{"name": "ingame_kern_toward_peaks", "yaw": deg_to_rad(40.0), "pitch": -0.10,
+			"pos": Vector2(-15.1, -26.5), "eye": 2.0, "show_kern": true,
+			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(-18.0, -30.0),
+			"face": deg_to_rad(40.0)},
 		# Kern standing in the sward — verifies the trample parting around him.
 		# Spring arm collapsed so the camera sits exactly at the posed point
 		# and looks straight down at his feet, where the parting shows.
@@ -141,6 +158,8 @@ func _capture_screens(dir: String) -> void:
 			_player.global_position = Vector3(
 				stand.x, _terrain.get_height(stand.x, stand.y) + 0.8, stand.y
 			)
+			if shot.has("face"):
+				_player.rotation.y = shot["face"]
 			rig.global_position = Vector3(
 				sample.x, _terrain.get_height(sample.x, sample.y) + eye, sample.y
 			)

@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_lambert_wrap, specular_schlick_ggx;
+render_mode cull_disabled, diffuse_lambert_wrap, specular_schlick_ggx;
 // SOFT variant of toon.gdshader (Danny's realism decree): identical uniforms
 // and features — vertex-color albedo, fresnel rim, sky fill, world noise —
 // but with soft wrapped diffuse instead of hard cel banding. Terrain, rocks,
@@ -22,6 +22,13 @@ uniform float rim_width : hint_range(0.0, 1.0) = 0.72;
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.55, 0.68, 0.92, 1.0);
 uniform float fill_amount : hint_range(0.0, 0.6) = 0.14;
+// Ambient floor: a small albedo-tinted glow so surfaces never crush to black
+// where no direct light reaches. The scene runs almost entirely on direct sun
+// (ambient is albedo-multiplied to near nothing), so without this, shadowed
+// ground reads as a gray-black void. Warm-tinted for terrain = "damp dirt in
+// shade," not "hole in the world." Tiny in sunlight, dominant in shadow.
+uniform float ambient_floor : hint_range(0.0, 2.0) = 0.0;
+uniform vec4 ambient_floor_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 
 group_uniforms detail;
 // World-space value noise multiplied into albedo. Zero for props; the
@@ -76,6 +83,8 @@ void fragment() {
 	// ambient hue — the trick that makes toon shadows look painted, not dead.
 	// A small ambient floor keeps deep meadow colors chromatic in long shadows.
 	EMISSION += shadow_fill.rgb * fill_amount * (ALBEDO * 0.78 + vec3(0.055));
+	// Ambient floor keeps shade earthy instead of black (see uniform above).
+	EMISSION += ALBEDO * ambient_floor_tint.rgb * ambient_floor;
 	// Fresnel rim: bright where the surface turns away from the camera.
 	float fres = 1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	float rim = smoothstep(rim_width, 1.0, fres) * rim_amount;

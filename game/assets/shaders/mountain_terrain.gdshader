@@ -27,6 +27,15 @@ uniform float scree_strength : hint_range(0.0, 0.6) = 0.3;
 uniform vec4 grass_tint : source_color = vec4(0.315, 0.44, 0.165, 1.0);
 uniform float grass_blend : hint_range(0.0, 1.0) = 0.6;
 
+group_uniforms geology;
+// Real stone is never one flat grey — these break it with living and mineral colour.
+uniform float lichen_amount : hint_range(0.0, 1.0) = 0.55;
+uniform vec4 lichen_tint : source_color = vec4(0.43, 0.47, 0.28, 1.0);
+uniform float stain_strength : hint_range(0.0, 1.0) = 0.55;
+uniform float mineral_strength : hint_range(0.0, 1.0) = 0.32;
+uniform float wetness : hint_range(0.0, 1.0) = 0.5;
+uniform float zonation : hint_range(0.0, 1.0) = 0.6;
+
 group_uniforms snow;
 uniform vec4 snow_tint : source_color = vec4(0.78, 0.845, 0.93, 1.0);
 uniform vec4 snow_shadow_tint : source_color = vec4(0.68, 0.75, 0.87, 1.0);
@@ -138,6 +147,12 @@ void fragment() {
 	color *= 1.0 + (broad - 0.5) * rock_detail * 1.75;
 	color *= 1.0 + (fine - 0.5) * rock_detail * 0.5;
 
+	// Macro value variation: whole buttresses read light or dark — sunlit spurs
+	// against shadowed gullies. The single strongest cue that breaks the "one
+	// even textured curtain" look a procedural face falls into from a distance.
+	float macro = fbm(v_world_position * detail_scale * 0.11 + seed * 0.5);
+	color *= mix(0.78, 1.2, macro);
+
 	// Loose soil speckle on the low, gentler ground where dirt would collect.
 	float soil = bench * (1.0 - smoothstep(0.5, 0.9, v_altitude));
 	color = mix(color, color * mix(0.78, 1.16, grain), soil * dirt_grain);
@@ -176,12 +191,42 @@ void fragment() {
 	vec3 scree_color = color * mix(0.82, 1.2, value_noise(v_world_position * 0.24 + seed * 1.3));
 	color = mix(color, scree_color, scree * scree_strength);
 
+	// ---- geology: the "this is real stone" layer ----
+	// Lichen & moss colonise sheltered, mid-low, not-quite-vertical rock in
+	// fractal-edged patches — pale sage drifting to ochre, never a sprayed film.
+	float lichen = smoothstep(0.5, 0.8, fbm(v_world_position * 0.055 + seed * 3.7));
+	lichen *= smoothstep(0.66, 0.22, slope);
+	lichen *= 1.0 - smoothstep(0.44, 0.72, v_altitude);
+	lichen *= smoothstep(0.32, 0.66, value_noise(v_world_position * 0.42 + seed * 4.4));
+	vec3 lichen_col = mix(lichen_tint.rgb, lichen_tint.rgb * vec3(1.28, 1.1, 0.72), grain);
+	color = mix(color, lichen_col, lichen * lichen_amount);
+
+	// Water-stain runnels: cool, dark seeps streaking straight DOWN steep faces
+	// below ledges — the single strongest cue that a face is weathered rock.
+	float runnel = pow(0.5 + 0.5 * sin(v_world_position.x * 0.14 + v_world_position.z * 0.10 + broad * 9.0), 3.0);
+	runnel *= smoothstep(0.42, 0.82, fbm(vec3(v_world_position.x, v_world_position.y * 0.18, v_world_position.z) * 0.045 + seed * 1.3));
+	runnel *= cliff * stain_strength;
+	color = mix(color, color * vec3(0.66, 0.7, 0.82), runnel * 0.8);
+
+	// Iron / oxidation veins: sparse rusty banding on a coarser field.
+	float vein = smoothstep(0.61, 0.72, value_noise(v_world_position * 0.075 + seed * 5.1)) * cliff;
+	color = mix(color, color * 0.62 + vec3(0.42, 0.25, 0.15) * 0.55, vein * mineral_strength);
+
+	// Damp drainage: concave low ground stays wet — darker here, glossier below.
+	float damp = bench * (1.0 - smoothstep(0.0, 0.34, v_altitude))
+			* smoothstep(0.42, 0.72, fbm(v_world_position * 0.038 + seed * 2.2));
+	color *= 1.0 - damp * wetness * 0.3;
+
+	// Altitude zonation: warm-lit low rock cooling to blue-grey alpine stone.
+	color *= mix(vec3(1.0), mix(vec3(1.05, 1.01, 0.95), vec3(0.92, 0.96, 1.08),
+			smoothstep(0.08, 0.9, v_altitude)), zonation);
+
 	// Snow wanders down from the summits: pools on up-facing shelves, is scoured
 	// thin on wind-blown ridges and cliffs, and follows gullies a little lower.
 	float snow_warp = (broad - 0.5) * 0.16 + (fine - 0.5) * 0.05;
 	float height_snow = smoothstep(
 			snowline - snow_softness, snowline + snow_softness, v_altitude + snow_warp);
-	float shelf = mix(0.28, 1.0, smoothstep(0.05, 0.72, world_normal.y));
+	float shelf = mix(0.42, 1.0, smoothstep(0.02, 0.66, world_normal.y));
 	float wind_scour = mix(1.0, 0.48, cliff);
 	float snow_mask = height_snow * shelf * wind_scour * snow_amount;
 	snow_mask *= 1.0 - fracture * 0.42;
@@ -227,13 +272,24 @@ void fragment() {
 	snow_color *= mix(0.88, 1.04, broad);
 	color = mix(color, snow_color, snow_mask);
 
-	// A whisper of aerial haze on the highest, farthest rock; Godot's own fog
-	// finishes the depth cue so the near slopes stay saturated.
-	color = mix(color, haze_tint.rgb, haze_amount * smoothstep(0.35, 1.0, v_altitude));
+	// Sparkle: sparse micro-facets of fresh snow catch the sun — done as patches
+	// of very low roughness so the light does the twinkling, not a fake highlight.
+	float snow_glint = step(0.9, value_noise(v_world_position * 13.0 + seed * 9.0)) * snow_mask * snow_face;
+	// Refrozen ice in shaded snow hollows: a touch bluer and glassier.
+	float ice = snow_mask * (1.0 - snow_face) * smoothstep(0.45, 0.72, value_noise(v_world_position * 0.09 + seed * 6.0));
+	color = mix(color, snow_shadow_tint.rgb * vec3(0.92, 0.96, 1.06), ice * 0.5);
+
+	// Aerial perspective: distance AND altitude wash toward the sky's haze, so far
+	// ridges recede into blue depth while the near slopes you stand on stay
+	// saturated. This is what makes the range read as kilometres deep, not a wall.
+	float aerial = smoothstep(80.0, 780.0, view_dist) * (0.42 + 0.58 * v_altitude);
+	color = mix(color, haze_tint.rgb,
+			clamp(haze_amount * smoothstep(0.3, 1.0, v_altitude) + aerial * 0.34, 0.0, 0.62));
 
 	ALBEDO = color;
-	ROUGHNESS = mix(0.96, 0.72, snow_mask);
-	SPECULAR = mix(0.06, 0.2, snow_mask);
+	float gloss = damp * wetness * 0.24 + snow_glint * 0.42 + ice * 0.22;
+	ROUGHNESS = clamp(mix(0.96, 0.72, snow_mask) - gloss, 0.16, 1.0);
+	SPECULAR = clamp(mix(0.06, 0.2, snow_mask) + damp * wetness * 0.16 + snow_glint * 0.3 + ice * 0.2, 0.0, 0.9);
 	EMISSION = color * fill_amount * shadow_fill.rgb;
 	float fresnel = 1.0 - clamp(dot(NORMAL, normalize(VIEW)), 0.0, 1.0);
 	EMISSION += haze_tint.rgb * pow(fresnel, 4.0) * 0.012;

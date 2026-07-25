@@ -11,21 +11,23 @@ extends Node3D
 ## Zero textures — all variation is procedural.
 
 const SCATTER_SEED: int = 20260717
-# Two camera-wrapped carpets share grass_field.gdshader. The near field is a
-# dense photoreal sward right around the camera (~415 blades/m², 5-segment
-# cards); the far field carries the sweep to the horizon with fewer, wider,
-# cheaper 3-segment blades — the Ghost-of-Tsushima distance trick. Budget is
-# ~60M verts/frame: deliberately rich for high-end GPUs (GDD §10) while
-# leaving frame-time headroom for the rest of the game.
-const NEAR_COUNT: int = 1300000
-const NEAR_TILE: float = 56.0
+# Three camera-wrapped carpets share grass_field.gdshader. The near field is a
+# BURY-THE-GROUND sward right around the camera (~1700 blades/m², 5-segment
+# cards) — dense enough that grass is practically all you see, with only faint
+# dirt peeking through (Danny's directive); the far fields carry the sweep to
+# the horizon with fewer, wider, cheaper 3-segment blades (Ghost-of-Tsushima
+# distance trick). ~8.5M blades: deliberately extravagant for a high-end GPU
+# (GDD §10 "spend the budget"). Grass still thins on slopes / near rocks &
+# water via the shader's alive-mask, so those spots keep showing ground.
+const NEAR_COUNT: int = 2800000
+const NEAR_TILE: float = 48.0
 const NEAR_SEGMENTS: int = 5
-const MID_COUNT: int = 750000
+const MID_COUNT: int = 1300000
 const MID_TILE: float = 104.0
-const FAR_COUNT: int = 1200000
+const FAR_COUNT: int = 1300000
 const FAR_TILE: float = 190.0
 const FAR_SEGMENTS: int = 3
-const BLADE_HALF_WIDTH: float = 0.011
+const BLADE_HALF_WIDTH: float = 0.017
 # Each field is split into CHUNKS×CHUNKS MultiMeshes whose AABBs track their
 # wrapped world rects every frame — so Godot frustum-culls the blades behind
 # the camera (a single whole-map AABB defeats culling and doubles frame cost).
@@ -68,8 +70,8 @@ func _ready() -> void:
 func _build_fine_field() -> void:
 	# Three carpets, each fading out as the next takes over. Blades get fewer
 	# but wider with distance so PROJECTED coverage stays level — no visible
-	# handoff bands: near ~415/m² to 27 m, mid ~69/m² to 51 m, far ~33/m² to
-	# the fog line. Cheap 3-segment cards past the near ring.
+	# handoff bands: near ~1700/m² to 25 m (buries the ground), mid ~222/m² to
+	# 51 m, far ~42/m² to the fog line. Cheap 3-segment cards past the near ring.
 	var far_mesh: ArrayMesh = _build_blade_strip(FAR_SEGMENTS)
 	_spawn_field("FineFieldNear", _build_blade_strip(NEAR_SEGMENTS), NEAR_TILE,
 			NEAR_COUNT, 0.42, 1.0, NEAR_TILE * 0.40, NEAR_TILE * 0.49)

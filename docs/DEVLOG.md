@@ -4,6 +4,96 @@
 
 ---
 
+## 2026-07-21 (live session, sky/clouds lane) — VOLUMETRIC SKY & CLOUDS
+
+*Danny's directive: "extremely realistic, life-sized clouds and sky —
+ridges, fluff, motion, everything," to run ALONGSIDE the active grass and
+mountain lanes without colliding. He chose **photoreal volumetric** (which
+the grass lane's same-day GDD §10 amendment now makes the official pillar, so
+no separate sign-off needed) and **layer-on-top** coordination (leave the
+sun/ambient/fog the other lanes tune against untouched).*
+
+**COORDINATION (the whole point) — zero shared-file collisions**
+- Touched ONLY sky/cloud/celestial files + new shader files. Did **not** edit
+  `main.tscn`, `main.gd`, or any grass/mountain file. New nodes/materials are
+  created procedurally from the already-wired `SkyCycle`/`Clouds` scripts, so
+  the scene graph is unchanged.
+- Base scene lighting is **identical** to before: `SkyCycle` still drives the
+  sun arc, moon, ambient, and fog exactly as it did — the new sky only changes
+  what the sky *renders*, and it is fed the SAME palette keyframes so the
+  horizon colour still meets the mountain vistas' fog cleanly. `Environment`
+  keeps `ambient_light_sky_contribution=0` + `sdfgi_read_sky_light=false`, so
+  the new sky does not leak into GI/ambient — grass & mountain lighting are
+  provably unaffected. (It does now feed the water reflection, an upgrade.)
+
+**DONE — true volumetric raymarched sky (built, UNSEEN)**
+- New `assets/shaders/volumetric_sky.gdshader` (`shader_type sky`): the old
+  horizon mesh cloud banks are **retired** in favour of a real volumetric
+  cloud layer raymarched INSIDE the sky pass:
+  - **Life-sized**: spherical-shell slab (~600–1820 m, planet-radius curvature)
+    so clouds recede to a ~115 km horizon and shift perspective with camera
+    altitude (`POSITION.y`).
+  - **Ridges & fluff**: domain-warped fBm + ridged-fBm cauliflower shape,
+    high-frequency erosion carving the edges, a rounded-base/billowing-top
+    height profile, and low-freq "region" cells for broad clear/cloudy lanes.
+  - **Photoreal light**: 6-step light-march to the sun (Beer + multi-scatter
+    tail digs the self-shadow that sculpts the billows), Beer–Powder dark-edge
+    term, dual-lobe Henyey–Greenstein phase (forward silver lining), sky
+    ambient (bright top / cool base), energy-conserving front-to-back
+    integration, blue-noise jitter.
+  - **Motion**: world-anchored wind drift + a slow vertical "boil" so masses
+    grow and dissolve over minutes, not slide rigidly.
+  - **Atmosphere**: horizon→zenith gradient with sun aureole + crisp disk,
+    delicate high cirrus veil, aerial-perspective haze fade into the vista fog,
+    and a softened (non-black) below-horizon band.
+  - **Perf**: `AT_CUBEMAP_PASS` fast path (no march) keeps the REALTIME
+    radiance/water-reflection cheap; PRIMARY/LIGHT step counts are consts.
+- `src/world/sky_cycle.gd`: swaps the placeholder `ProceduralSkyMaterial` for
+  the volumetric `ShaderMaterial` at runtime (no `.tscn` edit); every `_apply`
+  feeds the time-of-day atmosphere uniforms. Exposes `get_sky_material()`.
+- `src/world/cloud_layer.gd`: repurposed from mesh-bank builder into the
+  **weather director** — owns the disjoint weather-side uniforms (coverage,
+  density, wind, layer heights, storminess, cirrus) and evolves them
+  deterministically in `SkyCycle.hour` (clear dawns, convective afternoons,
+  streaked-cirrus dusks; fronts as slow noise). Gameplay hook
+  `set_weather_override()` left for the Phase-2 weather milestone.
+- Tuning verified against a WebGL port (`tools/sky_preview.html`, below): killed
+  the midday cirrus-as-flat-haze look (delicate at dawn/dusk only) and raised
+  cumulus density so the deck reads solid. Noon = clean blue + a crisp horizon
+  cumulus band; dusk = purple→orange gradient with a sunlit lit-edge deck.
+
+**DONE — session-safe visual verification (no contended Godot)**
+- Did **not** launch Godot: the grass & mountain lanes are actively rendering,
+  and a second import/compile would contend on the shared `.godot` shader/
+  import cache — exactly the "don't disturb the other lanes" ask. Instead built
+  `tools/sky_preview.html`, a self-contained WebGL2 port of the cloud raymarch
+  (time-of-day + coverage/storminess sliders, drag to look), and eyeballed it
+  via pixel-readback (Godot project untouched). Preview kept in sync with the
+  shipping shader's parameters.
+
+**HALF-FORMED / cleanup for a coordinated sweep**
+- New `volumetric_sky.gdshader` has **no `.uid`** (no Godot here); `SkyCycle`
+  preloads it by `res://` path so it resolves, but a live import must generate
+  + commit the `.uid`. Same for any celestial shader lacking one.
+- Old `painterly_cloud.gdshader` / `painterly_cloud_wisp.gdshader` (+`.uid`) are
+  now **orphaned** (nothing references them) — safe to delete in the sweep.
+- **Not committed** on purpose: two other lanes have uncommitted work in this
+  same tree; a `git add -A` would sweep their half-wired state. Left for Danny /
+  a coordinating session to stage the sky lane's files together.
+
+**UNSEEN (GDD §10)** — verified in the WebGL preview + pixel-readback, NOT yet
+in Godot. A live import must: swap-in confirm the sky compiles, boot clean, and
+lay eyes across the day (dawn/noon/dusk/night) + water reflection. Sky-lane
+files to stage: `assets/shaders/volumetric_sky.gdshader`(+`.uid`),
+`src/world/sky_cycle.gd`, `src/world/cloud_layer.gd`, `tools/sky_preview.html`.
+
+**NEXT UP (sky lane)** — after eyes: optional near-field low cloud/mist for
+overhead parallax; cloud shadows on terrain (needs a shared-file touch — defer
+until lanes merge); wire `set_weather_override()` into the Phase-2 weather
+milestone.
+
+---
+
 ## 2026-07-20 (live session, grass lane) — PHOTOREAL GRASS
 
 *Danny's directive, verbatim spirit: "make grass that literally looks like
@@ -87,10 +177,58 @@ tree BOOTS CLEAN end-to-end (verified this session, zero script errors).
 Recommend: one sweep commit once all lanes wrap —
 `Gradientfall: photoreal grass + volumetric sky + real peaks + knowledge charge (4-lane day)`.
 
+**ADDENDUM (2026-07-22, grass lane cont.) — the "gray hollow ground" fix**
+Danny, live: the grass looked good but the GROUND read as "gray and hollow."
+Ran it down with the editor + screenshots. It was a forensic dig — ruled out,
+in order, albedo darkness, SSAO, ambient, sky reflection, BOTH fogs, and any
+overlay/second mesh — before the real cause showed: **`toon_soft.gdshader` was
+back-face culling the terrain.** The meadow mesh's triangle winding is
+CCW-from-above, but Godot's default front face is CW, so flat ground viewed
+from above was culled — we were literally seeing the sky dome THROUGH the
+terrain (that "gray" was the below-horizon sky, not dirt). All the material/
+lighting knobs did nothing because the surface wasn't being drawn.
+- **Fix:** `render_mode cull_disabled` on `toon_soft.gdshader` (terrain never
+  shows its underside; two-sided is the correct, cheap choice — grass render
+  holds 60 FPS, bare 165). *A cleaner fix is to reverse the terrain index
+  winding in `meadow_terrain._build_mesh_and_collision` (`[a,c,b,b,c,d]` →
+  `[a,b,c,b,d,c]`) so back-face culling can stay on — left as a follow-up;
+  cull_disabled is safe meanwhile. NB: the winding was correct pre-07-20, so a
+  lane reversed it — worth a glance.*
+- With the ground finally VISIBLE, gave it a real look: `meadow_terrain`
+  vertex colours rebuilt from dark under-canopy green → **warm dirt** (soil /
+  damp-hollow / dry-dusty tones + mossy-root patches, two noise bands);
+  `toon_soft` gained a 3-octave world grain + `earth_grain` crevice darkening
+  and a warm `ambient_floor` so shaded soil stays earthy, not black. Ground now
+  reads as real earth under the sward; exposed dirt in the trample ring is
+  slightly pale (mostly flattened-blade undersides) — tunable.
+- **Footprint kept minimal:** every scene-wide experiment from the hunt
+  (`main.tscn` ambient source/energy/SSAO, both fog toggles, `sky_cycle`
+  ambient_sky_contribution) was **reverted to original** — the sky lane's
+  `ambient_light_sky_contribution=0` assumption is intact. Net change is
+  `toon_soft.gdshader` + `meadow_terrain.gd` only (plus the screenshot-harness
+  cleanups in `main.gd`).
+
+**ADDENDUM (2026-07-22, cont.) — "bury the ground" density**
+Danny, live: wanted grass so thick the ground is hard to see (dirt still faintly
+below), except near rocks/other features. Pushed the carpet from ~3.25M →
+**5.4M blades** (near 2.8M @ ~1215/m² over a 48 m tile, mid 1.3M, far 1.3M) and
+widened the blade base 0.011 → 0.017 m — wider leaning blades cover far more
+ground per blade than raw count alone, so this reads as buried without the
+9M-blade cost. Slopes / rock / water edges still show ground via the shader's
+alive-mask, exactly as asked. **Perf: 34 FPS on the 5090** (grass vertex cost
+is ~linear in blade count; 8.5M tested at 24 FPS). **Danny's explicit call:
+KEEP this density, accept 34 FPS** (GDD §10 "spend the budget"). A no-visual-cost
+recovery path is on file for whenever he wants the frames back: precompute each
+blade's random/clump values into the MultiMesh instance buffer (custom_data +
+color) so the vertex shader stops recomputing ~7 hashes + colour noise PER
+VERTEX (12×/blade) — pure ALU savings at identical density.
+
 **NEXT UP (grass lane)** — judge in motion with Danny; then per-region grass
 palettes (WORLDBOOK biomes), specular dew pass at dawn hours, and grass
 interaction for enemies/Bit (the `gf_player_pos` global generalizes to a
-small array of benders).
+small array of benders). Perf-when-wanted: the per-blade-data precompute above
+(reclaim FPS at this density) and reverse the terrain winding to drop
+cull_disabled. Also richen/vary the exposed dirt tone.
 
 ---
 

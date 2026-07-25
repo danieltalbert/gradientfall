@@ -22,11 +22,11 @@ extends Node3D
 const WEATHER_SEED: float = 20260720.0
 
 ## Baseline fair-weather numbers for the Datasedge Meadows.
-const BASE_COVERAGE: float = 0.46
-const BASE_DENSITY: float = 1.35
+const BASE_COVERAGE: float = 0.48
+const BASE_DENSITY: float = 1.7
 const BASE_WIND_SPEED: float = 30.0
-const CLOUD_BASE_M: float = 620.0
-const CLOUD_TOP_M: float = 1680.0
+const CLOUD_BASE_M: float = 600.0
+const CLOUD_TOP_M: float = 1820.0
 
 var _cycle: SkyCycle
 var _sky_material: ShaderMaterial
@@ -129,7 +129,9 @@ func _apply_weather(hour: float) -> void:
 		maxf(0.0, 1.0 - absf(hour - 6.5) / 2.6),
 		maxf(0.0, 1.0 - absf(hour - 17.8) / 2.8)
 	)
-	var cirrus: float = clampf(0.18 + twilight * 0.34 + (1.0 - front) * 0.22 + gust_mood * 0.08, 0.0, 0.85)
+	# Kept deliberately restrained: bold cirrus at midday reads as flat haze.
+	# It favours dawn/dusk, where thin high wisps genuinely catch the low sun.
+	var cirrus: float = clampf(0.05 + twilight * 0.30 + (1.0 - front) * 0.10 + gust_mood * 0.05, 0.0, 0.6)
 
 	_sky_material.set_shader_parameter("cloud_coverage", coverage)
 	_sky_material.set_shader_parameter("cloud_density", density)
