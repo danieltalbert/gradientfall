@@ -4,6 +4,145 @@
 
 ---
 
+## 2026-07-25 (fourth parallel session) — milestone 12: the Perceptron Vault
+
+Danny asked whether a fourth session could take a milestone without treading
+on 7, 8, and 10. It could: **12 (Dungeon 1)** is the only remaining Phase 1
+milestone with essentially no shared-file surface. 9 (quests) needs 8's
+dialogue and 10's inventory at both ends; 11 (crafting) sits on top of 10;
+14 (save/load) should land *after* every system that owns state; 15 (HUD) is
+where 7's charge meter and 10's Tokens readout both arrive. 12 needs none of
+them. 13 (iris + compendium) is the other clean pick and is next in this
+session.
+
+**Also done first: merged `claude/repo-progress-review-948m14` into `main`
+(8-commit fast-forward).** The restored `CLAUDE.md`, the documentation
+standard, and — the reason it mattered — the "parallel-session protocol for
+milestones 7, 8, 10" entry were all sitting on an unmerged branch. The three
+sessions it was addressed to could not see it. `main` now carries it.
+
+**DONE — the vault, end to end**
+
+The WORLDBOOK gives Datasedge one dungeon sentence ("route glowing signals
+through weight-doors so the output gate fires; mini-boss the Gatekeeper —
+sums what hits it, overload it; teaches: what a neuron does") and the ROADMAP
+adds "traverse an actual neural network". So the vault IS a 2-3-1 network,
+laid out along its own axis, walked in order:
+
+- **Input Hall** — two **Signal Founts**, each holding one bit. Strike to
+  toggle. Lit is gold, dark is cold, and a lit fount genuinely lights its
+  corner of the hall.
+- **Three Neuron Chambers** — each a room you stand inside. Two **Weight
+  Stones** in the side walls (strike to step through a short ladder), a sum
+  column in the middle, and a threshold ring running the full perimeter at
+  the height the column must reach. Column over ring, the room warms and the
+  outbound conduit lights.
+- **The Junction** — three pedestals carrying the output cell's weights, its
+  own column, its own ring.
+- **The Gatekeeper** — a boss with **no hearts**. It has a charge, and it
+  sums everything that reaches it: sword strikes, a steady feed from the
+  network while the output cell fires, and a constant leak the other way. It
+  alternates polarity on a telegraphed clock — gold draws, blue refuses, and
+  a blow landed while it refuses is subtracted. That is the fight, and it is
+  also the lesson about the sign of a weight.
+- **The output gate** — two leaves, the 2-3-1 sigil above them (the same
+  figure already on `icon.svg`), and the reliquary beyond.
+
+**Both routes are intended** per GDD §3's no-hard-gates contract. Solve the
+network and it does most of the pushing while Kern dodges; walk in with the
+chambers dark and the Gatekeeper has to be overloaded by sword alone against
+its leak. The chambers are pass-through rooms, never locked, so the puzzle is
+optional-but-enormous rather than a wall. Re-tuning a stone mid-fight takes
+effect immediately — walking back out to fix the puzzle is a tactic, not a
+soft-lock.
+
+**The puzzle was verified exhaustively before it shipped.** No Godot here, so
+the network was re-implemented in Python and every reachable configuration
+enumerated: **12 of 2048 open the gate**, both founts must be lit in all of
+them, the First and Second chambers each have exactly one correct weight
+pair (their inhibitory stone must be set to its *weakest* negative, which is
+the counterintuitive move the dungeon is built around), and all three
+chambers fire in every solution. Shortest path from the vault's build state
+is 9 strikes. Honest caveat: a player who systematically sets every stone as
+positive as it will go and lights both founts wins without reasoning further.
+For a T1 tutorial dungeon that is the right difficulty — "gold adds, blue
+subtracts, the sum must clear the line" *is* the lesson — but it is a
+property of this layout, not an accident, and it is written down here so a
+later pass can tighten it deliberately.
+
+**Nothing another session owns was touched.** No combat script, no
+`event_bus.gd`, no `game_state.gd`, no terrain, no `meadow_landmarks.gd`, no
+`main.tscn`. Three things made that possible and each is worth remembering:
+
+1. **Strikeable props wear the existing enemy costume.** `PlayerCombat`'s
+   swing only considers bodies in group `"enemy"` that expose `apply_hit()`.
+   Rather than widen that contract, every prop in the vault joins that group
+   on the ENEMY layer and implements `apply_hit()` — ignoring damage and
+   knockback, because a fount has no hearts. Kern's sword works on them
+   unchanged. The trade: props answer the charged special's group sweep too,
+   so a special near a fount flips it. A short per-prop cooldown keeps one
+   swing to one flip; the rest is recoverable by striking again.
+2. **The vault owns its own `BitLandmark`.** `BitLandmark` registers through
+   a group, so the vault instances its own rather than adding a line to
+   `MeadowLandmarks`.
+3. **One line in `main.gd`**, exactly per the new convention: `_setup_vault()`
+   plus its function. It is called on BOTH branches — the vault is world
+   geometry and screenshot runs must see it — which is safe because the only
+   actor it spawns is the Gatekeeper, and he waits for Kern to walk into the
+   arena, which a screenshot run never does.
+
+**Built against the terrain rather than on top of it.** The vault surveys the
+ground across its whole footprint at build time: the highest point sets the
+floor (so no hill can push up through a chamber), the lowest sets how deep
+the plinth reaches (so no daylight shows underneath from downhill), and the
+approach ramp's slope is measured from the terrain at its far end. Site is
+(64, 128) — 117 m from Bootstrap and outside the town flat, 122 m from the
+millpond, 151 m from the nearest iris cluster, which deliberately leaves the
+iris flats alone for milestone 13.
+
+**Content through the pipeline, in new files:** `mon_the_gatekeeper`
+(`dungeon_boss` tier, so `MonsterSpawner` will never field-spawn it),
+`item_threshold_stone`, and `poi_perceptron_vault`. All in files of their own
+so the session merging `batch_03` into `content/approved/items/` cannot
+conflict. Validator passes: 88 entries, 16 files, 0 errors.
+
+**Repo hygiene:** `tools/__pycache__/validate_content.cpython-311.pyc` was
+committed by an earlier run. Untracked, and a root `.gitignore` now stops it
+coming back.
+
+**UNSEEN — and this is the big caveat.** No Godot in this environment, so
+nothing here has been imported, booted, or looked at. Same posture milestones
+5 and 6 shipped in. A live session must generate the `.uid` files, confirm a
+clean boot, and then actually LOOK at the vault before this box ticks fully
+clean per GDD §10. Five screenshot angles are wired for exactly that:
+`vault_approach`, `vault_input_hall`, `vault_chamber`, `vault_junction`,
+`vault_arena_gate` — interiors need an absolute eye height, so the shot table
+now understands a `"y"` key and reads it from `PerceptronVault.floor_height()`.
+
+**What to look at first, in a live session:** whether the interior reads at
+all. The vault is sealed and lit only by its own runes and lamps — the sun
+never reaches it, which is a lighting situation nothing in this project has
+faced before. If the chambers are murky, the fix is lamp energy and rune
+`energy`, both one-line constants.
+
+**HALF-FORMED**
+- The Gatekeeper's numbers (12 charge, 1.2 per strike, 0.55/s leak, 2.6/s
+  network feed, 6 s draw / 3.5 s refuse) are reasoned, not played. The
+  solved-vault route should take roughly six seconds of survival and the
+  sword-only route about ten clean strikes. Both want a real playtest.
+- Field monsters can wander onto the vault's plinth: `MonsterSpawner` keeps a
+  safe radius around Bootstrap but knows nothing about the vault. A glitchling
+  on the approach is fine and probably good; one spawning inside a sealed
+  chamber would be trapped. Left alone rather than coupling the spawner to
+  the dungeon — worth a look once someone has walked it.
+
+**NEXT UP (this session)** — milestone 13: iris flowers as collectible flora
+plus compendium v1. The 700 irises already scattered west of Bootstrap carry
+the three real Iris families as bloom colors and `meadow_flora.gd` already
+says in its header that the collectible system arrives with the compendium.
+
+---
+
 ## 2026-07-25 (planning) — three milestones going parallel: 7, 8, 10
 
 **READ THIS IF YOU ARE ONE OF THOSE THREE SESSIONS.** Danny is running

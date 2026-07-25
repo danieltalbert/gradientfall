@@ -15,6 +15,7 @@ extends Node3D
 
 var _spawner: MonsterSpawner
 var _hud: CombatHud
+var _vault: PerceptronVault
 
 
 func _ready() -> void:
@@ -36,6 +37,7 @@ func _ready() -> void:
 	_spawn_player()
 	_landmarks.build(_terrain)
 	_bit.setup(_player, _terrain)
+	_setup_vault()
 
 	# Screenshot mode is the visual-verification tool — keep it clean of HUD
 	# and roaming enemies. Normal play gets the combat HUD + monster spawner.
@@ -44,6 +46,14 @@ func _ready() -> void:
 		_capture_screens(shot_dir)
 	else:
 		_setup_combat()
+
+
+## Dungeon 1 — the Perceptron Vault. Built in both modes on purpose: it is
+## world geometry, so screenshot runs must see it, and the only actor it
+## spawns (the Gatekeeper) waits for Kern to walk into the arena, which a
+## screenshot run never does.
+func _setup_vault() -> void:
+	_vault = PerceptronVault.build($World, _terrain)
 
 
 func _setup_combat() -> void:
@@ -77,13 +87,19 @@ func _screenshot_dir() -> String:
 
 func _capture_screens(dir: String) -> void:
 	# Angles chosen to judge the GDD §10 bar: the town-and-pond view, the
-	# Gradient Peaks vista, the sea horizon, and grass up close.
+	# Gradient Peaks vista, the sea horizon, grass up close — and, since
+	# milestone 12, the Perceptron Vault inside and out, which is sealed and
+	# lit only by its own runes and so cannot be judged from the field.
 	var rig: Node3D = _player.get_node("CameraRig")
 	var cycle: SkyCycle = get_node("World/SkyCycle") as SkyCycle
 	if cycle != null:
 		cycle.paused = true
 		cycle.set_hour(8.5)
 	var arm: SpringArm3D = rig.get_node("SpringArm3D") as SpringArm3D
+	# Vault interiors need an absolute Y: the floor sits on a plinth above the
+	# terrain, so sampling ground height there would drop Kern through it.
+	var floor_y: float = _vault.floor_height() + 0.8 if _vault != null else 0.0
+	var site: Vector2 = PerceptronVault.SITE
 	var shots: Array[Dictionary] = [
 		{"name": "meadow_southeast_town", "yaw": deg_to_rad(-135.0), "pitch": -0.25},
 		{"name": "meadow_north_peaks", "yaw": deg_to_rad(35.0), "pitch": 0.05},
@@ -95,15 +111,29 @@ func _capture_screens(dir: String) -> void:
 			"pos": Vector2(15.0, -60.0)},
 		{"name": "detail_grass_horizon", "yaw": deg_to_rad(20.0), "pitch": 0.02,
 			"pos": Vector2(-42.0, -82.0)},
+		# Yaw 180° looks due south — straight down the vault's axis, which is
+		# the order a player walks it: facade, hall, chamber, junction, arena.
+		{"name": "vault_approach", "yaw": PI, "pitch": 0.10,
+			"pos": site + Vector2(0.0, -73.0)},
+		{"name": "vault_input_hall", "yaw": PI, "pitch": 0.02,
+			"pos": site + Vector2(0.0, -30.0), "y": floor_y},
+		{"name": "vault_chamber", "yaw": PI, "pitch": 0.02,
+			"pos": site + Vector2(15.2, -10.0), "y": floor_y},
+		{"name": "vault_junction", "yaw": PI, "pitch": 0.04,
+			"pos": site + Vector2(0.0, 7.0), "y": floor_y},
+		{"name": "vault_arena_gate", "yaw": PI, "pitch": 0.02,
+			"pos": site + Vector2(0.0, 22.0), "y": floor_y},
 	]
 	for i in 110:  # let terrain, shadows, TAA, and SDFGI converge
 		await get_tree().process_frame
 	for shot in shots:
 		if shot.has("pos"):
 			var sample: Vector2 = shot["pos"]
-			_player.global_position = Vector3(
-				sample.x, _terrain.get_height(sample.x, sample.y) + 0.8, sample.y
-			)
+			# "y" is an absolute world height for shots taken on built floors;
+			# everything else stands on the terrain.
+			var eye: float = float(shot["y"]) if shot.has("y") \
+					else _terrain.get_height(sample.x, sample.y) + 0.8
+			_player.global_position = Vector3(sample.x, eye, sample.y)
 			rig.global_position = _player.global_position + Vector3(0.0, 1.65, 0.0)
 		rig.rotation.y = shot["yaw"]
 		arm.rotation.x = shot["pitch"]

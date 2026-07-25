@@ -1,0 +1,11 @@
+[
+  {
+    "id": "item_threshold_stone",
+    "name": "Threshold Stone",
+    "category": "key_item",
+    "rarity": "rare",
+    "value": 0,
+    "description": "The keystone from the Perceptron Vault's output gate, still warm. It only ever answered one question — enough, or not enough — and it answered honestly every time.",
+    "found_in": ["datasedge_meadows"]
+  }
+]
