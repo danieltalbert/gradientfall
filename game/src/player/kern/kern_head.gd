@@ -50,13 +50,17 @@ func retire_skin_for_import() -> void:
 	# scalp shows between the clumps and the imported forehead.
 	var hair: Node3D = get_node_or_null("HairMesh")
 	if hair != null:
-		hair.scale = Vector3(1.13, 1.08, 1.13)
-		hair.position += Vector3(0.0, -0.046, -0.012)
-	# Brows: seat onto the imported brow ridge (slightly lower and further
-	# forward than the sculpted face surface they were built against).
+		# Sit the cap on the imported skull: a little wider, barely lowered, and
+		# pushed BACK (+Z). The old -Z nudge drove the fringe forward until a
+		# clump draped across the imported face's mouth.
+		hair.scale = Vector3(1.10, 1.06, 1.10)
+		hair.position += Vector3(0.0, -0.018, 0.016)
+	# Brows: the imported head carries its own, and the procedural pair was
+	# built against the sculpted skull's curvature — on the imported face it
+	# lands down by the mouth. Retire it with the rest of the sculpted face.
 	var brows: Node3D = get_node_or_null("Brows")
 	if brows != null:
-		brows.position += Vector3(0.0, -0.030, -0.010)
+		brows.visible = false
 
 
 func build(pivot: Vector3) -> void:
