@@ -484,18 +484,29 @@ func _reskin_garments_to_base() -> void:
 		attach.name = garment_name + "Mount"
 		_base_skeleton.add_child(attach)
 		attach.bone_name = _base_skeleton.get_bone_name(bone_idx)
-		# The mesh is authored in this node's (model) space; the attachment sits
-		# at base_root.transform * bone_pose. Solve the local transform so the
-		# mounted mesh lands exactly where it was authored, using only LOCAL
-		# chain transforms (stable no matter how the studio/world rotates us).
+		# The mesh is authored in this node's (model) space; the attachment ends
+		# up at (skeleton-in-model) * bone_pose. Derive the skeleton's transform
+		# relative to us from the real node chain — a glTF nests the Skeleton3D
+		# under intermediate scene/armature nodes that each carry a transform,
+		# so `_base_root.transform` alone is NOT that chain and leaves every
+		# garment offset. Going through global_transform captures the whole
+		# chain, and dividing by our own cancels any world/studio rotation.
 		var bone_pose: Transform3D = _base_skeleton.get_bone_global_pose(bone_idx)
-		var mount_in_model: Transform3D = _base_root.transform * bone_pose
+		var skel_in_model: Transform3D = global_transform.affine_inverse() \
+			* _base_skeleton.global_transform
+		var mount_in_model: Transform3D = skel_in_model * bone_pose
 		mi.get_parent().remove_child(mi)
 		attach.add_child(mi)
 		mi.skin = null
 		mi.transform = mount_in_model.affine_inverse()
 		moved += 1
-	print("KernVisual: %d garments mounted rigid on the imported rig" % moved)
+	# Delete the bare body under the clothing. Without this the nude body draws
+	# over the garments enclosing it; with it there is simply no hidden surface
+	# to contest, which is how clothed characters are normally built.
+	var stripped: int = BaseModel.strip_covered_geometry(_base_root)
+	print("KernVisual: %d garments mounted, %d covered body tris stripped" % [
+		moved, stripped])
+
 
 
 ## Hide the procedural skin that the imported body replaces. The garments,
