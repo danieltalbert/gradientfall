@@ -345,6 +345,72 @@ static func _all_mesh_instances(node: Node) -> Array[MeshInstance3D]:
 	return out
 
 
+## Zones of the bare body that the code-built clothing covers, in the mesh's
+## own bind-pose (T-pose) space: {y_min, y_max, r_min, r_max} where r is the
+## horizontal distance from the body's vertical centreline. A triangle whose
+## every vertex falls in a zone is dropped.
+##
+## This is the standard "don't render the body under the clothes" step. It also
+## removes the entire class of z-fighting/occlusion bugs between the imported
+## body and the garments worn over it: geometry that doesn't exist can't win a
+## depth test against the tunic enclosing it.
+const COVERED_ZONES: Array[Dictionary] = [
+	# Torso, hips, legs and feet under tunic + trousers + boots. Runs to the
+	# ground: the boots enclose the feet, so bare toes would otherwise poke
+	# through the soles. r_max stops before the hands, which hang beside the
+	# hips and must stay.
+	{"y_min": 0.0, "y_max": 1.52, "r_min": 0.0, "r_max": 0.22},
+	# Upper arms + forearms under the sleeves. In the T-pose these run out
+	# along X, so they're selected by radius, not height; the hands sit beyond
+	# r_max and survive.
+	{"y_min": 1.28, "y_max": 1.60, "r_min": 0.12, "r_max": 0.70},
+]
+
+
+## Strip the covered geometry from the imported body. Returns triangles removed.
+static func strip_covered_geometry(root: Node3D) -> int:
+	var removed: int = 0
+	for mi in _all_mesh_instances(root):
+		if not String(mi.name).begins_with("KernBody"):
+			continue  # never touch eyes/teeth
+		var src: Mesh = mi.mesh
+		if src == null:
+			continue
+		var out: ArrayMesh = ArrayMesh.new()
+		for s in src.get_surface_count():
+			var arrays: Array = src.surface_get_arrays(s)
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			if verts.is_empty() or idx.is_empty():
+				out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+				continue
+			var keep: PackedInt32Array = PackedInt32Array()
+			for t in range(0, idx.size(), 3):
+				var a: Vector3 = verts[idx[t]]
+				var b: Vector3 = verts[idx[t + 1]]
+				var c: Vector3 = verts[idx[t + 2]]
+				if _covered(a) and _covered(b) and _covered(c):
+					removed += 1
+					continue
+				keep.append_array(PackedInt32Array([idx[t], idx[t + 1], idx[t + 2]]))
+			arrays[Mesh.ARRAY_INDEX] = keep
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			var mat: Material = src.surface_get_material(s)
+			if mat != null:
+				out.surface_set_material(out.get_surface_count() - 1, mat)
+		mi.mesh = out
+	return removed
+
+
+static func _covered(v: Vector3) -> bool:
+	var r: float = Vector2(v.x, v.z).length()
+	for zone in COVERED_ZONES:
+		if v.y >= float(zone["y_min"]) and v.y <= float(zone["y_max"]) \
+				and r >= float(zone["r_min"]) and r <= float(zone["r_max"]):
+			return true
+	return false
+
+
 ## Measured height of the imported body, so the code-built gear can be scaled
 ## to it if the export isn't exactly the spec'd 1.75 m.
 static func measure_height(root: Node3D) -> float:
