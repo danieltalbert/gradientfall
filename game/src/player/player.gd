@@ -8,31 +8,59 @@ extends CharacterBody3D
 ## never feel stolen, camera-relative movement, the body turning smoothly
 ## toward travel direction, and a visual-only squash/stretch on jump/land.
 ## All tunables are consts up top — the numbers ARE the feel pass.
+##
+## The root of player.tscn. Owns movement, gravity, and damage intake;
+## delegates the sword kit to its Combat child (PlayerCombat), the camera to
+## CameraRig, hearts to Health, and the body's look to KernVisual. The rig
+## is read every frame for camera-relative steering, and PlayerCombat can
+## claim movement each tick — it scales top speed, locks facing, and drives
+## velocity outright during a dodge roll. Joins the "player" and "hittable"
+## groups; enemies find Kern through the former and damage him through
+## `apply_hit()`. Emits player_spawned, player_hearts_changed, player_hit,
+## player_died, player_reformed, and combat_shake on the EventBus. Units:
+## meters, seconds, meters/second, radians; hearts are floats.
 
+## Top ground speeds (m/s) without and with the sprint action held.
 const WALK_SPEED: float = 4.0
 const RUN_SPEED: float = 7.5
+## Horizontal acceleration (m/s²). Decel exceeds accel so stops are crisp
+## and Kern never skates; air control is deliberately weak.
 const GROUND_ACCEL: float = 30.0
 const GROUND_DECEL: float = 42.0
 const AIR_ACCEL: float = 12.0
 const JUMP_VELOCITY: float = 8.5  # ~1.5 m apex with RISE_GRAVITY
+## Asymmetric gravity (m/s²): the rise is floatier than the fall, the
+## classic platformer trick that makes a jump feel weighty without feeling
+## slow. MAX_FALL_SPEED caps terminal velocity so long drops stay readable.
 const RISE_GRAVITY: float = 24.0
 const FALL_GRAVITY: float = 34.0
 const MAX_FALL_SPEED: float = 40.0
 const JUMP_CUT_FACTOR: float = 0.45  # early release trims the arc
+## Forgiveness windows (s): COYOTE_TIME lets Kern jump just after walking
+## off a ledge; JUMP_BUFFER remembers a press made just before landing.
 const COYOTE_TIME: float = 0.12
 const JUMP_BUFFER: float = 0.15
+## Yaw turn rate (1/s) of the visual toward the travel direction.
 const TURN_SPEED: float = 12.0
 const SQUASH_MIN_AIR_TIME: float = 0.2  # no squash for curb-sized drops
+## Exponential decay rate (1/s) of knockback from taking a hit.
 const KNOCKBACK_DECAY: float = 7.0
 const DOWNED_TIME: float = 1.4          # come-apart → reform beat
+## Seconds of invulnerability granted on reforming, so Kern can't be caught
+## in a loop by whatever knocked him apart.
 const REFORM_IFRAMES: float = 1.6
 
+## Forgiveness timers, both counting down in seconds.
 var _coyote_left: float = 0.0
 var _jump_buffer_left: float = 0.0
+## Seconds airborne, used to suppress the landing squash on tiny drops.
 var _air_time: float = 0.0
 var _was_on_floor: bool = true
+## Active squash/stretch tween, killed before a new one starts.
 var _scale_tween: Tween
 var _knockback: Vector3 = Vector3.ZERO
+## True between coming apart and reforming: input is ignored and Kern only
+## slides to a stop under gravity.
 var _downed: bool = false
 
 @onready var _visual: Node3D = $Visual
@@ -41,6 +69,10 @@ var _downed: bool = false
 @onready var _combat: PlayerCombat = $Combat
 
 
+## Wire the controller up: register input actions, bind the camera, join the
+## combat groups, seed hearts from GameState (the durable value), and hand
+## PlayerCombat its collaborators. The half-second i-frame window is the
+## player's mercy invulnerability — far more generous than an enemy's 50 ms.
 func _ready() -> void:
 	InputSetup.ensure()
 	_rig.setup(self)
@@ -59,10 +91,16 @@ func broadcast_hearts() -> void:
 	EventBus.player_hearts_changed.emit(_health.current, _health.max_hearts)
 
 
+## Health.changed handler: republish hearts on the EventBus for the HUD.
 func _on_health_changed(current: float, max_hearts: float) -> void:
 	EventBus.player_hearts_changed.emit(current, max_hearts)
 
 
+## The movement tick, in a fixed order: combat first (it decides how much of
+## this frame's movement Kern still owns), then timers, gravity, jump, and
+## steering, with knockback layered on last. `move_and_slide()` runs once,
+## and landing is checked after it so `is_on_floor()` reflects this frame.
+## While downed, everything but gravity and a slide to a halt is skipped.
 func _physics_process(delta: float) -> void:
 	if _downed:
 		_apply_gravity(delta)
@@ -83,6 +121,8 @@ func _physics_process(delta: float) -> void:
 	_was_on_floor = is_on_floor()
 
 
+## Add the decaying knockback impulse on top of steering, so being hit
+## shoves Kern without taking control away from the player.
 func _apply_knockback(delta: float) -> void:
 	if _knockback.length_squared() < 0.0001:
 		return
@@ -91,6 +131,9 @@ func _apply_knockback(delta: float) -> void:
 	_knockback = _knockback.lerp(Vector3.ZERO, 1.0 - exp(-KNOCKBACK_DECAY * delta))
 
 
+## Advance the forgiveness windows. Coyote time refills while grounded and
+## drains in the air; the jump buffer is armed by a press at any time, so a
+## press made mid-fall still fires the moment Kern touches down.
 func _tick_timers(delta: float) -> void:
 	_coyote_left = maxf(0.0, _coyote_left - delta)
 	_jump_buffer_left = maxf(0.0, _jump_buffer_left - delta)
@@ -103,6 +146,8 @@ func _tick_timers(delta: float) -> void:
 		_jump_buffer_left = JUMP_BUFFER
 
 
+## Apply the asymmetric gravity — the lighter rise value while ascending,
+## the heavier fall value otherwise — clamped to terminal velocity.
 func _apply_gravity(delta: float) -> void:
 	if is_on_floor():
 		return
@@ -110,6 +155,9 @@ func _apply_gravity(delta: float) -> void:
 	velocity.y = maxf(velocity.y - gravity * delta, -MAX_FALL_SPEED)
 
 
+## Fire a buffered jump when a coyote window is open, then consume both so
+## one press can never produce two jumps. Releasing the button mid-rise cuts
+## the remaining upward velocity, giving variable jump height.
 func _handle_jump() -> void:
 	if _jump_buffer_left > 0.0 and _coyote_left > 0.0:
 		velocity.y = JUMP_VELOCITY
@@ -120,6 +168,11 @@ func _handle_jump() -> void:
 		velocity.y *= JUMP_CUT_FACTOR
 
 
+## Camera-relative steering. Stick/keys are interpreted in the camera's
+## flattened basis, so "forward" always means away from the camera. Speed
+## is scaled by combat state, and acceleration switches to the higher decel
+## value when the target speed is below the current one (braking, not
+## accelerating). Facing follows either combat's locked yaw or travel.
 func _handle_move(delta: float) -> void:
 	# A dodge roll drives velocity directly; skip normal steering this frame.
 	if _combat.use_velocity_override:
@@ -139,7 +192,11 @@ func _handle_move(delta: float) -> void:
 	var right: Vector3 = cam_basis.x
 	right.y = 0.0
 	right = right.normalized()
+	# Godot's move_forward/back axis is inverted relative to world forward,
+	# hence the subtraction.
 	var dir: Vector3 = right * input_vec.x - forward * input_vec.y
+	# Clamp rather than always normalize: analog sticks must keep their
+	# partial deflection for a walk, while diagonal keys mustn't exceed 1.
 	if dir.length_squared() > 1.0:
 		dir = dir.normalized()
 
@@ -163,17 +220,27 @@ func _handle_move(delta: float) -> void:
 		_face_yaw(atan2(-dir.x, -dir.z), delta)
 
 
+## Ease the visual's yaw toward `yaw`. Only the Visual child turns — the
+## body itself never rotates, so the collider and camera stay stable.
+## `rate_mul` sharpens the turn for combat facing (1.4x), which must snap
+## faster than a casual walking turn.
 func _face_yaw(yaw: float, delta: float, rate_mul: float = 1.0) -> void:
 	_visual.rotation.y = lerp_angle(
 		_visual.rotation.y, yaw, minf(1.0, TURN_SPEED * rate_mul * delta)
 	)
 
 
+## Squash on touchdown, but only after a real fall — stepping off a curb
+## shouldn't trigger the impact animation.
 func _handle_landing() -> void:
 	if is_on_floor() and not _was_on_floor and _air_time > SQUASH_MIN_AIR_TIME:
 		_play_scale(Vector3(1.12, 0.85, 1.12))
 
 
+## Snap the visual to `from_scale` and spring it back to normal over 0.18 s.
+## Purely cosmetic — the collider is untouched. TRANS_BACK overshoots
+## slightly on the way home, which is what sells the elasticity. Any
+## in-flight tween is killed first so rapid jump-lands can't stack.
 func _play_scale(from_scale: Vector3) -> void:
 	if _scale_tween and _scale_tween.is_valid():
 		_scale_tween.kill()
@@ -186,6 +253,10 @@ func _play_scale(from_scale: Vector3) -> void:
 
 # --- Taking damage (group "hittable"; called by enemy melee & projectiles) ---
 
+## Take a hit of `amount` hearts from `from_position`, with `knockback` in
+## m/s. Guarding runs first and can reduce the damage to zero (a clean parry
+## or a blow taken head-on), in which case nothing else happens — no hearts,
+## no knockback, no shake. Ignored while downed or inside i-frames.
 func apply_hit(amount: float, from_position: Vector3, knockback: float) -> void:
 	if _downed or _health.is_invulnerable():
 		return
@@ -204,6 +275,9 @@ func apply_hit(amount: float, from_position: Vector3, knockback: float) -> void:
 	EventBus.combat_shake.emit(0.16)
 
 
+## Health.died handler. Kern is never killed: he comes apart into shards and
+## reforms after a beat, which is the all-ages tone the GDD locks in. The
+## guard makes this idempotent if death fires more than once.
 func _on_health_died() -> void:
 	if _downed:
 		return
@@ -218,6 +292,8 @@ func _on_health_died() -> void:
 	get_tree().create_timer(DOWNED_TIME).timeout.connect(_reform)
 
 
+## Put Kern back together: refill hearts, grant the reform i-frames, restore
+## the visual, and hand control back.
 func _reform() -> void:
 	_health.refill()
 	_health.grant_iframes(REFORM_IFRAMES)
