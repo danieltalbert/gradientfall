@@ -4,6 +4,52 @@
 
 ---
 
+## 2026-07-25 (live session, real Godot 4.7.1) — boot verification of the UNSEEN milestones
+
+**DONE — the engine actually ran, for the first time since the publish snapshot**
+Earlier entries all say "no Godot in this env." Not true this time: fetched
+Godot 4.7.1-stable and ran the real engine against the project.
+
+- **Editor import** (the CI gate): `--headless --editor --path game --quit`
+  → **exit 0, zero** `SCRIPT ERROR` / `Parse Error` / `Failed to load script`
+  / shader errors. This also clears the one real gap in today's earlier
+  documentation pass: `gdparse` never checks `.gdshader` files, so the six
+  shaders I commented had only been eyeballed. The engine has now compiled
+  them.
+- **Runtime boot**: the game came up and ran cleanly to a 25 s kill —
+  ContentDB 70 entries across 7 types, terrain 480×480 m in 641 ms, flora
+  **1.4 M fine + 360 k accent blades** / 196 trees / 18 copses in 1155 ms,
+  BorderVistas' four-rank peaks, 18 cloud banks, GameState at
+  `save_version=1`, 13 NPCs / 9 quests / 41 quizzes, and
+  **"Combat v1 online"** with MonsterSpawner fielding the approved Glitchling
+  plus the proving ground. **No errors of any kind.**
+
+So milestones 5 (Bit) and 6 (Combat v1) are now *boot-verified in a real
+engine* — annotated as such in ROADMAP.
+
+**HALF-FORMED — they stay UNSEEN, deliberately**
+GDD §10 asks for human eyes, and this environment cannot honestly provide
+them. Attempting a rendered capture proved the point: no Vulkan surface
+extension here, so Godot fell back to **OpenGL 3 Compatibility on llvmpipe**
+(CPU software rasterization) and logged
+*"SDFGI is only available when using the Forward+ renderer."* Any screenshot
+from that path would misrepresent the look-dev — wrong renderer, no SDFGI,
+no TAA — so the attempt was abandoned rather than banked as false evidence.
+A boot proving the code *loads* is not a playtest proving the game *feels*
+right: the 3-hit combo, roll i-frames, parry window, enemy telegraphs, shard
+dissolves, drop rolls, and Bit's follow/water-fear/landmark barks are all
+still unjudged.
+
+**NEEDS DANNY** — the playtest, on the Windows desktop with the real GPU
+(GDD §10 sets an RTX 5080-class bar, and the build pushes 1.76 M grass
+blades with SDFGI/TAA/SSAO/4K shadows; a Mac would judge it through
+MoltenVK translation). Launch from the editor, fight the proving-ground
+rigs, watch Bit, then tick milestones 5 and 6 clean or file what's broken.
+
+**NEXT UP** — unchanged: Phase 1 **milestone 7, Knowledge charge v1**.
+
+---
+
 ## 2026-07-25 (live session, no Godot) — documentation pass + contract restore
 
 **DONE — the missing session contract**
