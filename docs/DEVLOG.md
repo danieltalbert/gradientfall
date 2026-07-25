@@ -4,6 +4,92 @@
 
 ---
 
+## 2026-07-24 (live session, Kern/character lane) — BASE MESH GENERATED; FITTING GATED ON AN ENGINE BUG
+
+*Commits `613652f` → `8aaca35` (branch fast-forwarded to `main`). Danny gave
+full autonomy; Blender 5.2 + MPFB 2.0.17 got installed mid-session, which
+unlocked the whole base-mesh pipeline.*
+
+**DONE — render-bug fixes on the shipping procedural Kern (eyes-verified)**
+- `kern_skin` was the only character shader not dividing diffuse by PI —
+  skin rendered PI× hotter than cloth (blown-out pink face over muddy
+  garments). Normalised; rim/fill EMISSION cut to ~1/3 (they are NOT
+  Lambert-normalised and were out-shining the albedo — that was the
+  grey-blue "ghost wash" over the costume, not a lighting choice).
+- `bump_strength` 0.0 → 0.00009 m (the whole pore system was multiplying
+  by zero); eyes held at anatomical 12.1 mm (oversized eyes are the
+  loudest doll tell); empty mesh-surface commits guarded (the
+  `surfaces.size()==0` spam the grass lane flagged).
+
+**DONE — kern_base.glb exists, 100% headlessly (no GUI clicks at all)**
+- `tools/make_kern_base.py` drives MPFB's Python service layer
+  (`bl_ext.blender_org.mpfb` — HumanService/TargetService): basemesh with
+  Kern's macro build, low-poly eyes + teeth (renamed KernEyes/KernTeeth for
+  the loader's hints), 53-bone game_engine rig (SHIPS WITH MPFB — no asset
+  pack needed for the rig), bake, delete helpers → `assets_src/kern.blend`
+  (committed; regenerable with one command).
+- CC0 system asset pack (268 MB, files.makehumancommunity.org) extracted
+  into MPFB user data via MPFB's own pack loader — needed only for
+  eyes/teeth meshes.
+- `tools/export_kern_base.py` now: converts MPFB's A-pose rest to T-pose
+  (48.7°→0.0°), straightens the splayed leg stance (feet were ~20 cm off
+  midline), scales to exactly 1.75 m, feet to floor, and BAKES TORSO
+  CENTRING INTO THE GLB (see the renderer law below — a runtime shift
+  cannot do it). `tools/check_base_mesh.py` validates the whole contract
+  (tested against 8 synthetic failure fixtures): PASS.
+
+**DONE — fitting stack (works, but opt-in via `-- --kern-base`)**
+- Bone retarget: model-space pose deltas per imported-bone frame
+  (`pose = rest_local * (Gᵀ·delta·G)`), static T→hanging-arms rest fix
+  (`BASE_REST_FIX`), soft finger curl. 19/19 bones driven.
+- Vertex-colour skin-zone painting anchored to the imported EYE-MESH
+  landmarks (self-calibrating): socket shading, nose/cheek/lip flush, thin
+  ears (COLOR.a) for backlight, knuckle warmth. Imported eye/teeth
+  textures kept — they beat procedural overrides on real UVs.
+- Procedural face/eyes/neck/hands retirement (hair/brows/hand-mark kept);
+  tunic/trouser/sleeve lofts re-measured against the imported body's real
+  cross-sections (band-slice measurement, not eyeballing).
+- The imported FACE is a real human face — the leap the GDD §1 amendment
+  existed for. `docs/progress/kern_2026-07-24_imported_face.png`.
+
+**BLOCKED — the reason for the gate (full evidence: game/assets/models/README.md)**
+- With the imported body present, meshes SKINNED to the procedural
+  skeleton render with broken depth: fragments lose the depth test against
+  a body they geometrically enclose. Falsified by experiment (don't
+  re-test): geometry/skin-matrices/transforms CPU-verified exact;
+  `no_depth_test` shows garments at correct screen positions; RIGID
+  geometry at identical coordinates renders perfectly; NOT the depth
+  prepass, NOT materials, NOT skeleton creation order, NOT vertex data
+  (three different bakes rendered identically); merging garment surfaces
+  into the imported body's own mesh+Skin ALSO rendered displaced.
+- **Renderer law (hard-won):** Godot draws skinned geometry at the glb's
+  OWN coordinates — a runtime shift/rotation on the scene root does NOT
+  move the rendered skin, it silently moves BoneAttachments away from it.
+  Alignment fixes must be baked into the glb by the export script.
+
+**NEXT UP (Kern lane)**
+1. Crack the depth bug WITH THE EDITOR (frame debugger, Danny present or
+   screen access) — or build a minimal two-skeleton repro for a Godot bug
+   report, then design around it (single-skeleton architecture: append
+   cloak bones to the imported rig via kern_bone_map.APPENDED_BONES).
+2. Then: gate default ON; hair refit onto the imported skull (crown still
+   gappy at scale 1.13 / offset −0.046); sword/boot attach migration;
+   walk/combat/awaken verification (`--anim=`, `--awaken=1`).
+3. Face identity toward canon (imported iris is brown; Kern's is green —
+   needs a tint/shader pass).
+
+**GOTCHAS (save the next session the pain)**
+- Studio: `<godot> --path game res://scenes/dev/kern_studio.tscn -- --kerndir=<ABS> --kern-base`
+  (omit the flag for the shipping procedural path). Reimport after glb
+  changes: `--headless --path game --import`. Danny's open editor can
+  contend with headless runs on the `.godot` cache.
+- Regenerate the mesh: `blender --background --python tools/make_kern_base.py`
+  then export + check (README recipe). MPFB pack must be in user data.
+- Shader EMISSION terms must be scaled against the /PI-normalised diffuse
+  or they flood the surface (bit us twice now).
+
+---
+
 ## 2026-07-21 (live session, sky/clouds lane) — VOLUMETRIC SKY & CLOUDS
 
 *Danny's directive: "extremely realistic, life-sized clouds and sky —

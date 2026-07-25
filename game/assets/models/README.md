@@ -129,7 +129,7 @@ mappings and the T-pose before saving.
 fully headlessly (Blender 5.2 + MPFB 2.0.17 are now installed):
 
     blender --background --python tools/make_kern_base.py
-    blender --background "C:/Users/danny/Documents/kern.blend" --python tools/export_kern_base.py
+    blender --background "assets_src/kern.blend" --python tools/export_kern_base.py
     python tools/check_base_mesh.py
 
 The export script now also converts MPFB's A-pose rest to a T-pose,

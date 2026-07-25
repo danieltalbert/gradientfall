@@ -3,7 +3,7 @@
 Run:
     blender --background --python tools/make_kern_base.py
 
-Writes C:/Users/danny/Documents/kern.blend (override with `-- --out <path>`).
+Writes assets_src/kern.blend (override with `-- --out <path>`).
 Then export with tools/export_kern_base.py and verify with
 tools/check_base_mesh.py — see game/assets/models/README.md.
 
@@ -64,7 +64,9 @@ def out_path():
     args = argv[argv.index("--") + 1:] if "--" in argv else []
     if "--out" in args:
         return os.path.abspath(args[args.index("--out") + 1])
-    return r"C:\Users\danny\Documents\kern.blend"
+    # In-repo, deliberately OUTSIDE game/ so Godot's importer ignores it.
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.normpath(os.path.join(here, "..", "assets_src", "kern.blend"))
 
 
 def service(name):
