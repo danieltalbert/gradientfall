@@ -45,6 +45,10 @@ static func ensure() -> void:
 	_pad_button(&"special", JOY_BUTTON_Y)
 	# Dev-only: fill the focus meter to verify the special without a quiz UI.
 	_key(&"debug_charge", KEY_F)
+	# Compendium / journal (milestone 13). J for journal; Back/Select on a pad,
+	# which is where every console game puts a notebook.
+	_key(&"compendium", KEY_J)
+	_pad_button(&"compendium", JOY_BUTTON_BACK)
 
 
 static func _action(action: StringName) -> void:

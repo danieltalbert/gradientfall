@@ -4,6 +4,94 @@
 
 ---
 
+## 2026-07-25 (fourth parallel session, cont.) — milestone 13: irises + compendium v1
+
+Second milestone of the same session. Like 12, it touches nothing sessions 7,
+8, or 10 own.
+
+**DONE**
+
+The iris flats west of Bootstrap have been scenery since milestone 3, and
+`meadow_flora.gd`'s header has said all along that the collectible system
+arrives with the compendium. It has.
+
+- **Every bloom carries a real specimen.** Three measurements — sepal length,
+  petal length, petal width, in centimeters — because the WORLDBOOK says
+  "measurement triplets", and those three carry nearly all of Fisher's
+  separating signal (sepal width is the one that mostly does not).
+- **Collection is proximity, not a button.** Walk through a bloom and Kern
+  presses it. No new verb, nothing to aim at, no per-bloom node: all 700
+  blooms stay in one MultiMesh and `IrisField` keeps their positions and
+  records in parallel arrays. A picked bloom shrinks out over a quarter
+  second rather than blinking away (GDD §10).
+- **`CompendiumUi`, opened with J** (Back on a pad). Three family columns,
+  every pressed specimen listed with its triplet, and — the part worth
+  having — specimens the notebook's classifier gets WRONG are called out in
+  orange. Those are exactly where the families genuinely overlap, and
+  noticing that is the lesson. A boundary-bloom roll sits at the foot.
+- **Boundary blooms are the collector prize**, as canon asks. A specimen
+  qualifies when its second-best family fits nearly as well as its first;
+  they grow near-white so you can spot one across a field.
+
+**Where the numbers come from, and one deliberate restraint.** The per-family
+means and standard deviations are the published summary statistics of
+Fisher's 1936 iris data. Specimens are DRAWN from those rather than replayed
+from the 150-row table — because `README.md` says dataset extracts land "only
+with explicit source and license records before release", and recording that
+provenance is Danny's call, not a build session's. What survives the eventual
+substitution is everything that matters for play: real separations, real
+spread, real overlap. `IrisDataset.build_specimens()` is the only thing that
+produces records, so swapping in the actual table later is a one-file change.
+
+**Tuned against evidence, not vibes.** The classifier and the specimen table
+were re-implemented in Python and swept over 300 seeds. Two results:
+
+1. Setosa is misread 0.00% of the time and 100% of all confusion is
+   versicolor↔virginica — i.e. the classifier reproduces the real dataset's
+   structure, which is the whole point of using real statistics.
+2. **The first boundary threshold was broken.** At the ratio I first picked,
+   boundary blooms averaged 1.7% of specimens and *some seeds produced none
+   at all* — a collector prize that might simply not exist in your meadow.
+   Retuned to ~11% (min 8, max 29 per 150 across 300 seeds). This is the kind
+   of thing a headless session can actually catch, and it would have been
+   very easy to ship.
+
+**No save-shape change.** Progress is one boolean per specimen inside the
+already-serialized `flags` dictionary — "which specimens have I catalogued"
+is exactly a set. No new GameState field, no SAVE_VERSION bump, nothing for
+the sessions on 7, 8, and 10 to merge around. Individual blooms are *not*
+saved, so the flats regrow between sessions, which is what a meadow does; the
+catalogue is what persists.
+
+**Files touched that another session might also want:** two, both additive
+and both small. `meadow_flora.gd` lost its iris scatter to the new
+`IrisField` (same seed, same clusters, same colors — the flats look
+identical), and `input_setup.gd` gained a `compendium` action. Nobody else
+has reason to be in either. `main.gd` gained one more `_setup_*()` line on
+the normal-play branch, per the convention.
+
+**HALF-FORMED**
+- The compendium is a read-out, not a document: each family column stops at
+  18 rows and reports the remainder. Paging belongs with the full journal
+  milestone, not here.
+- The meadow's family mix is tilted 45/45/10 rather than the dataset's even
+  thirds, so virginica reads as the rare one. Deliberate — a flat third-each
+  split makes the rarest bloom feel unearned — but it is a game decision laid
+  on top of real data and should be flagged as such if the compendium ever
+  claims to be showing the dataset's true proportions.
+
+**UNSEEN.** Same posture as milestone 12: no Godot here. A live session needs
+to walk the flats, press a few blooms, and open the notebook before this box
+ticks fully clean.
+
+**NEXT UP** — from this session's own survey of what is left in Phase 1: 9
+(quests) and 11 (crafting) unblock once 8 and 10 land; 15 (HUD) is where 7's
+charge meter and 10's Tokens readout converge and should be built once, after
+both; 14 (save/load) is the natural last one, since it should serialize a
+finished set of systems rather than a moving one.
+
+---
+
 ## 2026-07-25 (fourth parallel session) — milestone 12: the Perceptron Vault
 
 Danny asked whether a fourth session could take a milestone without treading
