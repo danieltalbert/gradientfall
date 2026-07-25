@@ -359,7 +359,10 @@ const COVERED_ZONES: Array[Dictionary] = [
 	# ground: the boots enclose the feet, so bare toes would otherwise poke
 	# through the soles. r_max stops before the hands, which hang beside the
 	# hips and must stay.
-	{"y_min": 0.0, "y_max": 1.52, "r_min": 0.0, "r_max": 0.22},
+	# y_max stops BELOW the tunic collar's top edge (~1.50): the jaw and chin
+	# sit just above it, and cutting into them opens the face and exposes the
+	# teeth. Everything above this is visible neck and head.
+	{"y_min": 0.0, "y_max": 1.44, "r_min": 0.0, "r_max": 0.22},
 	# Upper arms + forearms under the sleeves. In the T-pose these run out
 	# along X, so they're selected by radius, not height; the hands sit beyond
 	# r_max and survive.

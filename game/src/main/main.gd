@@ -108,6 +108,12 @@ func _capture_screens(dir: String) -> void:
 			"pos": Vector2(-42.0, -82.0)},
 		{"name": "detail_grass_closeup", "yaw": deg_to_rad(20.0), "pitch": -0.34,
 			"pos": Vector2(-42.0, -82.0), "eye": 0.55},
+		# Sky/cloud verification: the volumetric deck lives at 600-1820 m, so a
+		# ground-facing frame shows almost none of it. These look UP.
+		{"name": "sky_clouds_up", "yaw": deg_to_rad(-40.0), "pitch": 0.62,
+			"pos": Vector2(-42.0, -82.0)},
+		{"name": "sky_clouds_horizon", "yaw": deg_to_rad(150.0), "pitch": 0.26,
+			"pos": Vector2(-42.0, -82.0)},
 		# In-game third-person shots: Kern visible in the dense meadow at the
 		# normal ~4.5 m behind-and-above framing — "how it actually looks in
 		# play." Camera is placed explicitly behind him (rig frozen, spring 0)
