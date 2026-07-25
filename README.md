@@ -15,9 +15,10 @@ Gradientfall is an in-development 3D action-adventure that turns machine-learnin
 - Third-person movement and camera controls in a generated 3D landscape.
 - Melee/ranged combat foundations, enemy spawning, health, damage shards, and combat HUD.
 - Bit companion behavior and landmark reactions.
+- Inventory, item pickups foraged from the meadow, usable consumables, and Tokens.
 - Dynamic sky, celestial layers, clouds, water, terrain, grass, vegetation, particles, and painterly shaders.
 - Schema-validated JSON pipeline for quests, NPCs, items, monsters, quizzes, lore, and points of interest.
-- 70 approved content entries plus 15 staged inbox entries in the preserved active-work snapshot.
+- 85 approved content entries across all seven types; the inbox is currently clear.
 
 This repository does **not** claim that the ten-region, 40–80 hour design is complete. The vision is documented in [the GDD](docs/GDD.md); the shipped scope and next gates live in [the roadmap](docs/ROADMAP.md) and [devlog](docs/DEVLOG.md).
 

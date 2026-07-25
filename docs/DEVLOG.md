@@ -4,6 +4,121 @@
 
 ---
 
+## 2026-07-25 (agentic session, no Godot) — the pack: inventory, items, Tokens
+
+*Scoped deliberately to inventory / items / Tokens. The vendor half of the
+roadmap line is NOT here — buying and selling needs the Bootstrap dialogue UI
+from milestone 8, and it's another session's dependency, so the roadmap line was
+split rather than half-ticked.*
+
+**DONE — content pipeline: batch_03 merged (15/15 keepers)**
+- Reviewed `content/inbox/items/batch_03.json` → merged to
+  `content/approved/items/meadow_items.json`. Brief was hit exactly: 4 flora,
+  4 materials, 4 consumables, 1 tool, 2 curios, 5 craftable, 2 rare, no
+  weapons/armor. Voice is genuinely good and the ML flavor hides where it
+  should — in behavior, never vocabulary: the Speckled Turnip "just different
+  enough to ruin a perfectly neat basket" (variance), the Boundary Bloom whose
+  petals "sit between the meadow's familiar families" and which "seems content
+  to be difficult" (a point on the decision boundary between the three canon
+  iris families), the Whispering Well Pebble "warm only when held with others
+  like it" (clustering), the Measure Cord that keeps "windy measurements
+  honest". Canon cross-refs all resolve — millstones, irrigation ditches, the
+  Old Boundary Stones, the Whispering Well, geese (from the precision/recall
+  quest), Bit's voice used correctly.
+- **Three review edits, all mine, all deliberate:**
+  1. `item_turnip_root` → **`item_speckled_turnip`** (id didn't match its name;
+     every other approved item derives its id from its name, and IDs are forever
+     once approved — pre-merge is the only moment to fix it). Recipe reference
+     in Honeyed Turnip Bites updated to match.
+  2. **Sunrow Biscuit** was uncommon/18 restoring 1 heart — strictly dominated
+     by the approved Traveler's Tonic (common/18, 2 hearts) and by its own
+     batch-mate Ditchmint Tea (common/15, 1.5 hearts). Made it common/12: now
+     it's the cheap trail ration and the consumable ladder is monotone. Rarity
+     also follows input rarity again (common wheat + common honey).
+  3. **Stripped `found_in` from the 5 craftable entries**, matching the approved
+     Traveler's Tonic. This gives `found_in` one meaning — "occurs naturally in
+     the wild here" — which is exactly what the new forage system consumes. You
+     brew a cordial; you don't find one lying in the grass.
+- Rejections: none. `batch_03_meadow_items.md` queue → done. Validator PASS
+  (**approved 85 entries / 0 err**, inbox 0). Deleted the stray empty
+  `content/inbox/quests/batch_02.json` the last two runs couldn't unlink.
+- WORLDBOOK Datasedge budget: items **20 (19✅)**.
+- Queue still holds 4 unclaimed briefs (04 monsters, 05 pois, 06 pois_2,
+  07 lore) — above the ≥3 bar, so no new brief was written this run.
+
+**DONE — roadmap milestone: inventory / items / Tokens (built, UNSEEN)**
+New `game/src/items/`: `item_style.gd` (shared rarity colors, category labels,
+sort order, "is this usable" — the one item vocabulary the runtime is allowed to
+know, since categories and rarities are schema enums), `item_pickup.gd`.
+New `game/src/world/meadow_forage.gd`, `game/src/ui/inventory_screen.gd`.
+Wired: `game_state.gd` (+`item_count`/`has_item`/`remove_item`),
+`player.gd` (+`heal_hearts`), `enemy.gd` (+Token purses), `input_setup.gd`
+(+`inventory`), `combat_hud.gd` (+Token purse, +acquisition toasts), `main.gd`.
+- **The pack** (`I` / gamepad Select): pauses the tree, frees the mouse, and
+  lists what GameState holds joined against ContentDB — dynamic category tabs
+  (only categories you're actually carrying), rarity-colored rows, and a detail
+  pane with the authored flavor text, value in Tokens, and count. Healing
+  consumables are usable from the list (Enter, or click the highlighted row);
+  it refuses at full hearts instead of wasting the drink. Keyboard, gamepad,
+  and mouse all drive it. Built in code like every other UI here.
+- **Forage** — the supply side, because a pack with nothing in it proves
+  nothing. 140 deterministic spots (seeded off `MeadowTerrain.WORLD_SEED`, so
+  the good picking grounds are the same every session and worth remembering),
+  each growing an item drawn from every approved entry whose `found_in` covers
+  the region, weighted so commons are constant and a Boundary Bloom is a real
+  event. Placement reads CATEGORY, never id: flora on open gentle ground,
+  materials on worn slopes and the millpond shore, curios and tools around the
+  named landmark anchors. Picked spots regrow after 75–150 s with a fresh roll.
+- **Props are generated, not authored**: `ItemPickup` builds a sprig / chunk /
+  flask / ring / tablet from the entry's category and tints it by rarity, adds
+  an additive glow shell (and a light for rare+), bobs and turns it, and hands
+  it over on walk-through with a shard pop. Every item ChatGPT ever writes gets
+  a body for free — no per-id table anywhere (ARCHITECTURE: the runtime never
+  hardcodes authored content).
+- **Tokens** got their first faucet: enemies now pay a tier-scaled purse
+  (fodder 1–3 … elite 9–16, bosses more), ×4 for a golden variant, nothing at
+  all from the proving-ground sparring rigs. The HUD gained a code-drawn coin
+  purse that pulses when it grows, plus acquisition toasts ("Softspun Wool ×1",
+  "+3 Tokens") in the item's rarity color.
+- **Deliberate scope calls (noted for review):**
+  1. **`SAVE_VERSION` deliberately NOT bumped.** `inventory` and `tokens` were
+     already in `to_save_dict()`; the new GameState methods add API, not shape.
+  2. **`event_bus.gd` untouched.** `item_acquired` and `tokens_changed` already
+     existed and carry everything. Spending items has no signal on purpose —
+     `item_acquired` with a negative count would make Bit cheer "Ooh, a keeper"
+     when Kern drinks a tonic. The screen that spends refreshes itself; when
+     the dialogue/vendor milestone needs a broadcast, it can declare one.
+  3. **Sinks are still missing.** Tokens flow in and nothing takes them yet —
+     the vendor is milestone 8's dependency, and the Whispering Well's canon
+     coin toss is a POI job. Faucet numbers are a first pass; the vendor
+     milestone owns the real economy tuning.
+  4. The pack **pauses the tree** rather than gating each input. Kern polls
+     input every physics frame, so a paused tree is the honest way to stop him
+     walking while you read; the screen runs `PROCESS_MODE_ALWAYS`.
+- Static verification (no Godot here): a written checker now sweeps all 32
+  `.gd` files for tabs-only indentation, bracket balance, unique/resolvable
+  `class_name`s, EventBus signal-vs-handler arity, unregistered input actions,
+  and dead `res://` targets — clean. Validator PASS.
+
+**HALF-FORMED / cleanup for a live session**
+- The 4 new scripts have **no `.uid`** (can't run Godot). Nothing loads them by
+  uid — `main.gd` news them up and the scenes were untouched — so they resolve,
+  but a live import must generate and commit the `.uid`s.
+- Nothing is mid-flight.
+
+**UNSEEN (GDD §10 verification rule)** — this is a large visible surface no
+human/editor has seen. A live session must: import (parse errors?), boot clean,
+then WALK — spot the glow in the grass, run through a few pickups and watch the
+toasts stack, kill a Glitchling and see the purse tick, press **I** and read the
+pack (tabs, rarity colors, flavor text), take a hit, then drink a Ditchmint Tea
+and watch the hearts come back. Only then does the box tick fully clean.
+
+**NEXT UP** — Phase 1 milestone 7 (**Knowledge charge v1**) and milestone 8
+(**Bootstrap + dialogue UI**) are both still open; the vendor rides in behind 8.
+Merge batch_04/05 when their inbox outputs land.
+
+---
+
 ## 2026-07-18 (scheduled autonomous run #2, no Godot) — Combat v1
 
 **DONE — content pipeline**

@@ -32,7 +32,8 @@ Prove every system small, then scale outward. One region done completely.
 - [ ] Knowledge charge v1: quiz prompt in combat charges a special ability
 - [ ] Town of Bootstrap: buildings, 6–8 NPCs (mixed personalities), dialogue UI
 - [ ] Quest system + journal: main hook quest + 3 side quests (from content DB)
-- [ ] Inventory, items, Tokens, one vendor
+- [x] Inventory, items, Tokens *(built: a paused pack screen (I / Select) that joins `GameState.inventory` against ContentDB — dynamic category tabs, rarity-colored rows, flavor text, and healing consumables usable straight from the list; `MeadowForage` scatters 140 deterministic, regrowing pickups across the meadow, chosen by `found_in` and weighted by rarity, placed by category (flora on open ground, materials on worn ground and the pond shore, curios and tools around the named landmarks); `ItemPickup` builds each prop in code from category + rarity, so every future authored item gets a body for free; Tokens gain their first faucet (tier-scaled enemy purses, ×4 golden) plus a HUD purse and acquisition toasts. Save shape untouched — inventory and tokens were already serialized, so `SAVE_VERSION` stays 1.* **UNSEEN**: no Godot in this env — a live session must import (generate `.uid`s), boot clean, forage, open the pack, and drink something before this ticks fully clean)*
+- [ ] One vendor in Bootstrap (buy/sell against the pack) — waits on the town milestone's dialogue UI
 - [ ] Crafting v1: recipes at a campfire/bench
 - [ ] Dungeon 1: **the Perceptron Vault** — traverse an actual neural network; 1 boss
 - [ ] Iris flowers as collectible flora + compendium v1

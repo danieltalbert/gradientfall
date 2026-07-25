@@ -15,6 +15,8 @@ extends Node3D
 
 var _spawner: MonsterSpawner
 var _hud: CombatHud
+var _pack: InventoryScreen
+var _forage: MeadowForage
 
 
 func _ready() -> void:
@@ -25,9 +27,10 @@ func _ready() -> void:
 	])
 	var errors: PackedStringArray = ContentDB.get_load_errors()
 	if errors.is_empty():
-		print("ContentDB check: %d NPCs, %d quests, %d quizzes approved." % [
+		print("ContentDB check: %d NPCs, %d quests, %d items, %d quizzes approved." % [
 			ContentDB.get_all("npcs").size(),
 			ContentDB.get_all("quests").size(),
+			ContentDB.get_all("items").size(),
 			ContentDB.get_all("quizzes").size(),
 		])
 	else:
@@ -37,13 +40,14 @@ func _ready() -> void:
 	_landmarks.build(_terrain)
 	_bit.setup(_player, _terrain)
 
-	# Screenshot mode is the visual-verification tool — keep it clean of HUD
-	# and roaming enemies. Normal play gets the combat HUD + monster spawner.
+	# Screenshot mode is the visual-verification tool — keep it clean of HUD,
+	# roaming enemies, and glowing pickups. Normal play gets all of it.
 	var shot_dir: String = _screenshot_dir()
 	if shot_dir != "":
 		_capture_screens(shot_dir)
 	else:
 		_setup_combat()
+		_setup_pack()
 
 
 func _setup_combat() -> void:
@@ -58,6 +62,19 @@ func _setup_combat() -> void:
 	var spawn_pos: Vector3 = Vector3(sp.x, _terrain.get_height(sp.x, sp.y), sp.y)
 	_spawner.setup(_terrain, spawn_pos)
 	print("Combat v1 online: sword combo/dodge/block, hearts, monster spawner + proving ground.")
+
+
+## Milestone 10: the pack screen plus the forage that fills it. Forage is built
+## after the landmarks (above) because curios and tools cluster around them.
+func _setup_pack() -> void:
+	_pack = InventoryScreen.new()
+	_pack.name = "InventoryScreen"
+	add_child(_pack)
+	_forage = MeadowForage.new()
+	_forage.name = "MeadowForage"
+	$World.add_child(_forage)
+	_forage.setup(_terrain)
+	print("Pack online: press I for the inventory; Tokens ride the HUD purse.")
 
 
 func _spawn_player() -> void:

@@ -45,6 +45,10 @@ static func ensure() -> void:
 	_pad_button(&"special", JOY_BUTTON_Y)
 	# Dev-only: fill the focus meter to verify the special without a quiz UI.
 	_key(&"debug_charge", KEY_F)
+	# Pack / inventory (milestone 10). Browsing inside it rides Godot's built-in
+	# ui_* actions, so only the toggle needs binding here.
+	_key(&"inventory", KEY_I)
+	_pad_button(&"inventory", JOY_BUTTON_BACK)
 
 
 static func _action(action: StringName) -> void:

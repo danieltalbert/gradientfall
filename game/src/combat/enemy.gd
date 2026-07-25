@@ -32,6 +32,17 @@ const PROJECTILE_SPEED: float = 13.0
 const REFORM_DELAY: float = 3.0
 const DEATH_SHRINK: float = 0.16
 
+# Tokens paid out on death, by tier (min, max). The economy's first faucet —
+# vendors and quest rewards join it in later milestones.
+const TOKEN_DROP: Dictionary = {
+	"fodder": Vector2i(1, 3),
+	"standard": Vector2i(3, 7),
+	"elite": Vector2i(9, 16),
+	"world_boss": Vector2i(45, 70),
+	"dungeon_boss": Vector2i(30, 50),
+}
+const GOLDEN_TOKEN_MULT: int = 4
+
 # Per-behavior feel (speed, reach, wind-up, recovery).
 const TUNING: Dictionary = {
 	"swarm": {"speed": 4.4, "reach": 1.5, "windup": 0.28, "recover": 0.5, "lunge": 6.0},
@@ -356,6 +367,21 @@ func _roll_drops() -> void:
 		var chance: float = float((d as Dictionary).get("chance", 0.0))
 		if item_id != "" and randf() < chance:
 			GameState.add_item(item_id, 1)  # emits EventBus.item_acquired
+	_roll_tokens()
+
+
+## Tokens are the engine's call, not the content's: the monster schema carries no
+## purse, and balance lives with the engine (AUTONOMY §4). Scaled by tier, and a
+## golden variant is worth hunting. Sparring rigs (monster_id "") pay nothing —
+## the proving ground is practice, not a mint.
+func _roll_tokens() -> void:
+	if monster_id.is_empty():
+		return
+	var band: Vector2i = TOKEN_DROP.get(str(_cfg.get("tier", "fodder")), TOKEN_DROP["fodder"])
+	var amount: int = randi_range(band.x, band.y)
+	if variant == "golden":
+		amount *= GOLDEN_TOKEN_MULT
+	GameState.add_tokens(amount)  # emits EventBus.tokens_changed
 
 
 func _shrink_and_free() -> void:

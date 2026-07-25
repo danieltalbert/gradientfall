@@ -38,6 +38,28 @@ func add_item(item_id: String, count: int = 1) -> void:
 	EventBus.item_acquired.emit(item_id, count)
 
 
+func item_count(item_id: String) -> int:
+	return int(inventory.get(item_id, 0))
+
+
+func has_item(item_id: String, count: int = 1) -> bool:
+	return item_count(item_id) >= count
+
+
+## Spends items (consuming, crafting, selling). Refuses to take more than is
+## held so callers can use it as the "can I?" check, and drops emptied stacks
+## so the serialized inventory never accumulates dead keys.
+func remove_item(item_id: String, count: int = 1) -> bool:
+	if count <= 0 or not has_item(item_id, count):
+		return false
+	var left: int = item_count(item_id) - count
+	if left > 0:
+		inventory[item_id] = left
+	else:
+		inventory.erase(item_id)
+	return true
+
+
 func set_flag(flag_id: String, value: bool = true) -> void:
 	flags[flag_id] = value
 

@@ -59,6 +59,16 @@ func broadcast_hearts() -> void:
 	EventBus.player_hearts_changed.emit(_health.current, _health.max_hearts)
 
 
+## Restores hearts — consumables today, shrines and campfires later. Returns
+## false (and spends nothing) when there is no room or Kern is mid-reform, so
+## the pack can refuse the drink instead of wasting it.
+func heal_hearts(amount: float) -> bool:
+	if _downed or amount <= 0.0 or _health.current >= _health.max_hearts:
+		return false
+	_health.heal(amount)
+	return true
+
+
 func _on_health_changed(current: float, max_hearts: float) -> void:
 	EventBus.player_hearts_changed.emit(current, max_hearts)
 
