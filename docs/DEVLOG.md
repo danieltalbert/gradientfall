@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-07-25 (live session, no Godot) — documentation pass + contract restore
+
+**DONE — the missing session contract**
+`CLAUDE.md` did not exist in this repository. Git shows why: it was created
+in `a2163fc`, updated in `9be0c25`, and then **deleted by the publish commit
+`08775b3`** ("Publish active Gradientfall vertical slice"), a snapshot import
+from another working copy that carried no message body. Every scheduled run
+is told by `docs/AUTONOMY.md` §3 to read `CLAUDE.md` first, and the devlog
+cites its iron rules — so the autonomy loop's restart path had been quietly
+broken since 2026-07-20. Restored from `2e90e83` and adapted to the
+standalone repo layout (`game/` is now the project root, not
+`gradientfall/game/`).
+
+Worth knowing for anyone reading the history: that same publish commit also
+replaced this devlog wholesale (erasing the richness pass #4/#5 entries) and
+deleted the Gradient Peaks work those passes built — `gradient_peaks.gd`,
+`peaks_approach.gd`, `mountain.gdshader`, `tools/proto_mountains.py` — which
+`border_vistas.gd` + `mountain_vista.gdshader` now supersede. The current
+tree is the intended one; the docs simply never recorded the swap.
+
+**DONE — quality and documentation raised to stated project principles**
+Danny's call, now written into the docs so no future session can miss it:
+- `CLAUDE.md`: new "prime directive" section — **quality over speed is the
+  utmost important factor of this entire project** — plus a new iron rule 3:
+  *code is documented as it is written; undocumented code does not land.*
+- `docs/ARCHITECTURE.md`: a full **Code documentation standard** (script
+  headers, member docs, why-comments with units, shader/tool headers, and
+  the rule that a wrong or stale comment is a bug).
+- `docs/AUTONOMY.md`: new §0 standing principles binding every agent run.
+- `docs/CONTENT_PIPELINE.md`: rule 6 applies the same bar to content review.
+- `README.md`: a Project principles section pointing at all of the above.
+
+**DONE — comment pass over the thinnest-documented code**
+Comment-only edits (no code changed, verified by inspecting every diff hunk
+for non-comment additions and removals): `border_vistas.gd`, `cloud_layer.gd`,
+`sky_cycle.gd`, `celestial_layer.gd`, `ambient_motes.gd`, `kern_visual.gd`,
+`camera_rig.gd`, `enemy.gd`, `projectile.gd`, `player.gd`, `combat_hud.gd`,
+`tools/validate_content.py`, and five shaders — `starfield` and `moon` had
+**no header at all**, and `painterly_cloud_wisp`, `bark`, `leaf_wind`, and
+`grass_wind` had only a few lines each. Overall comment density across
+`game/src`, `game/assets/shaders`, and `tools/` went from **7.4% to 19.3%**
+(1,593 of 8,251 lines), and the sparsest file is now 7.4% where it used to
+be 2.4%. Verification: `gdparse` 4.5 clean on all 28 `.gd` files, every
+shader keeps its `shader_type`/`render_mode` declarations, and the validator
+still reports `PASS: 85 entries in 13 files, 0 error(s)`.
+
+**HALF-FORMED**
+- Four files sit just below the new bar and would benefit from an interior
+  pass: `player_combat.gd` (7.4%), `enemy_visual.gd` (7.5%),
+  `meadow_flora.gd` (7.7%), `bit.gd` (7.9%). All four already carry good
+  headers — what is thin is the procedural-geometry and state-machine
+  interiors.
+- `content/inbox/quests/batch_02.json` still lingers as an empty `[]` and
+  should be deleted in a session with write access to it.
+
+**STILL TRUE FROM THE LAST ENTRY** — Bit and Combat v1 remain **UNSEEN**.
+CI (run #1, 2026-07-21) proves they parse and load under a headless Godot
+4.7.1 editor, but GDD §10 wants human eyes on a real fight before those
+boxes tick clean. No Godot in this environment either.
+
+**NEXT UP** — Phase 1 milestone 7: **Knowledge charge v1**, the in-combat
+quiz prompt that feeds the focus meter `PlayerCombat` already exposes via
+`add_charge()` and its `EventBus.quiz_answered` listener.
+
+---
+
 ## 2026-07-18 (scheduled autonomous run #2, no Godot) — Combat v1
 
 **DONE — content pipeline**

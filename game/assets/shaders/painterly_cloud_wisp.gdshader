@@ -1,3 +1,17 @@
+// Wind-sheared cloud wisps — the translucent companion to
+// painterly_cloud.gdshader.
+//
+// Applied to the "Wisps" mesh cloud_layer.gd builds beside each bank's
+// opaque Core. Both meshes come out of the same marching-tetrahedra pass and
+// share the palette uniforms CloudLayer regrades every frame, so wisps and
+// core always agree on the light; only the dissolve differs. Unshaded (all
+// light response is painted here) and alpha-blended, with depth_prepass_alpha
+// so overlapping shreds sort sanely against one another.
+//
+// Vertex COLOR is a non-color payload written by cloud_layer.gd:
+// R = 0-1 height within the bank, G = per-lobe tone, B = motion phase,
+// A = density. Positions are meters in the bank's local frame.
+
 shader_type spatial;
 render_mode unshaded, blend_mix, depth_prepass_alpha, cull_back;
 
@@ -17,12 +31,15 @@ varying float lobe_tone;
 varying float breakup_phase;
 varying float density;
 
+// Cheap 3D hash -> pseudo-random float in [0, 1).
 float hash31(vec3 p) {
 	p = fract(p * 0.1031);
 	p += dot(p, p.yzx + 33.33);
 	return fract((p.x + p.y) * p.z);
 }
 
+// 3D value noise: trilinear blend of eight hashed lattice corners, eased by
+// the smoothstep curve f*f*(3-2f) so cell edges don't show.
 float value_noise(vec3 p) {
 	vec3 cell = floor(p);
 	vec3 f = fract(p);
@@ -40,11 +57,19 @@ float value_noise(vec3 p) {
 	return mix(near_z, far_z, f.z);
 }
 
+// Displace the coarse polygonised surface along its normal to erode the
+// wisp's silhouette, then unpack the vertex-color payload for the fragment
+// stage. This is what hides the mesh's low tetrahedral resolution.
 void vertex() {
+	// The phase channel offsets the noise per bank, and the slow TIME term
+	// drifts the field so the shape evolves rather than sitting frozen.
 	vec3 local_sample = VERTEX * 0.034 + vec3(COLOR.b * 9.0, TIME * 0.006, 0.0);
+	// Two octaves: broad erosion plus finer detail.
 	float erosion_shape = value_noise(local_sample) * 0.64
 			+ value_noise(local_sample * 2.47 + vec3(2.0, 7.0, 5.0)) * 0.36;
 	float flutter = sin(TIME * 0.085 + COLOR.b * 6.28318 + VERTEX.x * 0.012) * 0.18;
+	// Centering the noise on 0.5 makes the displacement bidirectional, so
+	// the wisp erodes inward as much as it bulges outward.
 	VERTEX += NORMAL * ((erosion_shape - 0.5) * 1.40 + flutter);
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_normal = normalize(MODEL_NORMAL_MATRIX * NORMAL);
@@ -54,10 +79,15 @@ void vertex() {
 	density = COLOR.a;
 }
 
+// Shade and dissolve. Color comes from the three-stop height ramp shared
+// with the core shader; alpha is where wisps differ — it falls off both at
+// grazing view angles and through a moving noise mask, so the shreds fade
+// out at their edges instead of ending on a hard polygon boundary.
 void fragment() {
 	vec3 normal = normalize(world_normal);
 	vec3 view_direction = normalize(CAMERA_POSITION_WORLD - world_position);
 	vec3 light_direction = normalize(sun_direction);
+	// Underside -> middle -> top, the same ramp the opaque core uses.
 	float lower_to_middle = smoothstep(0.015, 0.64, cloud_height);
 	float middle_to_top = smoothstep(0.44, 0.99, cloud_height);
 	vec3 base = mix(underside_tint.rgb, middle_tint.rgb, lower_to_middle);
@@ -66,6 +96,9 @@ void fragment() {
 	base *= mix(0.84, 1.055, sun_facing * sun_strength);
 	base *= 0.96 + (lobe_tone - 0.5) * 0.055;
 
+	// Facing ratio: 1 head-on, 0 edge-on. Fading alpha with it means a wisp
+	// seen edge-on nearly vanishes, which is what makes it read as vapor
+	// rather than a thin shell.
 	float ndv = clamp(dot(normal, view_direction), 0.0, 1.0);
 	float soft_contour = smoothstep(-0.01, 0.38, ndv);
 	vec3 moving_sample = world_position * 0.020 + vec3(TIME * 0.004, breakup_phase * 4.7, 0.0);
@@ -74,9 +107,13 @@ void fragment() {
 	float breakup = smoothstep(0.32, 0.72, broad_noise * 0.70 + fine_noise * 0.30 + density * 0.20);
 	float alpha = density * 0.46 * soft_contour * breakup;
 
+	// Silver lining: a Fresnel edge term, but only on the sunward side, so
+	// the bright rim appears where the light actually is.
 	float fresnel = pow(1.0 - ndv, 2.8);
 	float sunward_edge = smoothstep(-0.10, 0.76, dot(normal, light_direction));
 	base = mix(base, rim_tint.rgb, fresnel * sunward_edge * sun_strength * 0.24);
 	ALBEDO = max(base, vec3(0.0));
+	// Hard 0.58 ceiling: a wisp must never become opaque enough to read as
+	// part of the core mass.
 	ALPHA = clamp(alpha, 0.0, 0.58);
 }

@@ -83,6 +83,24 @@ quit, and resume — with no errors in the Godot output panel.
 ---
 
 ## Content pipeline (runs in parallel with every phase)
-- [ ] Phase 1 brief batch: Bootstrap NPCs, starter quests, starter items/monsters, quiz seed (topics: what is ML, data, models)
+- [x] Phase 1 brief batch: Bootstrap NPCs (batch_01, 12 merged) and starter
+      quests (batch_02, 8 merged); quiz seed rolling (41 of 400 approved)
+- [ ] Phase 1 remainder: items (batch_03 staged in inbox, 15 entries awaiting
+      review), monsters (batch_04), POIs (batch_05 + 06), lore (batch_07) —
+      all queued, none claimed yet
 - [ ] Phase 2 brief batches: per-region monsters/POIs/items
 - [ ] Phase 4/5 brief batches: quest chains, lore books, full quiz bank
+
+---
+
+## Documentation (a first-class deliverable, every phase)
+Per `CLAUDE.md` iron rule 3 and the Code documentation standard in
+`docs/ARCHITECTURE.md`. Quality over speed applies here too: a milestone
+whose code a stranger cannot read is not done.
+- [x] Code documentation standard written and adopted (2026-07-25)
+- [x] Documentation pass over the thinnest-commented code — world/sky layer,
+      player rig, combat brain, HUD, validator, and six shaders; overall
+      density 7.4% → 19.3%
+- [ ] Interior pass on the four files still below the bar: `player_combat.gd`,
+      `enemy_visual.gd`, `meadow_flora.gd`, `bit.gd`
+- [ ] Every new milestone lands documented in the same commit as its code
