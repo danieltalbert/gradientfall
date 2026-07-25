@@ -181,23 +181,32 @@ static func _build_tunic(skeleton: Skeleton3D, bones: Dictionary) -> void:
 	# [y, rx, rz_front, rz_back, z_off, fold ripple amp]
 	# An athletic V-taper: broad chest/shoulders -> narrow waist -> flaring
 	# skirt (the Link tunic line), rather than a barrel.
+	# Radii refit 2026-07-24 against the IMPORTED base body's measured
+	# cross-sections (tools: scratch measure of kern_base.glb): the MPFB torso
+	# is wider (chest rx 0.20 vs the old procedural 0.148) and much deeper
+	# front-to-back (waist rz 0.11+ vs 0.085), so every ring grew to wrap it
+	# with ~11 mm of cloth clearance (14-18 mm in the free-swinging skirt).
+	# Rows generated from kern_base.glb band slices at these exact heights
+	# (scratch emit_rows.py), clearance 10-18 mm; rx capped at the shoulder
+	# rows where the T-pose arms pollute the band, collar front taken from the
+	# neck band (the chin pollutes y>=1.49), hem kept flaring for the look.
 	var rows: Array = [
-		[1.500, 0.048, 0.046, 0.048, -0.004, 0.000],   # high collar at the neck
-		[1.480, 0.062, 0.056, 0.060, -0.002, 0.000],   # collar base
-		[1.458, 0.092, 0.070, 0.080, 0.000, 0.000],    # trapezius slope
-		[1.432, 0.136, 0.084, 0.094, 0.000, 0.000],    # deltoid cap
-		[1.398, 0.148, 0.094, 0.100, 0.000, 0.001],    # broad chest top
-		[1.350, 0.142, 0.100, 0.100, 0.000, 0.001],    # pecs
-		[1.295, 0.129, 0.096, 0.096, 0.001, 0.001],    # lower ribs
-		[1.235, 0.115, 0.090, 0.090, 0.002, 0.002],    # upper waist
-		[1.175, 0.106, 0.084, 0.086, 0.003, 0.002],    # narrow waist
-		[1.120, 0.110, 0.085, 0.090, 0.004, 0.003],    # waist / belt line
-		[1.070, 0.121, 0.090, 0.098, 0.004, 0.003],    # hips
-		[1.015, 0.134, 0.097, 0.106, 0.005, 0.002],    # under the belt
-		[0.968, 0.148, 0.101, 0.112, 0.006, 0.004],    # skirt starts
-		[0.922, 0.161, 0.108, 0.120, 0.006, 0.006],
-		[0.882, 0.171, 0.114, 0.127, 0.007, 0.008],
-		[0.850, 0.179, 0.120, 0.132, 0.007, 0.010],    # hem flare
+		[1.500, 0.089, 0.070, 0.068, -0.004, 0.000],   # high collar at the neck
+		[1.480, 0.106, 0.072, 0.082, -0.002, 0.000],   # collar base
+		[1.458, 0.150, 0.068, 0.100, 0.000, 0.000],    # trapezius slope
+		[1.432, 0.190, 0.072, 0.108, 0.000, 0.000],    # deltoid cap
+		[1.398, 0.200, 0.088, 0.120, 0.000, 0.001],    # broad chest top
+		[1.350, 0.196, 0.119, 0.122, 0.000, 0.001],    # pecs
+		[1.295, 0.197, 0.135, 0.121, 0.001, 0.001],    # lower ribs
+		[1.235, 0.173, 0.129, 0.111, 0.002, 0.002],    # upper waist
+		[1.175, 0.152, 0.125, 0.096, 0.003, 0.002],    # narrow waist
+		[1.120, 0.146, 0.122, 0.089, 0.004, 0.003],    # waist / belt line
+		[1.070, 0.152, 0.123, 0.088, 0.004, 0.003],    # hips
+		[1.015, 0.163, 0.122, 0.104, 0.005, 0.002],    # under the belt
+		[0.968, 0.174, 0.121, 0.133, 0.006, 0.004],    # skirt starts
+		[0.922, 0.180, 0.118, 0.139, 0.006, 0.006],
+		[0.882, 0.185, 0.118, 0.140, 0.007, 0.008],
+		[0.850, 0.190, 0.120, 0.142, 0.007, 0.010],    # hem flare
 	]
 	var row_i: int = 0
 	for row in rows:
@@ -372,10 +381,11 @@ static func _build_sleeve(skeleton: Skeleton3D, bones: Dictionary, right: bool) 
 static func _sleeve_radius(t: float) -> float:
 	# Shoulder cap -> deltoid -> biceps -> elbow -> forearm swell -> cuff.
 	# Slimmer and more tapered than before for a lean, athletic arm.
+	# Bumped ~12% for the imported MPFB arm (muscle 0.6 build).
 	var keys: Array = [
-		[0.00, 0.0560], [0.08, 0.0525], [0.20, 0.0455], [0.34, 0.0405],
-		[0.50, 0.0365], [0.60, 0.0385], [0.72, 0.0360], [0.86, 0.0320],
-		[1.00, 0.0285],
+		[0.00, 0.0630], [0.08, 0.0590], [0.20, 0.0510], [0.34, 0.0450],
+		[0.50, 0.0410], [0.60, 0.0430], [0.72, 0.0400], [0.86, 0.0360],
+		[1.00, 0.0320],
 	]
 	for i in keys.size() - 1:
 		var a: Array = keys[i]
@@ -390,9 +400,11 @@ static func _sleeve_radius(t: float) -> float:
 
 static func _build_trouser(skeleton: Skeleton3D, bones: Dictionary, right: bool) -> void:
 	var sx: float = 1.0 if right else -1.0
-	var hip: Vector3 = Vector3(THIGH_X * sx, 0.940, 0.004)
-	var knee: Vector3 = Vector3(0.100 * sx, KNEE_Y, -0.006)
-	var cuff: Vector3 = Vector3(0.104 * sx, 0.325, 0.006)
+	# Path + radii refit to the imported leg's measured centreline (the MPFB
+	# calf bows well behind the hip line and the ankle sits further out).
+	var hip: Vector3 = Vector3(0.096 * sx, 0.940, 0.010)
+	var knee: Vector3 = Vector3(0.106 * sx, KNEE_Y, 0.035)
+	var cuff: Vector3 = Vector3(0.118 * sx, 0.325, 0.045)
 	var rows: int = 16
 	var path: Array[Vector3] = []
 	for i in rows:
@@ -406,10 +418,12 @@ static func _build_trouser(skeleton: Skeleton3D, bones: Dictionary, right: bool)
 	var radii: PackedFloat32Array = PackedFloat32Array()
 	for i in rows:
 		var t: float = float(i) / float(rows - 1)
-		# Slimmer leg: thigh -> knee -> calf swell -> ankle cuff.
+		# Thigh -> knee -> calf swell -> ankle cuff, wrapping the imported
+		# leg's measured girth + ~9 mm cloth (waistband poke hides under the
+		# tunic skirt, which covers everything above y 0.85).
 		var keys: Array = [
-			[0.00, 0.0730], [0.16, 0.0690], [0.36, 0.0610], [0.55, 0.0510],
-			[0.62, 0.0485], [0.74, 0.0540], [0.88, 0.0460], [1.00, 0.0405],
+			[0.00, 0.1060], [0.16, 0.0990], [0.36, 0.0910], [0.55, 0.0710],
+			[0.62, 0.0700], [0.74, 0.0680], [0.88, 0.0690], [1.00, 0.0670],
 		]
 		var r: float = 0.05
 		for k in keys.size() - 1:

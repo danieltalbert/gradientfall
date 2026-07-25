@@ -32,6 +32,33 @@ var _lower_lid_l: Node3D
 var _lower_lid_r: Node3D
 
 
+## When the imported base body is live its head replaces this sculpted one:
+## hide the skin/eye geometry but KEEP the hair and brows — those stay
+## code-built (canon identity) and ride this node so they still follow the
+## head bone's animation. The kept pieces get re-seated onto the imported
+## skull, which is a little larger and rounder than the sculpted one.
+func retire_skin_for_import() -> void:
+	for node_name in ["FaceMesh", "CaruncleL", "CaruncleR"]:
+		var n: Node3D = get_node_or_null(node_name)
+		if n != null:
+			n.visible = false
+	for n in [_eye_l, _eye_r, _upper_lid_l, _upper_lid_r,
+			_lower_lid_l, _lower_lid_r]:
+		if n != null:
+			(n as Node3D).visible = false
+	# Hair: widen the cap around the skull and drop the hairline so no bare
+	# scalp shows between the clumps and the imported forehead.
+	var hair: Node3D = get_node_or_null("HairMesh")
+	if hair != null:
+		hair.scale = Vector3(1.13, 1.08, 1.13)
+		hair.position += Vector3(0.0, -0.046, -0.012)
+	# Brows: seat onto the imported brow ridge (slightly lower and further
+	# forward than the sculpted face surface they were built against).
+	var brows: Node3D = get_node_or_null("Brows")
+	if brows != null:
+		brows.position += Vector3(0.0, -0.030, -0.010)
+
+
 func build(pivot: Vector3) -> void:
 	_pivot = pivot
 	var skin_parts: Array[Dictionary] = []

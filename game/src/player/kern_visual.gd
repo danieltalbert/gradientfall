@@ -59,6 +59,12 @@ var _bones: Dictionary
 var _base_root: Node3D
 var _base_skeleton: Skeleton3D
 var _base_bones: Dictionary = {}
+# Retarget cache per mapped bone: our pose eulers are MODEL-space rotations
+# (the procedural rig's rest rotations are identity by construction), but the
+# imported rig's bones carry real rest orientations. For each bone we keep its
+# local rest rotation and its global rest basis so a model-space delta can be
+# re-expressed in that bone's frame:  pose = rest_local * (Gᵀ · delta · G).
+var _base_retarget: Dictionary = {}
 var _head: KernHead
 var _sword: Node3D
 
@@ -94,24 +100,35 @@ func _ready() -> void:
 	# report that it loaded and hand its rig to the animation via the bone map.
 	# Fitting the code-built gear onto it is the next pass — until then the
 	# procedural body stays the active path so the main line always runs.
+	# Build the procedural rig FIRST, then load the imported body. With the
+	# import loaded first, every mesh skinned to the procedural skeleton
+	# rendered displaced (swallowed by the body) — two Skeleton3D siblings
+	# interact badly in the skinning path depending on creation order.
+	var body_data: Dictionary = BodyBuilder.build(self)
+	_skeleton = body_data["skeleton"]
+	_bones = body_data["bones"]
+
 	var base: Dictionary = BaseModel.load_into(self)
 	if base["ok"]:
 		_base_root = base["root"]
 		_base_skeleton = base["skeleton"]
 		_base_bones = base["bones"]
-		print("KernVisual: base mesh loaded (%.2f m). Gear fitting pending." % [
-			BaseModel.measure_height(_base_root)])
+		_cache_retarget()
+		print("KernVisual: base mesh loaded (%.2f m), driving %d bones." % [
+			BaseModel.measure_height(_base_root), _base_retarget.size()])
 	elif String(base["reason"]) != "":
 		print("KernVisual: ", base["reason"])
-
-	var body_data: Dictionary = BodyBuilder.build(self)
-	_skeleton = body_data["skeleton"]
-	_bones = body_data["bones"]
 
 	_head = HeadScene.new()
 	_head.name = "Head"
 	(body_data["head_attach"] as BoneAttachment3D).add_child(_head)
 	_head.build(_head_pivot())
+
+	# With the imported body live, the procedural SKIN becomes a duplicate —
+	# hide it (face/eyes, neck, hands, nails). Garments, boots, cloak, sword,
+	# hair and the hand-mark stay: they are the code-built layer worn on top.
+	if _base_skeleton != null:
+		_retire_procedural_skin(body_data)
 
 	var gear: Dictionary = GearBuilder.build(_skeleton, _bones, body_data)
 	_sword = gear["sword"]
@@ -122,8 +139,20 @@ func _ready() -> void:
 	_sword.position = SWORD_REST_POS
 	_sword.rotation = SWORD_REST_ROT
 
+	# Move the torso/limb garments onto the imported skeleton. Anything
+	# skinned to the procedural skeleton renders displaced when the imported
+	# body is present (an engine-level skinning conflict between the two
+	# Skeleton3D siblings: the tunic's fragments lose the depth test against
+	# a body they geometrically enclose, while rigid geometry at the same
+	# coordinates wins it). The imported skeleton's skinning provably renders
+	# true, so the garments ride it; the retargeted pose already drives it
+	# with the same animation. Runs after GearBuilder so belt/scarf move too.
+	if _base_skeleton != null:
+		_reskin_garments_to_base()
+
 	if _body != null:
 		_prev_pos = _body.global_position
+
 
 	# The magic answers to the knowledge-charge meter (Combat v1 owns it).
 	if EventBus.knowledge_charge_changed and not \
@@ -339,9 +368,155 @@ func _commit(pose: Dictionary) -> void:
 			pose[bone_name] = _n(bone_name)
 	for bone_name in pose:
 		var idx: int = _bones.get(bone_name, -1)
-		if idx < 0:
+		if idx >= 0:
+			_skeleton.set_bone_pose_rotation(idx,
+				Quaternion.from_euler(pose[bone_name]))
+		# Same pose onto the imported skeleton, re-expressed per bone frame.
+		# The rest fix (T-pose -> hanging arms) applies first, then the frame's
+		# animation delta on top, both in model space.
+		var rt: Dictionary = _base_retarget.get(bone_name, {})
+		if not rt.is_empty():
+			var delta: Basis = Basis.from_euler(pose[bone_name]) \
+				* (rt["fix"] as Basis)
+			var local_delta: Basis = (rt["g_inv"] as Basis) * delta \
+				* (rt["g"] as Basis)
+			_base_skeleton.set_bone_pose_rotation(rt["idx"],
+				(rt["rest"] as Quaternion) * local_delta.get_rotation_quaternion())
+
+
+## Static model-space pre-rotations composed UNDER the animation deltas.
+## Our pose eulers are authored against the procedural rig, whose REST already
+## hangs the arms at Kern's sides; the imported rig rests in a T-pose, so its
+## upper arms first need rotating from "straight out" down to the hanging
+## stance the animation assumes. (Model space: +Z rotation drops the left arm,
+## -Z the right.)
+const BASE_REST_FIX: Dictionary = {
+	# z: drop from T to hanging; x: pitch the hang slightly FORWARD (the MPFB
+	# shoulder joint sits back at the scapula, so a straight drop reads as
+	# hands-clasped-behind); forearms take a small natural elbow bend.
+	"UpperArmL": Vector3(0.06, 0.0, 1.30),
+	"UpperArmR": Vector3(0.06, 0.0, -1.30),
+	"ForearmL": Vector3(0.10, 0.0, 0.10),
+	"ForearmR": Vector3(0.10, 0.0, -0.10),
+}
+
+
+## Build the per-bone conversion table between our model-space pose deltas and
+## the imported rig's bone frames (see `_base_retarget` above).
+func _cache_retarget() -> void:
+	_base_retarget.clear()
+	# The .glb root is turned PI to face -Z, so a bone's frame in MODEL space
+	# is root_basis * its skeleton-space global rest.
+	var root_basis: Basis = _base_root.transform.basis
+	for bone_name in _base_bones:
+		var idx: int = _base_bones[bone_name]
+		var g: Basis = root_basis * _base_skeleton.get_bone_global_rest(idx).basis
+		_base_retarget[bone_name] = {
+			"idx": idx,
+			"rest": _base_skeleton.get_bone_rest(idx).basis.get_rotation_quaternion(),
+			"g": g,
+			"g_inv": g.inverse(),
+			"fix": Basis.from_euler(BASE_REST_FIX.get(bone_name, Vector3.ZERO)),
+		}
+	_relax_fingers()
+
+
+## The animation layer never drives finger bones, so without this the imported
+## hands hold the exported T-pose splay forever. A soft static curl reads as a
+## relaxed hand at rest AND around the sword grip. Set once; nothing else
+## writes these bones.
+func _relax_fingers() -> void:
+	for idx in _base_skeleton.get_bone_count():
+		var lower: String = String(_base_skeleton.get_bone_name(idx)).to_lower()
+		var curl: float = 0.0
+		if lower.contains("thumb"):
+			curl = 0.10
+		elif lower.contains("index") or lower.contains("middle") \
+				or lower.contains("ring") or lower.contains("pinky"):
+			curl = 0.28
+		if curl <= 0.0:
 			continue
-		_skeleton.set_bone_pose_rotation(idx, Quaternion.from_euler(pose[bone_name]))
+		var rest: Quaternion = \
+			_base_skeleton.get_bone_rest(idx).basis.get_rotation_quaternion()
+		# MPFB finger bones flex around their local X (verified on renders).
+		_base_skeleton.set_bone_pose_rotation(idx,
+			rest * Quaternion(Vector3.RIGHT, curl))
+
+
+## Garment meshes that move from the procedural skeleton onto the imported
+## one. The cloak family stays: its bones (CloakA/B/C) exist only on the
+## procedural rig, and it renders correctly there.
+## Garment meshes that move from the procedural skeleton onto the imported
+## rig. The cloak family stays: its bones (CloakA/B/C) exist only on the
+## procedural rig, and it renders correctly there.
+## Each garment mounts RIGID on a BoneAttachment3D of the imported skeleton.
+## Skinned meshes on this project's dual-skeleton setup render with broken
+## depth (fragments lose the depth test everywhere; a no-depth-test override
+## shows them at the correct positions) while rigid geometry provably renders
+## true, so rigid mounting is the working path. Cost: garments follow one
+## joint each instead of blending - fine at idle/walk torso lean, stiff on
+## big limb swings. Proper skinning is a follow-up (isolate the engine bug).
+const RESKIN_GARMENTS: Dictionary = {
+	"Tunic": "Chest", "Belt": "Hips", "Scarf": "Neck", "ScarfTail": "Neck",
+	"Pouch": "Hips", "SleeveL": "UpperArmL", "SleeveR": "UpperArmR",
+	"TrouserL": "Hips", "TrouserR": "Hips",
+}
+
+
+func _reskin_garments_to_base() -> void:
+	# Pose the imported skeleton in the neutral stance FIRST: the mount solve
+	# below uses the bone pose the garment was authored around (arms hanging),
+	# not the T-pose rest — otherwise the runtime pose carries each garment
+	# through the T-to-hang delta a second time (sleeves stick out sideways).
+	var neutral: Dictionary = {}
+	_locomotion(neutral, 0.0)
+	_commit(neutral)
+	var moved: int = 0
+	for garment_name in RESKIN_GARMENTS:
+		var mi: MeshInstance3D = _skeleton.get_node_or_null(garment_name)
+		if mi == null:
+			continue
+		var bone_name: String = RESKIN_GARMENTS[garment_name]
+		var bone_idx: int = _base_bones.get(bone_name, -1)
+		if bone_idx < 0:
+			continue
+		var attach: BoneAttachment3D = BoneAttachment3D.new()
+		attach.name = garment_name + "Mount"
+		_base_skeleton.add_child(attach)
+		attach.bone_name = _base_skeleton.get_bone_name(bone_idx)
+		# The mesh is authored in this node's (model) space; the attachment sits
+		# at base_root.transform * bone_pose. Solve the local transform so the
+		# mounted mesh lands exactly where it was authored, using only LOCAL
+		# chain transforms (stable no matter how the studio/world rotates us).
+		var bone_pose: Transform3D = _base_skeleton.get_bone_global_pose(bone_idx)
+		var mount_in_model: Transform3D = _base_root.transform * bone_pose
+		mi.get_parent().remove_child(mi)
+		attach.add_child(mi)
+		mi.skin = null
+		mi.transform = mount_in_model.affine_inverse()
+		moved += 1
+	print("KernVisual: %d garments mounted rigid on the imported rig" % moved)
+
+
+## Hide the procedural skin that the imported body replaces. The garments,
+## boots, cloak, scarf, sword, hair, brows and hand-mark all stay — they are
+## the code-built layer the GDD amendment kept.
+func _retire_procedural_skin(body_data: Dictionary) -> void:
+	var neck: Node3D = _skeleton.get_node_or_null("NeckSkin")
+	if neck != null:
+		neck.visible = false
+	for attach_key in ["hand_l_attach", "hand_r_attach"]:
+		var attach: BoneAttachment3D = body_data[attach_key]
+		for hand_root in attach.get_children():
+			for part in (hand_root as Node3D).get_children():
+				# Keep the arcane layer: HandMark, HandThread%d, SigilRing.
+				var keep: bool = part.name == "HandMark" \
+					or String(part.name).begins_with("HandThread") \
+					or part.name == "SigilRing"
+				if not keep and part is Node3D:
+					(part as Node3D).visible = false
+	if _head != null:
+		_head.retire_skin_for_import()
 
 
 # --- Cloak ------------------------------------------------------------------

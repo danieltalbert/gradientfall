@@ -14,26 +14,20 @@ render_mode specular_schlick_ggx;
 group_uniforms surface;
 uniform vec4 albedo_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform float albedo_boost : hint_range(0.5, 1.5) = 1.0;
-uniform float roughness_base : hint_range(0.2, 0.9) = 0.52;
+uniform float roughness_base : hint_range(0.2, 0.9) = 0.62;
 
 group_uniforms subsurface;
 uniform vec4 sss_color : source_color = vec4(0.72, 0.20, 0.12, 1.0);
-uniform float sss_strength : hint_range(0.0, 2.0) = 0.85;
+uniform float sss_strength : hint_range(0.0, 2.0) = 0.55;
 uniform float diffuse_wrap : hint_range(0.0, 1.0) = 0.35;
-uniform float sss_wrap : hint_range(0.0, 1.5) = 0.85;
+uniform float sss_wrap : hint_range(0.0, 1.5) = 0.62;
 uniform float transmit_strength : hint_range(0.0, 2.0) = 0.55;
 
 group_uniforms micro;
-// Two scales of pore/wrinkle bump. Object-space so it sticks to the skin.
-// bump_strength is in metres of virtual height — skin micro-relief is sub-
-// millimetre, so this stays tiny; the derivative bump amplifies it plenty.
-// Was 0.0 — which multiplied the whole pore/wrinkle height field by zero, so
-// every bit of the micro-detail machinery below ran and produced a flat normal.
-// Skin micro-relief is sub-millimetre; the derivative bump amplifies it plenty.
-// Metres of virtual relief. Real pore depth is ~0.05 mm, so this stays tiny —
-// the derivative bump amplifies it plenty. (Was 0.0, which multiplied the whole
-// height field by zero and left the skin perfectly flat; 0.0006 was the other
-// extreme and read as wet stucco at portrait range.)
+// Two scales of pore/wrinkle bump, object-space so it sticks to the skin.
+// bump_strength is metres of virtual relief. Real pore depth is ~0.05 mm, so
+// this stays tiny — the derivative bump amplifies it plenty. (0.0 disabled the
+// whole system; 0.0006 read as wet stucco at portrait range.)
 uniform float bump_strength : hint_range(0.0, 0.002) = 0.00009;
 uniform float pore_scale : hint_range(20.0, 600.0) = 380.0;
 uniform float pore_depth : hint_range(0.0, 2.0) = 0.5;
@@ -41,8 +35,8 @@ uniform float wrinkle_scale : hint_range(4.0, 120.0) = 110.0;
 uniform float wrinkle_depth : hint_range(0.0, 2.0) = 0.25;
 
 group_uniforms spec;
-uniform float spec_broad : hint_range(0.0, 1.0) = 0.06;
-uniform float spec_tight : hint_range(0.0, 1.0) = 0.16;
+uniform float spec_broad : hint_range(0.0, 1.0) = 0.035;
+uniform float spec_tight : hint_range(0.0, 1.0) = 0.10;
 
 group_uniforms rim;
 uniform vec4 rim_color : source_color = vec4(0.66, 0.80, 1.0, 1.0);
@@ -103,7 +97,7 @@ void vertex() {
 void fragment() {
 	ALBEDO = v_col * albedo_tint.rgb * albedo_boost;
 	ROUGHNESS = roughness_base;
-	SPECULAR = 0.28;
+	SPECULAR = 0.20;
 
 	// Mikkelsen derivative bump: perturb the shading normal from the
 	// object-space skin height field (works on unparametrised meshes).

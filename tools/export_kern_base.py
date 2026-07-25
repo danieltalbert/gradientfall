@@ -159,6 +159,29 @@ def world_bounds(objs):
     return lo, hi
 
 
+def _torso_centre(meshes):
+    """Horizontal (x, y) centre of the torso band (z 0.80-1.45, |x|<0.20)."""
+    deps = bpy.context.evaluated_depsgraph_get()
+    lo_x = lo_y = math.inf
+    hi_x = hi_y = -math.inf
+    for obj in meshes:
+        evaluated = obj.evaluated_get(deps)
+        mesh = evaluated.to_mesh()
+        mw = evaluated.matrix_world
+        for vert in mesh.vertices:
+            p = mw @ vert.co
+            if p.z < 0.80 or p.z > 1.45 or abs(p.x) > 0.20:
+                continue
+            lo_x = min(lo_x, p.x)
+            hi_x = max(hi_x, p.x)
+            lo_y = min(lo_y, p.y)
+            hi_y = max(hi_y, p.y)
+        evaluated.to_mesh_clear()
+    if lo_x is math.inf:
+        return None
+    return ((lo_x + hi_x) / 2.0, (lo_y + hi_y) / 2.0)
+
+
 def normalise_transform(armature, meshes):
     """Scale to 1.75 m and stand the figure on the origin (Blender is Z-up)."""
     lo, hi = world_bounds(meshes)
@@ -177,6 +200,18 @@ def normalise_transform(armature, meshes):
     if abs(lo.z) > 1e-5:
         log("dropping feet to Z=0 (were at %.4f)" % lo.z)
         armature.location.z -= lo.z
+    bpy.context.view_layer.update()
+
+    # Centre the TORSO over the origin horizontally (Blender: Z up, so X and
+    # Y are the horizontal axes). The engine renders skinned geometry at the
+    # glb's own coordinates — a runtime shift on the scene root does not move
+    # the skinned body — so the centring must be baked into the file, or the
+    # code-built garments lofted around the origin can never wrap the torso.
+    centre = _torso_centre(meshes)
+    if centre is not None and (abs(centre[0]) > 1e-4 or abs(centre[1]) > 1e-4):
+        log("centring torso: shifting by (%.4f, %.4f)" % (-centre[0], -centre[1]))
+        armature.location.x -= centre[0]
+        armature.location.y -= centre[1]
     bpy.context.view_layer.update()
 
     # Bake the transform so Godot never sees a hidden object scale.
@@ -203,6 +238,21 @@ def _rest_droop(armature):
     vec.normalize()
     # Blender is Z-up: the arm should run along X with little Z drop.
     return math.degrees(math.asin(max(-1.0, min(1.0, -vec.z))))
+
+
+def _aim_pose_bone(armature, bone_name, target):
+    """Minimal rotation bringing a pose bone's direction onto `target`."""
+    pb = armature.pose.bones.get(bone_name)
+    if pb is None:
+        return
+    bpy.context.view_layer.update()
+    direction = (pb.tail - pb.head)
+    if direction.length < 1e-8:
+        return
+    rot = direction.normalized().rotation_difference(target)
+    pivot = mathutils.Matrix.Translation(pb.head)
+    pb.matrix = (pivot @ rot.to_matrix().to_4x4()
+                 @ pivot.inverted() @ pb.matrix)
 
 
 def ensure_tpose(armature, meshes):
@@ -234,17 +284,21 @@ def ensure_tpose(armature, meshes):
     for suffix, sign in (("_l", 1.0), ("_r", -1.0)):
         target = mathutils.Vector((sign, 0.0, 0.0))
         for bone_base in ("upperarm", "lowerarm", "hand"):
-            pb = armature.pose.bones.get(bone_base + suffix)
-            if pb is None:
-                continue
+            _aim_pose_bone(armature, bone_base + suffix, target)
+    # Legs: MakeHuman's rest stance splays the feet ~20 cm off the midline,
+    # which no straight-hanging trouser or boot can wrap. Aim thigh and calf
+    # dead down; feet keep their pitch but lose the lateral toe-out.
+    for suffix in ("_l", "_r"):
+        for bone_base in ("thigh", "calf"):
+            _aim_pose_bone(armature, bone_base + suffix,
+                           mathutils.Vector((0.0, 0.0, -1.0)))
+        foot = armature.pose.bones.get("foot" + suffix)
+        if foot is not None:
             bpy.context.view_layer.update()
-            direction = (pb.tail - pb.head)
-            if direction.length < 1e-8:
-                continue
-            rot = direction.normalized().rotation_difference(target)
-            pivot = mathutils.Matrix.Translation(pb.head)
-            pb.matrix = (pivot @ rot.to_matrix().to_4x4()
-                         @ pivot.inverted() @ pb.matrix)
+            d = (foot.tail - foot.head)
+            flat = mathutils.Vector((0.0, d.y, d.z))
+            if flat.length > 1e-8:
+                _aim_pose_bone(armature, "foot" + suffix, flat.normalized())
     bpy.context.view_layer.update()
     bpy.ops.object.mode_set(mode="OBJECT")
 

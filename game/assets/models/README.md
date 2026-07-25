@@ -123,24 +123,38 @@ Open **Advanced Import Settings** on the `.glb`, select the `Skeleton3D`,
 create a **BoneMap**, and assign **SkeletonProfileHumanoid**. Verify the limb
 mappings and the T-pose before saving.
 
-## Status (2026-07-24, evening)
+## Status (2026-07-24, late night)
 
-`kern_base.glb` **EXISTS and validates** (PASS from `tools/check_base_mesh.py`:
-53-bone game_engine rig, 19/19 bones mapped, 1.75 m, Y-up, T-pose, separate
-eyes + teeth, no clothing). It was generated fully headlessly:
+`kern_base.glb` exists, validates, loads, retargets and paints — generated
+fully headlessly (Blender 5.2 + MPFB 2.0.17 are now installed):
 
     blender --background --python tools/make_kern_base.py
     blender --background "C:/Users/danny/Documents/kern.blend" --python tools/export_kern_base.py
     python tools/check_base_mesh.py
 
-`tools/make_kern_base.py` drives MPFB 2.0.x's Python service layer directly
-(HumanService/TargetService) -- no GUI clicks needed. It needs Blender 5.x with
-the MPFB extension enabled and the MakeHuman CC0 system assets extracted into
-MPFB's user data (the one manual download; see the recipe above).
+The export script now also converts MPFB's A-pose rest to a T-pose,
+straightens the splayed leg stance, scales to exactly 1.75 m, and CENTRES THE
+TORSO over the origin (the engine renders skinned geometry at the glb's own
+coordinates, so centring must be baked into the file).
 
-The runtime loader confirms: `KernBoneMap: matched 19/19 bones`,
-`KernVisual: base mesh loaded (1.75 m)`. What remains is the FITTING PASS in
-`kern_visual.gd`: retarget the procedural animation onto the imported skeleton,
-skin-tone the imported body (it has no vertex colors, so the skin shader needs
-an albedo fallback), retire the procedural head/body overlay, and refit the
-code-built gear to the new body.
+**The imported body is GATED OFF by default** (`kern_base_model.enabled()`,
+opt in with `-- --kern-base`). Reason: an unsolved engine-level rendering
+issue — with the imported body loaded, meshes SKINNED to the procedural
+skeleton render with broken depth: their fragments lose the depth test
+against a body they geometrically enclose. Evidence gathered (all verified
+by render + numeric probes):
+
+- garment geometry, skinning matrices and transforms are all correct
+  (CPU-recomputed skinned positions match the mesh data exactly);
+- a `no_depth_test` material override shows the garments at their correct
+  screen positions — with depth on they vanish except where uncontested;
+- RIGID geometry at identical coordinates renders and depth-tests perfectly;
+- not the depth prepass (disabling it changes nothing), not material,
+  not skeleton creation order, not vertex data (three different bakes
+  rendered identically).
+
+Next session: reproduce in the editor with the frame debugger (Danny's
+machine has the full editor), or build a minimal two-skeleton repro for a
+Godot bug report. Until then the procedural body ships and the whole fitting
+stack (bone retarget, rest-pose fix, finger relax, skin zone painting,
+procedural-skin retirement, garment mounts) waits behind the flag.
