@@ -4,6 +4,41 @@
 
 ---
 
+## 2026-07-25 (fourth parallel session, cont.) — CI parse-verified 12 and 13
+
+Both milestones above shipped marked UNSEEN because this environment has no
+Godot. It turns out that was only half true: **`.github/workflows/verify.yml`
+accepts `workflow_dispatch`**, so it can be run against any branch — and it
+installs real Godot 4.7.1 and imports the project. Triggered it on this
+branch (run 30163090781, commit `ed36b3e`).
+
+**Result: clean.** `update_scripts_classes` registered every new class —
+`VaultBuild`, `SignalFount`, `WeightStone`, `NeuronChamber`, `VaultGate`,
+`VaultGatekeeper`, `PerceptronVault`, `IrisDataset`, `IrisField`,
+`CompendiumUi` — then reimport and editor load both finished, with no
+`SCRIPT ERROR`, no `Parse Error`, and no failed script load. The content
+validator passed in the same run on both `--inbox` and `--all`.
+
+**Be precise about what that does and does not prove.** It proves all ten new
+scripts parse under Godot 4.7.1, that their `class_name` declarations
+register, and that static typing holds — which is the failure mode a
+no-Godot session is most likely to ship, and the one that would have blocked
+every other session on this branch. It does NOT prove:
+
+- that the game **runs**. `--editor --quit` imports; it never calls
+  `_ready()`, so nothing in the vault or the iris field has executed once.
+- that `vault_rune.gdshader` **compiles**. The run is headless with no GPU.
+- anything about how any of it **looks or feels**, which is the GDD §10 bar
+  and needs human eyes regardless.
+
+So both milestones stay marked UNSEEN in the ROADMAP, with the wording
+tightened from "no Godot in this env" to what is actually outstanding: a
+live runtime boot and eyes. **Worth carrying forward: any no-Godot session
+can get parse verification this way, and should.** It cost one API call and
+eighteen seconds.
+
+---
+
 ## 2026-07-25 (fourth parallel session, cont.) — milestone 13: irises + compendium v1
 
 Second milestone of the same session. Like 12, it touches nothing sessions 7,
