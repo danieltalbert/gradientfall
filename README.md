@@ -21,6 +21,11 @@ Gradientfall is an in-development 3D action-adventure that turns machine-learnin
 
 This repository does **not** claim that the ten-region, 40–80 hour design is complete. The vision is documented in [the GDD](docs/GDD.md); the shipped scope and next gates live in [the roadmap](docs/ROADMAP.md) and [devlog](docs/DEVLOG.md).
 
+## Project principles
+
+- **Quality over speed.** The single most important factor of this entire project. Milestones ship when they are verified, documented, and understandable by a stranger — never to keep pace. The full contract lives in [CLAUDE.md](CLAUDE.md).
+- **Documentation is a first-class deliverable.** Every script carries a doc header and member docs to the standard in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); every session appends a dated entry to [the devlog](docs/DEVLOG.md); roadmap checkboxes and content-budget ticks are updated in the same commit as the work.
+
 ## Architecture
 
 ```text

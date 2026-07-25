@@ -33,6 +33,11 @@ docs/briefs/  ──►  external model generates  ──►  content/inbox/<typ
    reference them). Prefixes: `q_` `npc_` `item_` `mon_` `quiz_` `lore_` `poi_`.
 5. **Cross-references must resolve.** A quest can't reward an item that doesn't
    exist. The validator checks this across approved + the batch being validated.
+6. **Quality over speed.** The project's prime directive (see `CLAUDE.md`)
+   applies to content too: a smaller batch that clears the voice/canon/fun bar
+   beats a bigger one that almost does. When a review is on the fence, reject
+   with a reason — briefs improve, and content banks indefinitely, so there is
+   never a reason to rush a merge.
 
 ## For Danny: running a ChatGPT batch
 
