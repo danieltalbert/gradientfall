@@ -23,6 +23,8 @@ import re
 import sys
 from pathlib import Path
 
+# Paths are derived from this file's location, so the validator runs
+# correctly from any working directory (CI and local runs both rely on it).
 ROOT = Path(__file__).resolve().parent.parent
 CONTENT = ROOT / "content"
 SCHEMAS = CONTENT / "schemas"
@@ -38,6 +40,9 @@ DIR_TO_SCHEMA = {
     "pois": "poi",
 }
 
+# Canonical ID prefixes and the directory each one belongs in. Enforced so a
+# quest can never be filed under items/, which would silently escape that
+# type's schema. See CLAUDE.md "Naming" and docs/CONTENT_PIPELINE.md rule 4.
 ID_PREFIX_TO_DIR = {
     "q_": "quests",
     "npc_": "npcs",
@@ -50,6 +55,12 @@ ID_PREFIX_TO_DIR = {
 
 
 def type_ok(value, expected: str) -> bool:
+    """Return True if `value` matches a JSON Schema `type` name.
+
+    Booleans are explicitly excluded from "integer" and "number" because
+    Python treats bool as a subclass of int, which would let `true` pass
+    where a difficulty or heart count is required.
+    """
     if expected == "string":
         return isinstance(value, str)
     if expected == "integer":
@@ -66,15 +77,26 @@ def type_ok(value, expected: str) -> bool:
 
 
 def validate_node(value, schema: dict, path: str, errors: list[str]) -> None:
+    """Validate one value against a schema node, recursing into containers.
+
+    Appends human-readable messages to `errors` rather than raising, so a
+    single run reports every problem in a batch instead of only the first.
+    `path` is the dotted location used in those messages (e.g.
+    "q_lost_ledger.rewards.items[2]").
+    """
     expected_type = schema.get("type")
     if expected_type and not type_ok(value, expected_type):
         errors.append(f"{path}: expected {expected_type}, got {type(value).__name__}")
+        # Bail out on a type mismatch: the constraint checks below assume the
+        # value has the right type, and cascading errors would bury the cause.
         return
 
     if "enum" in schema and value not in schema["enum"]:
         errors.append(f"{path}: {value!r} not in allowed values {schema['enum']}")
 
     if isinstance(value, str):
+        # Anchors are stripped because re.fullmatch already anchors both ends;
+        # schema patterns in this project are written with plain ^…$ anchors.
         if "pattern" in schema and not re.fullmatch(schema["pattern"].strip("^$"), value):
             errors.append(f"{path}: {value!r} does not match pattern {schema['pattern']}")
         if "minLength" in schema and len(value) < schema["minLength"]:
@@ -98,6 +120,10 @@ def validate_node(value, schema: dict, path: str, errors: list[str]) -> None:
                 validate_node(element, schema["items"], f"{path}[{i}]", errors)
 
     if isinstance(value, dict):
+        # Objects check three things: required fields are present, no unknown
+        # fields sneak in when additionalProperties is false (this is what
+        # catches typo'd keys that would otherwise be silently ignored), and
+        # each known property validates against its subschema.
         props = schema.get("properties", {})
         for key in schema.get("required", []):
             if key not in value:
@@ -112,6 +138,14 @@ def validate_node(value, schema: dict, path: str, errors: list[str]) -> None:
 
 
 def load_entries(file: Path, errors: list[str]) -> list[dict]:
+    """Read a content file as a list of entries.
+
+    A file may hold either a single entry object or an array of them; both
+    forms normalize to a list here. Returns an empty list (and records an
+    error) for malformed JSON or a non-object entry, so one bad file never
+    aborts the run. utf-8-sig tolerates a BOM, which generators sometimes
+    emit.
+    """
     try:
         data = json.loads(file.read_text(encoding="utf-8-sig"))
     except json.JSONDecodeError as exc:
@@ -126,7 +160,16 @@ def load_entries(file: Path, errors: list[str]) -> list[dict]:
 
 
 def collect_refs(entry: dict) -> list[tuple[str, str]]:
-    """All (ref_id, where) pairs inside an entry that must resolve."""
+    """All (ref_id, where) pairs inside an entry that must resolve.
+
+    Covers every cross-reference field in the seven schemas: quest rewards
+    and prerequisites, quest givers, vendor stock, crafting recipes, monster
+    drops, and POI reward items. `where` names the field for the error
+    message. Fields absent from an entry simply contribute nothing.
+
+    Adding a new referencing field to a schema means adding it here too —
+    otherwise it will never be checked.
+    """
     refs: list[tuple[str, str]] = []
     for item_id in entry.get("rewards", {}).get("items", []):
         refs.append((item_id, "rewards.items"))
@@ -146,7 +189,18 @@ def collect_refs(entry: dict) -> list[tuple[str, str]]:
 
 
 def main() -> int:
+    """Run the validator and return a process exit code (0 = all valid).
+
+    Two passes over the content tree. The first builds the ID universe from
+    approved plus whatever is being checked, so an inbox batch may reference
+    both approved content and its own sibling entries. The second schema-
+    validates only the requested directories and queues cross-references,
+    which are resolved at the end against that universe — forward references
+    within a batch are therefore fine.
+    """
     args = set(sys.argv[1:])
+    # No flags (or an unrecognized one) means approved-only, the default the
+    # commit gate uses.
     check_dirs = []
     if "--all" in args or not (args & {"--inbox", "--all"}):
         check_dirs.append(CONTENT / "approved")
@@ -157,6 +211,7 @@ def main() -> int:
     for stem in set(DIR_TO_SCHEMA.values()):
         schema_file = SCHEMAS / f"{stem}.schema.json"
         if not schema_file.exists():
+            # Exit 2 distinguishes a broken checkout from invalid content (1).
             print(f"FATAL: missing schema {schema_file}")
             return 2
         schemas[stem] = json.loads(schema_file.read_text(encoding="utf-8-sig"))
@@ -166,6 +221,8 @@ def main() -> int:
     universe_dirs = {CONTENT / "approved", *check_dirs}
 
     all_ids: dict[str, str] = {}  # id -> file it came from
+    # Accumulated across both passes; reported together at the end so one run
+    # shows every problem.
     total_errors = 0
     file_count = 0
     entry_count = 0
@@ -176,9 +233,14 @@ def main() -> int:
     for base in sorted(universe_dirs):
         for subdir in DIR_TO_SCHEMA:
             for file in sorted((base / subdir).glob("*.json")):
+                # Load errors are discarded here; the second pass reports
+                # them properly against the files actually being checked.
                 for entry in load_entries(file, []):
                     entry_id = entry.get("id")
                     if isinstance(entry_id, str):
+                        # Same ID in two different files is a collision;
+                        # the same file appearing twice (approved is scanned
+                        # once as itself and once as universe) is not.
                         if entry_id in all_ids and all_ids[entry_id] != str(file):
                             dup_errors.append(
                                 f"{file.relative_to(ROOT)}: duplicate id '{entry_id}' "
