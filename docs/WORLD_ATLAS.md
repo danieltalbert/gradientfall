@@ -1,6 +1,8 @@
 # Gradientfall — World Atlas & Scale Proposal
 
-**Status: PROPOSAL — pending Danny's sign-off. Not yet a locked GDD pillar.**
+**Status: APPROVED — Danny signed off in chat, 2026-07-24 ("The world atlas
+looks good"). Now a working plan; treat layout/scale decisions below as
+settled unless Danny revises them.**
 Drafted 2026-07-22 (mountains lane). This is the "layout + plan first" deliverable
 before any streaming code is written. Nothing here changes the engine yet.
 
