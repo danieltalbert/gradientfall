@@ -22,6 +22,22 @@ flowchart LR
 
 The current slice is deliberately single-region. New regions should reuse these boundaries, add content through the same validator, and remain independently bootable before expansion continues.
 
+## Wiring new systems into `main.gd`
+
+`Main._ready()` is the one place every gameplay system gets instanced, which
+makes it the file parallel sessions collide in most often. The convention:
+
+- Give each system its own `_setup_<system>()` function and call it from
+  `_ready()` with **exactly one line**. Do not add instancing code inline —
+  two sessions editing the same block conflict; two sessions each adding one
+  call line resolve trivially.
+- Keep screenshot mode clean. `_ready()` branches: with `--screenshot=<dir>`
+  it captures and quits, taking no HUD and no roaming enemies. Systems that
+  add UI or spawn actors belong on the normal-play branch only, so visual
+  verification shots stay uncluttered.
+- Prefer `EventBus` signals over direct references between systems. A system
+  that only listens needs no wiring in `main.gd` at all.
+
 ## Code documentation standard
 
 Documentation is a first-class deliverable of this project, and quality over

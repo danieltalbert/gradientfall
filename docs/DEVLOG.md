@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-07-25 (planning) — three milestones going parallel: 7, 8, 10
+
+**READ THIS IF YOU ARE ONE OF THOSE THREE SESSIONS.** Danny is running
+milestones 7, 8, and 10 concurrently in separate sessions, each on its own
+branch. Stay inside your milestone; another session owns the others.
+
+**Why these three can overlap safely**
+- `GameState` already carries `tokens`, `inventory`, and `flags`, and already
+  serializes all three in `to_save_dict()`. **No one bumps `SAVE_VERSION`.**
+  If you think you need to, you are probably changing the save shape — stop
+  and reconsider (iron rule 6).
+- `EventBus` already declares `quiz_answered` + `knowledge_charge_changed`
+  (milestone 7) and `item_acquired` + `tokens_changed` (milestone 10), so
+  neither session should need to touch that file. **Milestone 8 owns the
+  EventBus edit** — dialogue signals do not exist yet.
+- `MeadowTerrain` already flattens Bootstrap's pad at `TOWN_CENTER (0, 30)`
+  (inner 38 m / outer 75 m), and `MeadowLandmarks` already registers
+  `bootstrap_town`. Milestone 8 should not need to touch terrain.
+
+**The one real collision: `main.gd`.** All three want to instance something
+in `_ready()`. Follow the new "Wiring new systems into `main.gd`" convention
+in `docs/ARCHITECTURE.md` — your own `_setup_<system>()` function plus
+exactly one call line — so merges stay one-liners.
+
+**Scope notes**
+- **Milestone 10 is inventory/items/Tokens ONLY this round.** The vendor
+  needs an NPC to trade with, which is milestone 8's dialogue UI. Leave the
+  vendor as a follow-up.
+- Milestone 10 is also content-blocked: only 4 items are approved and 15 sit
+  unreviewed in `content/inbox/items/batch_03.json`. Merge that batch first
+  (validator passes on it already) or you are building against nothing.
+- **Milestone 7 builds on UNSEEN combat code.** If Danny's playtest retunes
+  the combo or parry window, expect churn.
+
+**Merge order:** 8 first (it owns the EventBus edit and unblocks the
+vendor), then 7 and 10 in either order.
+
+**DONE this entry** — corrected a stale doc comment in `game_state.gd` that
+cited "iron rule 5" for save compatibility; the restored `CLAUDE.md` added
+the documentation rule as #3, so save is now rule **6**. By the standard
+adopted today a stale comment is a bug, and this one was mine.
+
+---
+
 ## 2026-07-25 (live session, real Godot 4.7.1) — boot verification of the UNSEEN milestones
 
 **DONE — the engine actually ran, for the first time since the publish snapshot**

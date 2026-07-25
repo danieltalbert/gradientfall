@@ -5,7 +5,11 @@ extends Node
 ## Save/load itself lands in a later Phase 1 milestone; this autoload already
 ## carries the versioned shape so systems built in between target it from day
 ## one. Any change to the serialized structure bumps SAVE_VERSION and adds a
-## migration (CLAUDE.md iron rule 5).
+## migration (CLAUDE.md iron rule 6).
+##
+## Already carries `tokens`, `inventory`, and `flags` — and serializes all
+## three in `to_save_dict()` — so the inventory/economy and quest milestones
+## can build on them without changing the save shape or bumping SAVE_VERSION.
 
 const SAVE_VERSION: int = 1
 
