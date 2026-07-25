@@ -8,23 +8,58 @@ extends Node3D
 ## composed around the meadow at a low apparent elevation because Kern's
 ## third-person camera looks slightly down; this keeps substantial cloud
 ## silhouettes in every authored vista instead of hiding them above frame.
+##
+## Sits at Main/World/Clouds (main.tscn). Geometry is built once in
+## `_ready()`: each bank is a summed-Gaussian "metaball" field polygonised
+## with marching tetrahedra into an opaque Core mesh plus a translucent
+## Wisps mesh (painterly_cloud.gdshader / painterly_cloud_wisp.gdshader).
+## Per frame the banks drift and bob, and `_update_palette()` regrades the
+## two shared materials from ../SkyCycle's hour and ../../Sun's live
+## direction and energy. Vertex COLOR is a non-color payload the shaders
+## decode: R = 0-1 height within the bank, G = per-lobe tone, B = motion
+## phase, A = density. All distances are meters; the ring spans roughly
+## 520-1120 m out from the meadow.
 
+## Fixed seed gives the same sky composition every boot (date-stamped, same
+## convention as BorderVistas' VISTA_SEED).
 const CLOUD_SEED: int = 20260719
+## Banks in the ring; even indices form the inner ring, odd the outer.
 const CLOUD_COUNT: int = 18
+## Ring center — matches MeadowTerrain.SPAWN_POINT (-58, -62), so cloud
+## coverage reads balanced from where Kern actually starts, not world origin.
 const CLOUD_ORIGIN: Vector3 = Vector3(-58.0, 0.0, -62.0)
+## Drift bounds: banks slide toward +X and teleport back to WRAP_MIN_X once
+## past WRAP_MAX_X. The 3.1 km jump happens far off to the side of every
+## authored vista, so the pop is never on camera.
 const WRAP_MIN_X: float = -1550.0
 const WRAP_MAX_X: float = 1550.0
 const CORE_SHADER: Shader = preload("res://assets/shaders/painterly_cloud.gdshader")
 const WISP_SHADER: Shader = preload("res://assets/shaders/painterly_cloud_wisp.gdshader")
 
+## Gaussian falloff rate of each puff's field term,
+## strength * exp(-FIELD_FALLOFF * d²), with d² the ellipsoid-normalized
+## squared distance. Higher values give crisper, more separated lobes.
 const FIELD_FALLOFF: float = 2.15
+## Isosurface levels extracted by the marching pass. The wisp threshold is
+## lower so the weak, flattened wisp puffs still yield a surface.
 const CORE_THRESHOLD: float = 0.30
 const WISP_THRESHOLD: float = 0.25
+## Six-tetrahedron decomposition of a grid cell, as indices into the
+## `corners` array built in `_build_implicit_mesh()` (0 = cell origin,
+## 1 = +X, 2 = +XY, 3 = +Y, 4 = +Z, 5 = +XZ, 6 = +XYZ, 7 = +YZ). All six
+## tetras share the 0-6 body diagonal, and every cell splits its faces the
+## same way, so neighboring cells' surfaces meet without cracks.
 const TETRAHEDRA: Array = [
 	[0, 5, 1, 6], [0, 1, 2, 6], [0, 2, 3, 6],
 	[0, 3, 7, 6], [0, 7, 4, 6], [0, 4, 5, 6],
 ]
 
+## One anisotropic Gaussian blob ("metaball") of a bank's implicit field.
+## Contributes strength * exp(-FIELD_FALLOFF * d²) at a sample point, where
+## d² is the squared distance measured in the puff's rotated frame and
+## normalized per axis by `radii` (meters). `tone` (0-1) is a painterly
+## value shift blended into vertex COLOR.G. `inverse_basis` caches the
+## rotation's inverse — the transpose suffices for an orthonormal basis.
 class CloudPuff:
 	var center: Vector3
 	var radii: Vector3
@@ -41,8 +76,12 @@ class CloudPuff:
 		strength = s
 		tone = t
 
+# Both materials are shared by every bank, so one palette write per frame
+# regrades the entire sky.
 var _core_material: ShaderMaterial
 var _wisp_material: ShaderMaterial
+# Per-bank motion state, parallel to _clouds: drift speed (m/s), rest
+# height/depth for the bob, and a phase offset desynchronizing the banks.
 var _clouds: Array[Node3D] = []
 var _speeds: PackedFloat32Array = PackedFloat32Array()
 var _base_heights: PackedFloat32Array = PackedFloat32Array()
@@ -53,6 +92,9 @@ var _cycle: SkyCycle
 var _sun: DirectionalLight3D
 
 
+## Build the whole ring once: CLOUD_COUNT banks cycling through the four
+## silhouette profiles, alternating inner (520-760 m) and outer (820-1120 m)
+## radii so the sky reads as layered depth rather than a single hoop.
 func _ready() -> void:
 	_cycle = get_node_or_null("../SkyCycle") as SkyCycle
 	_sun = get_node_or_null("../../Sun") as DirectionalLight3D
@@ -65,6 +107,8 @@ func _ready() -> void:
 	rng.seed = CLOUD_SEED
 	for i in CLOUD_COUNT:
 		var cloud: Node3D = _build_cloud(rng, i % 4)
+		# Even angular spacing; the 0.36 slot offset rotates the pattern off
+		# the world axes, and the jitter breaks the remaining regularity.
 		var ring_slot: float = (float(i) + 0.36) / float(CLOUD_COUNT)
 		var angle: float = ring_slot * TAU + rng.randf_range(-0.075, 0.075)
 		var outer_ring: bool = i % 2 == 1
@@ -81,6 +125,8 @@ func _ready() -> void:
 		cloud.rotation.y = -angle - PI * 0.5 + rng.randf_range(-0.22, 0.22)
 		var scale_factor: float = rng.randf_range(0.88, 1.24)
 		if outer_ring:
+			# Upscale distant banks so perspective doesn't shrink the outer
+			# ring into specks behind the inner one.
 			scale_factor *= rng.randf_range(1.05, 1.32)
 		cloud.scale = Vector3(scale_factor, scale_factor, scale_factor)
 		add_child(cloud)
@@ -94,6 +140,8 @@ func _ready() -> void:
 	print("CloudLayer: %d layered cloud banks adrift." % CLOUD_COUNT)
 
 
+## Drift every bank toward +X at its own speed (wrapping at the far bound),
+## overlay a near-imperceptible bob and sway, and retrack the palette.
 func _process(delta: float) -> void:
 	_elapsed += delta
 	for i in _clouds.size():
@@ -101,15 +149,23 @@ func _process(delta: float) -> void:
 		cloud.position.x += _speeds[i] * delta
 		if cloud.position.x > WRAP_MAX_X:
 			cloud.position.x = WRAP_MIN_X
+		# Minutes-long sine periods, ±1.4 m vertically and ±3.2 m in depth:
+		# alive on a long stare, invisible moment to moment.
 		cloud.position.y = _base_heights[i] + sin(_elapsed * 0.035 + _phases[i]) * 1.4
 		cloud.position.z = _base_depths[i] + sin(_elapsed * 0.022 + _phases[i] * 1.7) * 3.2
 	_update_palette()
 
 
+## Assemble one bank: compose CloudPuff lists (a weak backbone, 4-6 base
+## lobes, 3-5 upper cauliflower lobes, 1-2 tower shoulders, 3-4 depth
+## billows) and polygonise them into an opaque Core mesh plus a translucent
+## Wisps mesh. `profile` (0-3) picks the silhouette family via tower height.
 func _build_cloud(rng: RandomNumberGenerator, profile: int) -> Node3D:
 	var cloud: Node3D = Node3D.new()
 	cloud.name = "CloudBank"
 
+	# Long-axis span of the bank (m) and the master lobe scale that every
+	# puff radius below derives from.
 	var width: float = rng.randf_range(145.0, 225.0)
 	var base_radius: float = rng.randf_range(19.0, 28.0)
 	var tower_factor: float = 0.8
@@ -123,6 +179,8 @@ func _build_cloud(rng: RandomNumberGenerator, profile: int) -> Node3D:
 		3:
 			tower_factor = 0.64  # deep multi-tower mass
 
+	# Vertical range baked into vertex COLOR.R (0 at bottom, 1 at top) so
+	# the shaders can ramp underside → top shading on the fused surface.
 	var cloud_bottom: float = -base_radius * 0.96
 	var cloud_top: float = base_radius * (1.55 + tower_factor * 1.45)
 	var core_puffs: Array[CloudPuff] = []
@@ -139,6 +197,8 @@ func _build_cloud(rng: RandomNumberGenerator, profile: int) -> Node3D:
 	var base_lobes: int = rng.randi_range(4, 6)
 	for lobe_index in base_lobes:
 		var t: float = (float(lobe_index) + 0.5) / float(base_lobes)
+		# sin(t·π) lifts mid-span lobes so the underside arches gently
+		# instead of sagging into a straight tube.
 		var arc: float = sin(t * PI)
 		var radius: float = base_radius * rng.randf_range(0.90, 1.14)
 		var center: Vector3 = Vector3(
@@ -221,6 +281,9 @@ func _build_cloud(rng: RandomNumberGenerator, profile: int) -> Node3D:
 
 	var core: MeshInstance3D = MeshInstance3D.new()
 	core.name = "Core"
+	# Sample box padded past the puff extents so the isosurface never clips
+	# its bounds; 26x14x14 cells is plenty for silhouettes viewed from
+	# 500+ m, and the shader's vertex billow hides the coarse tessellation.
 	core.mesh = _build_implicit_mesh(
 		core_puffs,
 		Vector3(-width * 0.59, cloud_bottom - base_radius * 0.34, -base_radius * 1.68),
@@ -229,9 +292,15 @@ func _build_cloud(rng: RandomNumberGenerator, profile: int) -> Node3D:
 		cloud_bottom, cloud_top, rng.randf(), 1.0
 	)
 	core.material_override = _core_material
+	# Light response is painted in the shader; real shadows from 150-225 m
+	# banks would drag km-long patches across the meadow.
 	core.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	cloud.add_child(core)
 
+	# Wind-sheared shreds trail off one randomly chosen end of the bank:
+	# wide, flat ellipsoids (up to ~3x wider than tall) meshed separately so
+	# the translucent wisp shader can dissolve them without ever thinning
+	# the opaque core.
 	var wisp_puffs: Array[CloudPuff] = []
 	var wisp_count: int = rng.randi_range(3, 4)
 	var wind_side: float = -1.0 if rng.randf() < 0.5 else 1.0
@@ -269,6 +338,14 @@ func _build_cloud(rng: RandomNumberGenerator, profile: int) -> Node3D:
 	return cloud
 
 
+## Polygonise the summed Gaussian field of `puffs` into an ArrayMesh.
+## The field is sampled on a (resolution+1)³ lattice spanning
+## [minimum, maximum] (local meters); marching tetrahedra then splits each
+## cell into the six TETRAHEDRA, each contributing 0-2 triangles where the
+## field crosses `threshold`. `cloud_bottom`/`cloud_top` scale the COLOR.R
+## height ramp, `phase` (one random per cloud, stored in COLOR.B)
+## desynchronizes shader motion between banks, and `density` fills COLOR.A
+## (1.0 for cores, 0.62 for wisps).
 func _build_implicit_mesh(
 		puffs: Array[CloudPuff],
 		minimum: Vector3,
@@ -285,6 +362,8 @@ func _build_implicit_mesh(
 	var points_x: int = resolution.x + 1
 	var points_y: int = resolution.y + 1
 	var points_z: int = resolution.z + 1
+	# Pre-sample every lattice corner once; each cell below then just
+	# indexes this array instead of re-evaluating the field 8 times.
 	var field: PackedFloat32Array = PackedFloat32Array()
 	field.resize(points_x * points_y * points_z)
 	var step: Vector3 = (maximum - minimum) / Vector3(resolution)
@@ -298,6 +377,7 @@ func _build_implicit_mesh(
 		for y in resolution.y:
 			for x in resolution.x:
 				var cell_origin: Vector3 = minimum + Vector3(float(x), float(y), float(z)) * step
+				# Corner order is the convention TETRAHEDRA indexes into.
 				var corners: Array[Vector3] = [
 					cell_origin,
 					cell_origin + Vector3(step.x, 0.0, 0.0),
@@ -327,10 +407,13 @@ func _build_implicit_mesh(
 	return builder.commit()
 
 
+## Flatten lattice coordinates into the packed field array (x fastest).
 func _field_index(x: int, y: int, z: int, points_x: int, points_y: int) -> int:
 	return x + points_x * (y + points_y * z)
 
 
+## Field strength at `point`: the sum of every puff's Gaussian term, with
+## distances measured in each puff's rotated, per-axis-normalized frame.
 func _sample_field(point: Vector3, puffs: Array[CloudPuff]) -> float:
 	var total: float = 0.0
 	for puff: CloudPuff in puffs:
@@ -340,11 +423,17 @@ func _sample_field(point: Vector3, puffs: Array[CloudPuff]) -> float:
 			+ local.y * local.y / (puff.radii.y * puff.radii.y)
 			+ local.z * local.z / (puff.radii.z * puff.radii.z)
 		)
+		# Beyond d² = 3.2 the term is < ~0.1% of strength — skip the exp.
 		if distance_squared < 3.2:
 			total += puff.strength * exp(-FIELD_FALLOFF * distance_squared)
 	return total
 
 
+## Emit the isosurface crossing of one tetrahedron (marching tetrahedra).
+## The four corners are classified against `threshold`: all on one side
+## emits nothing; a lone corner on either side emits one triangle around
+## it; the 2-2 split emits a quad as two triangles. Crossing points are
+## interpolated along the tetra's edges by `_field_edge()`.
 func _polygonise_tetra(
 		builder: SurfaceTool,
 		puffs: Array[CloudPuff],
@@ -388,6 +477,9 @@ func _polygonise_tetra(
 	_append_field_triangle(builder, puffs, ac, bd, bc, cloud_bottom, cloud_top, phase, density)
 
 
+## Point where the field crosses `threshold` along the edge a-b, by linear
+## interpolation of the two sampled corner values. Falls back to the edge
+## midpoint when the values are near-identical (degenerate denominator).
 func _field_edge(a: Vector3, b: Vector3, value_a: float, value_b: float, threshold: float) -> Vector3:
 	var denominator: float = value_b - value_a
 	if absf(denominator) < 0.00001:
@@ -395,6 +487,11 @@ func _field_edge(a: Vector3, b: Vector3, value_a: float, value_b: float, thresho
 	return a.lerp(b, clampf((threshold - value_a) / denominator, 0.0, 1.0))
 
 
+## Emit one isosurface triangle with smooth field-gradient normals. If the
+## triangle's geometric (face) normal disagrees with the sampled normals,
+## b and c are swapped — marching tetrahedra emits corners in arbitrary
+## order, so winding must be fixed here or faces would backface-cull
+## randomly across the surface.
 func _append_field_triangle(
 		builder: SurfaceTool,
 		puffs: Array[CloudPuff],
@@ -422,6 +519,11 @@ func _append_field_triangle(
 	_append_field_vertex(builder, puffs, c, normal_c, cloud_bottom, cloud_top, phase, density)
 
 
+## Smooth outward normal at `point`: the negated, normalized gradient of
+## the summed Gaussian field (the field decreases outward, so the gradient
+## points inward). Each puff's term is differentiated in its own rotated
+## frame via the chain rule, then rotated back with `puff.basis`. Uses the
+## same d² < 3.2 cutoff as `_sample_field()` so normal and surface agree.
 func _field_normal(point: Vector3, puffs: Array[CloudPuff]) -> Vector3:
 	var gradient: Vector3 = Vector3.ZERO
 	for puff: CloudPuff in puffs:
@@ -444,6 +546,9 @@ func _field_normal(point: Vector3, puffs: Array[CloudPuff]) -> Vector3:
 	return -gradient.normalized()
 
 
+## Influence-weighted average of the contributing puffs' `tone` values at
+## `point` — the painterly value shift the shaders read from COLOR.G, so
+## each lobe keeps its own light/dark identity across the fused surface.
 func _sample_tone(point: Vector3, puffs: Array[CloudPuff]) -> float:
 	var weighted_tone: float = 0.0
 	var weight: float = 0.0
@@ -461,6 +566,10 @@ func _sample_tone(point: Vector3, puffs: Array[CloudPuff]) -> float:
 	return weighted_tone / maxf(weight, 0.0001)
 
 
+## Write one vertex with the full shader payload: normal, a world-scaled UV
+## (xz * 0.01) for stable noise sampling, and the non-color COLOR channels —
+## R = normalized height in the bank, G = painterly tone, B = motion phase,
+## A = density (see the class header's vertex-color contract).
 func _append_field_vertex(
 		builder: SurfaceTool,
 		puffs: Array[CloudPuff],
@@ -478,6 +587,13 @@ func _append_field_vertex(
 	builder.add_vertex(position)
 
 
+## Regrade both shared cloud materials from the time of day. Three weights
+## derive from SkyCycle's 0-24 `hour`: day_amount ramps up 5:00-8:12 and
+## down 18:00-21:12; dawn/dusk are triangular peaks at 6:15 and 18:09 whose
+## max drives the warm sunrise/sunset tint (dusk redder than dawn). Night
+## values are the lerp floors. When the Sun light exists, its live
+## direction and energy replace the fallback so cloud shading tracks the
+## actual light; null-safe defaults keep clouds sane in stripped scenes.
 func _update_palette() -> void:
 	var hour: float = _cycle.hour if _cycle != null else 10.0
 	var day_amount: float = smoothstep(5.0, 8.2, hour) * (1.0 - smoothstep(18.0, 21.2, hour))
@@ -509,6 +625,8 @@ func _update_palette() -> void:
 	_apply_palette_to_material(_wisp_material, top_color, middle_color, underside_color, rim_color, sun_direction, sun_strength)
 
 
+## Push one computed palette into a cloud material's uniforms. Core and
+## wisp shaders share the same parameter names, so both take this verbatim.
 func _apply_palette_to_material(
 		material: ShaderMaterial,
 		top_color: Color,
