@@ -82,9 +82,11 @@ world), `npc_interactor.gd` (the conversation state machine). New
   `atan2(-x, -z)`).
 - **Screenshots**: no Vulkan ICD here, but Mesa software GL + xvfb runs the
   project under `gl_compatibility`, so the town was actually looked at (see
-  `docs/progress/milestone8_*`). Caveat for the next live session: that path
-  has **no SDFGI, no TAA, no volumetric fog and no SSAO**, so these shots are
-  a composition/silhouette check, not the Forward+ look Danny judges.
+  `docs/progress/milestone8_*` — square, hall, market, Mara at the inn door,
+  the dialogue box mid-sentence, and the town lit at night). Caveats for the
+  next live session: that path has **no SDFGI, no TAA, no volumetric fog and
+  no SSAO**, and the pond's water shader renders flat white on it, so these
+  shots are a composition/silhouette check, not the Forward+ look Danny judges.
   Looking is worth it: the shots caught three things no lint would have —
   **window panes were invisible** (a QuadMesh on a wall authored facing -Z
   points its one face into the room; they draw both sides now, which is why

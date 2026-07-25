@@ -122,6 +122,9 @@ static func collide_box(body: CollisionObject3D, size: Vector3, pos: Vector3,
 ## can find them without wiring.
 const GLASS_DAY: Color = Color(0.12, 0.14, 0.19)
 const GLASS_NIGHT: Color = Color(1.0, 0.79, 0.44)
+## Same crossfade for a lantern flame: cold soot by day, lit at dusk.
+const FLAME_DAY: Color = Color(0.2, 0.18, 0.16)
+const FLAME_NIGHT: Color = Color(1.0, 0.72, 0.34)
 
 
 static func window_pane(parent: Node3D, part_name: String, size: Vector2,
@@ -149,8 +152,9 @@ static func window_pane(parent: Node3D, part_name: String, size: Vector2,
 ## fades them in at dusk); the node returned is the flame mesh.
 static func lantern(parent: Node3D, part_name: String, pos: Vector3,
 		radius: float = 9.0) -> MeshInstance3D:
-	var flame: MeshInstance3D = part(parent, part_name, ball(0.08, 8, 5), pos,
-		emissive(Color(1.0, 0.72, 0.34), 0.0))
+	var flame_mat: StandardMaterial3D = emissive(FLAME_NIGHT, 0.0)
+	flame_mat.albedo_color = FLAME_DAY
+	var flame: MeshInstance3D = part(parent, part_name, ball(0.08, 8, 5), pos, flame_mat)
 	flame.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var light: OmniLight3D = OmniLight3D.new()
 	light.name = part_name + "Light"

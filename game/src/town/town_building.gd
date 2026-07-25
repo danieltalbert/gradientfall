@@ -65,7 +65,17 @@ func build(style: String, size: Vector3, wall: Color, roof: Color,
 		_hanging_sign(str(opts["sign"]), Vector3(0.0, h * 0.72, -d * 0.5 - 0.06),
 			float(opts.get("sign_side", 1.0)))
 	if bool(opts.get("lantern", false)):
-		TownKit.lantern(self, "DoorLantern", Vector3(1.0, 2.2, -d * 0.5 - 0.18), 8.0)
+		# A flame with nothing around it reads as a floating bead by daylight,
+		# so the door lantern gets its bracket and housing like a street lamp.
+		var at: Vector3 = Vector3(1.0, 2.3, -d * 0.5 - 0.16)
+		TownKit.plank(self, "LanternBracket", Vector3(0.42, 0.06, 0.06),
+			at + Vector3(-0.2, 0.3, 0.14), Color(0.2, 0.2, 0.22))
+		TownKit.plank(self, "LanternHousing", Vector3(0.26, 0.3, 0.26), at,
+			Color(0.2, 0.2, 0.22))
+		TownKit.part(self, "LanternCap", TownKit.cyl(0.0, 0.22, 0.14, 4),
+			at + Vector3(0.0, 0.21, 0.0), TownKit.toon(Color(0.17, 0.17, 0.19)),
+			Vector3(0.0, PI * 0.25, 0.0))
+		TownKit.lantern(self, "DoorLantern", at, 8.0)
 
 
 # --- Styles ------------------------------------------------------------------

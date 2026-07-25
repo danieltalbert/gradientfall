@@ -388,6 +388,7 @@ func _apply_night(night: float) -> void:
 	for flame: MeshInstance3D in _lamp_flames:
 		var fmat: StandardMaterial3D = flame.material_override as StandardMaterial3D
 		if fmat != null:
+			fmat.albedo_color = TownKit.FLAME_DAY.lerp(TownKit.FLAME_NIGHT, night)
 			fmat.emission_energy_multiplier = night * 3.2
 	for light: OmniLight3D in _lamp_lights:
 		light.light_energy = night * NIGHT_LAMP_ENERGY
