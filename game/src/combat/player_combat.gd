@@ -10,9 +10,10 @@ extends Node
 ## Contents: a 3-hit light combo with a forgiving buffer window, a roll-dodge
 ## with i-frames, a hold-block with a tight parry window, and a "focus" special
 ## that spends a knowledge charge for a shard-nova. The charge SOURCE is the
-## next milestone's job (an in-combat quiz) — this file only exposes add_charge()
-## and listens on EventBus.quiz_answered, plus a dev fill key for unseen-build
-## verification. All tunables are consts up top: the numbers are the feel.
+## in-combat quiz (milestone 7, `KnowledgeQuiz`), which reaches this file only
+## through EventBus.quiz_answered; a clean parry pays a sliver too, and a dev
+## fill key survives for verification. All tunables are consts up top: the
+## numbers are the feel.
 
 enum Atk { READY, WINDUP, ACTIVE, RECOVER }
 
@@ -43,8 +44,11 @@ const PARRY_WINDOW: float = 0.18
 const BLOCK_CHIP: float = 0.25       # fraction of damage that leaks through a block
 const BLOCK_FRONT_DOT: float = 0.1   # how frontal a blow must be to be guarded
 
-# Focus / knowledge charge.
+# Focus / knowledge charge. A D1 question is a third of the meter (three right
+# answers arm the special); harder questions are worth proportionally more, so
+# the late campaign's D4/D5 bank pays for the risk of a longer read mid-fight.
 const CHARGE_PER_QUIZ: float = 0.34
+const CHARGE_PER_DIFFICULTY: float = 0.06
 const SPECIAL_DAMAGE: float = 1.6
 const SPECIAL_RADIUS: float = 4.6
 const SPECIAL_KNOCKBACK: float = 10.0
@@ -355,7 +359,7 @@ func _update_hitbox() -> void:
 
 func _read_special() -> void:
 	if Input.is_action_just_pressed(&"debug_charge"):
-		add_charge(1.0)  # dev-only: verify the special without the quiz system
+		add_charge(1.0)  # dev-only: arm the special without waiting for questions
 	if Input.is_action_just_pressed(&"special"):
 		_try_special()
 
@@ -383,9 +387,12 @@ func add_charge(amount: float) -> void:
 	_emit_charge()
 
 
-func _on_quiz_answered(_quiz_id: String, correct: bool) -> void:
-	if correct:
-		add_charge(CHARGE_PER_QUIZ)
+func _on_quiz_answered(quiz_id: String, correct: bool) -> void:
+	if not correct:
+		return
+	# The question's own rating decides the payout; the emitter never has to.
+	var difficulty: int = maxi(1, int(ContentDB.get_entry("quizzes", quiz_id).get("difficulty", 1)))
+	add_charge(CHARGE_PER_QUIZ + CHARGE_PER_DIFFICULTY * float(difficulty - 1))
 
 
 func _emit_charge() -> void:

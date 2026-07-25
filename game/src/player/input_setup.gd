@@ -43,8 +43,24 @@ static func ensure() -> void:
 	_pad_button(&"dodge", JOY_BUTTON_B)
 	_key(&"special", KEY_Q)
 	_pad_button(&"special", JOY_BUTTON_Y)
-	# Dev-only: fill the focus meter to verify the special without a quiz UI.
+	# Knowledge charge (milestone 7) — answering the in-combat question. Number
+	# row + numpad on keyboard; the d-pad reads clockwise from up on a gamepad,
+	# so the four choices map to four directions you never have to look for.
+	_key(&"quiz_choice_1", KEY_1)
+	_key(&"quiz_choice_1", KEY_KP_1)
+	_pad_button(&"quiz_choice_1", JOY_BUTTON_DPAD_UP)
+	_key(&"quiz_choice_2", KEY_2)
+	_key(&"quiz_choice_2", KEY_KP_2)
+	_pad_button(&"quiz_choice_2", JOY_BUTTON_DPAD_RIGHT)
+	_key(&"quiz_choice_3", KEY_3)
+	_key(&"quiz_choice_3", KEY_KP_3)
+	_pad_button(&"quiz_choice_3", JOY_BUTTON_DPAD_DOWN)
+	_key(&"quiz_choice_4", KEY_4)
+	_key(&"quiz_choice_4", KEY_KP_4)
+	_pad_button(&"quiz_choice_4", JOY_BUTTON_DPAD_LEFT)
+	# Dev-only: fill the focus meter (F) / force a question outside a fight (G).
 	_key(&"debug_charge", KEY_F)
+	_key(&"debug_quiz", KEY_G)
 
 
 static func _action(action: StringName) -> void:

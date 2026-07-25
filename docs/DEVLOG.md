@@ -4,6 +4,107 @@
 
 ---
 
+## 2026-07-25 (session, **Godot 4.7.1 running in-sandbox**) — Knowledge charge v1
+
+**THE BIG ONE FIRST — this environment can run Godot.** Every entry below
+2026-07-16 says "no Godot here, UNSEEN". That was never true, it was just never
+tried: the sandbox's outbound proxy allows GitHub release downloads, so
+`Godot_v4.7.1-stable_linux.x86_64` (the same build the live sessions use) drops
+straight into a scratch dir and runs. Three verification levels are now open to
+any autonomous run, and all three were used on this milestone:
+1. `godot --headless --path game --import` — real parse + class-cache pass.
+   Catches everything the old hand-rolled smoke-lint could only guess at, and
+   it generates the `.uid` files the CLAUDE.md convention wants committed.
+2. `godot --headless --path game --fixed-fps 60 res://tests/…tscn` — the game's
+   own systems driven for real, exit code 0/1. `--fixed-fps` is load-bearing.
+3. `xvfb-run -a godot --rendering-driver opengl3 --resolution 1280x720
+   --fixed-fps 60 -- --ui-screenshot=DIR` — Mesa llvmpipe renders it in
+   software. Slow (~10 s/frame at 720p, so pose in ~30 frames, not 500) and it
+   is the **gl_compatibility** renderer, so world lighting is NOT the Forward+
+   look — but UI is UI, and screen-space work can finally be looked at.
+The binary is NOT committed (110–145 MB); refetch it per session.
+
+**DONE — roadmap milestone 7: Knowledge charge v1 (built, run, and seen)**
+New `game/src/knowledge/`: `quiz_bank.gd` (draw policy) and `knowledge_quiz.gd`
+(the in-combat director); new `game/src/ui/quiz_card.gd` (the card); new
+`game/tests/quiz_selftest.{gd,tscn}`. Wired: `input_setup.gd` (+`quiz_choice_1..4`
+on the number row/numpad and the d-pad, +`debug_quiz` on G), `main.gd` (spawns
+the director; new `--ui-screenshot=` capture mode), `player_combat.gd` (the
+charge payout now reads the question's difficulty), `enemy.gd` (+`is_alive()`).
+**`event_bus.gd` was not touched** — Combat v1 had already declared every signal
+this needed, which is the boundary working as intended.
+- **The loop**: a fight starts → four seconds in, a question rises from the
+  bottom of the screen with its answer clock running → 1–4 (or the d-pad,
+  clockwise from up) → right answer pays focus, wrong or missed shows the right
+  answer *and its explanation* and costs nothing but the charge. Three right
+  answers arm the shard-nova; the card says so ("PRESS Q — FOCUS FULL").
+- **Deliberate design calls (autonomous, flagged for review):**
+  1. **Time does not slow and the world does not pause.** GDD §9 says fights
+     happen in-world, in place; a pause would also have meant two owners for
+     `Engine.time_scale` (Combat v1's hitstop already owns it).
+  2. **Taking a hit dismisses the card** — no penalty, short cooldown. This is
+     what makes the charge a *combat* resource: dodge out, make space, then
+     answer. It is the one call most likely to want a feel tune.
+  3. **A wrong answer costs nothing.** All-ages teaching game: being wrong buys
+     you the explanation. A timeout isn't even scored as an answer (no
+     `quiz_answered` emit), so Bit never sasses you for a question you were
+     never given the chance to answer.
+  4. **Bit is not the asker.** She reacts (her quiz barks already existed and
+     fire on the signal), but GDD §6 says she serves no mandatory gameplay
+     purpose — routing the mechanic through her would have broken that.
+  5. **Charge scales with difficulty** (D1 0.34 → D5 0.58) via a ContentDB
+     lookup on the quiz id, so the payout rides the existing two-argument
+     signal instead of needing a new one.
+  6. **Save shape untouched** again — the asked-question history is
+     session-lived, so no `SAVE_VERSION` bump. Persisting it (and a "questions
+     answered" stat for the compendium) belongs to the save/load milestone.
+- **Progress gating** (WORLDBOOK Part III): D1–2 anywhere, D3 after 3 Memory
+  Shrines, D4 after 6, D5 at the endgame. The shrines are a Phase 4 milestone,
+  so `QuizBank.SHRINE_FLAGS` declares the nine canonical `GameState` flag ids in
+  WORLDBOOK order now — the shrine milestone should set those names, not invent
+  new ones. Today that means 17 of the 41 approved questions are reachable in
+  the meadow, which the boot log prints.
+- **Region affinity**: `REGION_TOPICS` leans the meadow toward `ml_basics` and
+  `data` (75/25) — a lean, never a lock, and unmapped regions draw from
+  everything.
+
+**DONE — verification (the part that used to say UNSEEN)**
+- Clean import in Godot 4.7.1: **0 errors, 0 warnings** across the project.
+- Clean boot, 400 frames, no errors; `Knowledge charge v1 online: 17
+  question(s) reachable in 'datasedge_meadows' (up to difficulty 2).`
+- `res://tests/quiz_selftest.tscn`: **27/27 PASS**. It drives the real
+  `player.tscn`, the real approved bank, and the live EventBus through: the
+  difficulty gate at 0/3/6/9 shrines, 200 draws (no back-to-back repeat, whole
+  pool covered, even distribution), the D1/D5 charge payouts, the clamp at
+  full, **the special actually spending the meter**, no-question-without-a-fight,
+  the grace beat, offer → answer → charge, wrong answers, timeouts,
+  hit-interrupts, and silence while focus is full. Two real bugs died here: the
+  engagement check used 3D distance (now horizontal, like `Enemy`'s own aggro),
+  and the card kept redrawing while hidden.
+- **Screenshots** (`docs/progress/milestone7_*.png`): the question mid-countdown,
+  a correct verdict with its explanation, the moment focus tops off, and a wrong
+  pick showing both the right answer and the mistake. Rendered in software under
+  `gl_compatibility` — the card, hearts and meter are exactly what a player sees;
+  the *world* behind them is not the Forward+ look (no TAA/SDFGI/volumetrics,
+  and that giant pale sun disc is a compatibility artifact, not a regression).
+
+**HALF-FORMED / for a live session**
+- **Feel, not correctness, is what's left.** Nobody has played this. The
+  numbers most likely to need a human: `FIRST_OFFER_DELAY` (4 s), the answer
+  window (8 s at D1 → 14 s at D5), the cooldowns (15 s after a right answer),
+  and whether the hit-interrupt is tension or annoyance.
+- The card is bottom-centre and fairly large at 720p. It reads well in the
+  shots, but a real fight is the judge.
+- Content pipeline **deliberately untouched this run** (other sessions own
+  milestones 8 and 10, and this brief was milestone-7-only):
+  `content/inbox/items/batch_03.json` is waiting for review, and the stale empty
+  `content/inbox/quests/batch_02.json` from the 07-18 run is still there.
+
+**NEXT UP** — milestone 9 (quest system + journal) is the unclaimed one; 8 and
+10 are owned. Whoever takes the next engine milestone: run the three
+verification levels above, and add a `tests/*_selftest.tscn` alongside the work
+— the harness pattern is cheap and it caught two bugs in its first hour.
+
 ## 2026-07-18 (scheduled autonomous run #2, no Godot) — Combat v1
 
 **DONE — content pipeline**

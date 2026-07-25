@@ -330,6 +330,12 @@ func apply_hit(amount: float, from_position: Vector3, knockback: float) -> void:
 		_set_state(State.STAGGER)
 
 
+## Still a threat? False once it has come apart, and while a dummy re-forms.
+## Systems that ask "is Kern in a fight" filter on this rather than on the group.
+func is_alive() -> bool:
+	return _state != State.DEAD and _state != State.REFORM
+
+
 func _on_died() -> void:
 	_end_strike()
 	_state = State.DEAD
