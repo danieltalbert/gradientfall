@@ -19,6 +19,8 @@ var _spawner: MonsterSpawner
 var _hud: CombatHud
 var _dialogue: DialogueUi
 var _interactor: NpcInteractor
+var _pack: InventoryScreen
+var _forage: MeadowForage
 
 
 func _ready() -> void:
@@ -83,6 +85,20 @@ func _setup_dialogue() -> void:
 	print("Bootstrap online: %d villagers to talk to — walk up and press E." % [
 		get_tree().get_nodes_in_group(&"npc").size(),
 	])
+	_setup_pack()
+
+
+## Milestone 10: the pack screen plus the forage that fills it. Forage is built
+## after the landmarks because curios and tools cluster around them.
+func _setup_pack() -> void:
+	_pack = InventoryScreen.new()
+	_pack.name = "InventoryScreen"
+	add_child(_pack)
+	_forage = MeadowForage.new()
+	_forage.name = "MeadowForage"
+	$World.add_child(_forage)
+	_forage.setup(_terrain)
+	print("Pack online: press I for the inventory; Tokens ride the HUD purse.")
 
 
 func _spawn_player() -> void:

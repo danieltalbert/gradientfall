@@ -53,6 +53,9 @@ static func ensure() -> void:
 	_pad_button(&"quiz_answer_2", JOY_BUTTON_DPAD_RIGHT)
 	_pad_button(&"quiz_answer_3", JOY_BUTTON_DPAD_DOWN)
 	_pad_button(&"quiz_answer_4", JOY_BUTTON_DPAD_LEFT)
+	# The pack (milestone 10).
+	_key(&"inventory", KEY_I)
+	_pad_button(&"inventory", JOY_BUTTON_BACK)
 	# Talk / advance dialogue (milestone 8). The gamepad's A is also jump, so
 	# player.gd hands the button to the villager while a talk prompt is up.
 	_key(&"interact", KEY_E)
