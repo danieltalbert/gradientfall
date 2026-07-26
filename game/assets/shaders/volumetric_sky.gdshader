@@ -175,13 +175,24 @@ float cloud_density_at(vec3 world_pos, float height_frac, bool detail) {
 
 	// Big low-frequency cells make broad clear/cloudy regions across the sky.
 	float region = fbm(world_pos * 0.00006 + vec3(0.0, 0.0, TIME * 0.0004), 3);
-	float local_cover = clamp(cloud_coverage * remap(region, 0.25, 0.85, 0.35, 1.35), 0.0, 1.0);
+	// The shape field averages ~0.43 (the ridged term pulls the mean down), so
+	// the old mapping put the carve threshold (1 - local_cover) near 0.69 —
+	// two-plus standard deviations above anything the noise produces. Density
+	// was therefore ~0 everywhere and the deck never appeared. This range puts
+	// the threshold right through the middle of the shape distribution, so
+	// `cloud_coverage` behaves like an actual sky-fraction control.
+	float local_cover = clamp(cloud_coverage * remap(region, 0.25, 0.85, 1.05, 2.15), 0.0, 1.0);
 
 	float type = clamp(0.35 + storminess * 0.5 + (region - 0.5) * 0.4, 0.0, 1.0);
 	float profile = height_profile(height_frac, type);
 
 	// Coverage carve: raise the noise floor with coverage. Storms fill in more.
-	float base = remap(shape * profile, 1.0 - local_cover, 1.0, 0.0, 1.0);
+	// The threshold must be applied to the SHAPE noise alone — folding the
+	// height profile in first (the old `remap(shape * profile, ...)`) pushed
+	// almost every sample under the cutoff and then multiplied by the profile a
+	// second time, so density was ~0 except on very long horizon-grazing paths.
+	// That is why the deck was invisible overhead.
+	float base = remap(shape, 1.0 - local_cover, 1.0, 0.0, 1.0);
 	base *= profile;
 
 	if (!detail) {
@@ -210,8 +221,12 @@ float light_march(vec3 pos, vec3 sun_dir, vec3 center, float shell_lo, float she
 	// Beer's law with a multiple-scatter tail: the primary term digs deep
 	// shadow into the billows (that's what sculpts the ridges); the wide weak
 	// term keeps thick cloud from going dead black.
-	float beer = exp(-optical * 0.003 * cloud_density);
-	float beer2 = exp(-optical * 0.003 * cloud_density * 0.22) * 0.55;
+	// Self-shadow extinction. This probes 640 m of cloud, so the coefficient has
+	// to stay small: at 0.003+ the exponent ran to -3..-12 and sun transmittance
+	// collapsed to ~0, leaving the deck lit by blue ambient alone — dark grey
+	// haze instead of sunlit cloud. Tuned so cores shade without going black.
+	float beer = exp(-optical * 0.0012 * cloud_density);
+	float beer2 = exp(-optical * 0.0012 * cloud_density * 0.22) * 0.55;
 	return max(beer, beer2);
 }
 
@@ -300,7 +315,10 @@ vec4 march_clouds(float eye_h, vec3 dir, float jitter) {
 	// Dual-lobe phase: strong forward silver lining + gentle wrap.
 	float phase = mix(henyey_greenstein(cos_theta, 0.82),
 			henyey_greenstein(cos_theta, -0.28), 0.28);
-	phase = max(phase, 0.10);
+	// Henyey-Greenstein carries a 1/(4*pi) normalisation, which left scattered
+	// light ~12x too dark — clouds integrated to a dim grey veil that read as
+	// haze instead of cloud. Undo the normalisation so the deck lights properly.
+	phase = max(phase * 12.566, 0.45);
 
 	// Cloud ambient: bright sky from above, cool/dark from below.
 	vec3 amb_top = sky_top_color * (0.55 + 0.45 * day_amount) + sun_color * 0.05 * day_amount;
@@ -335,7 +353,12 @@ vec4 march_clouds(float eye_h, vec3 dir, float jitter) {
 			vec3 ambient = mix(amb_bottom, amb_top, hf);
 			vec3 lum = direct + ambient;
 
-			float sample_sigma = d * step_len * 0.0016;
+			// Extinction per metre. This was 0.0016, which only reached opacity
+			// after several km of slant path — so clouds existed ONLY near the
+			// horizon and the sky was empty overhead, where the ray crosses just
+			// the ~1.2 km deck thickness. Scaled so a normal vertical crossing
+			// integrates to a solidly opaque cloud.
+			float sample_sigma = d * step_len * 0.0092;
 			float sample_t = exp(-sample_sigma);
 			// Energy-conserving front-to-back integration.
 			scattered += transmittance * lum * (1.0 - sample_t);

@@ -22,7 +22,7 @@ extends Node3D
 const WEATHER_SEED: float = 20260720.0
 
 ## Baseline fair-weather numbers for the Datasedge Meadows.
-const BASE_COVERAGE: float = 0.48
+const BASE_COVERAGE: float = 0.60
 const BASE_DENSITY: float = 1.7
 const BASE_WIND_SPEED: float = 30.0
 const CLOUD_BASE_M: float = 600.0
