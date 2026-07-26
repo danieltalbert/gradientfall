@@ -105,6 +105,11 @@ func _spawn_field(
 	mat.set_shader_parameter("fade_end", fade_end)
 	mat.set_shader_parameter("blade_height", blade_height)
 	mat.set_shader_parameter("width_scale", width_scale)
+	# Bootstrap's footprint: the field thins and crops short through town so the
+	# square reads as trodden ground rather than waist-high meadow.
+	mat.set_shader_parameter("town_center", MeadowTerrain.TOWN_CENTER)
+	mat.set_shader_parameter("town_inner", MeadowTerrain.TOWN_FLAT_INNER * 0.9)
+	mat.set_shader_parameter("town_outer", MeadowTerrain.TOWN_FLAT_OUTER * 0.85)
 
 	var field: Node3D = Node3D.new()
 	field.name = node_name

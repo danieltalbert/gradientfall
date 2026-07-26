@@ -43,6 +43,14 @@ uniform float wind_strength : hint_range(0.0, 1.0) = 0.28;
 
 uniform float trample_radius = 1.3;
 
+// Bootstrap's footprint (milestone 8). A lived-in town has trodden ground, not
+// waist-high meadow through the square — blades die out toward the centre and
+// what survives near the edge is cropped short, so the town reads as walked-on
+// without a hard circle where the field stops.
+uniform vec2 town_center = vec2(0.0, 30.0);
+uniform float town_inner = 34.0;   // bare / heavily worn inside this
+uniform float town_outer = 62.0;   // full meadow again beyond this
+
 varying float v_tip;
 varying float v_gust;
 varying float v_visibility;
@@ -111,6 +119,11 @@ void vertex() {
 			* step(0.72, hg.g)
 			* step(abs(planted.x), margin)
 			* step(abs(planted.y), margin);
+	// Town wear: 0 at the square, 1 out in open meadow. Thinning is stochastic
+	// (per-blade threshold) so the edge scatters instead of drawing a ring.
+	float town_wear = smoothstep(town_inner, town_outer, distance(planted, town_center));
+	// Keep a decent scatter of short grass in town — worn, not scorched earth.
+	alive *= step(rnd3 * 0.62, town_wear);
 	// Dithered pop: each blade owns a die-distance inside the fade band.
 	// Full-size blades thin out stochastically — no shrinking seam band.
 	float radial = 1.0 - smoothstep(fade_start, fade_end, length(wrapped));
@@ -125,6 +138,8 @@ void vertex() {
 	// Clumped height: short worn patches and tall stands, then per blade.
 	float height = blade_height * (0.62 + 0.76 * clump_tone) * (0.72 + 0.56 * rnd2);
 	height *= 1.0 + stalk * 0.95;          // stalks stand well proud
+	// What still grows near the town is cropped short by boots and cart wheels.
+	height *= mix(0.5, 1.0, town_wear);
 	local.y *= height;
 	local.x *= width_scale * (0.75 + 0.5 * rnd4) * (1.0 - stalk * 0.35);
 

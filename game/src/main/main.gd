@@ -12,9 +12,13 @@ extends Node3D
 @onready var _terrain: MeadowTerrain = $World/Terrain
 @onready var _bit: Bit = $Bit
 @onready var _landmarks: MeadowLandmarks = $World/Landmarks
+@onready var _town: BootstrapTown = $World/Town
+@onready var _sky: SkyCycle = $World/SkyCycle
 
 var _spawner: MonsterSpawner
 var _hud: CombatHud
+var _dialogue: DialogueUi
+var _interactor: NpcInteractor
 
 
 func _ready() -> void:
@@ -34,6 +38,7 @@ func _ready() -> void:
 		push_error("ContentDB reported %d load error(s) — see above." % errors.size())
 
 	_spawn_player()
+	_town.build(_terrain, _sky)
 	_landmarks.build(_terrain)
 	_bit.setup(_player, _terrain)
 
@@ -62,6 +67,22 @@ func _setup_combat() -> void:
 	_spawner.setup(_terrain, spawn_pos)
 	print("Combat v1 online: sword combo/dodge/block, hearts, monster spawner + proving ground.")
 	print("Knowledge charge v1 online: Q mid-fight calls the focus channel — answer with Bit to forge the strike.")
+	_setup_dialogue()
+
+
+## Bootstrap's villagers (milestone 8) talk back: a proximity interactor raises
+## the talk prompt, and the dialogue box plays the lines out of ContentDB.
+func _setup_dialogue() -> void:
+	_dialogue = DialogueUi.new()
+	_dialogue.name = "DialogueUi"
+	add_child(_dialogue)
+	_interactor = NpcInteractor.new()
+	_interactor.name = "NpcInteractor"
+	add_child(_interactor)
+	_interactor.setup(_player)
+	print("Bootstrap online: %d villagers to talk to — walk up and press E." % [
+		get_tree().get_nodes_in_group(&"npc").size(),
+	])
 
 
 func _spawn_player() -> void:
@@ -108,6 +129,13 @@ func _capture_screens(dir: String) -> void:
 			"pos": Vector2(-42.0, -82.0)},
 		{"name": "detail_grass_closeup", "yaw": deg_to_rad(20.0), "pitch": -0.34,
 			"pos": Vector2(-42.0, -82.0), "eye": 0.55},
+		# Bootstrap (milestone 8): the square from the south road, the market
+		# and inn across the crossroads, and the mill out at the pond.
+		{"name": "town_square", "yaw": 0.0, "pitch": -0.04, "pos": Vector2(0.0, 54.0)},
+		{"name": "town_market", "yaw": deg_to_rad(37.0), "pitch": -0.06,
+			"pos": Vector2(19.0, 45.0)},
+		{"name": "town_mill", "yaw": deg_to_rad(-42.0), "pitch": -0.08,
+			"pos": Vector2(61.0, 21.0)},
 		# Sky/cloud verification: the volumetric deck lives at 600-1820 m, so a
 		# ground-facing frame shows almost none of it. These look UP.
 		{"name": "sky_clouds_up", "yaw": deg_to_rad(-40.0), "pitch": 0.62,
