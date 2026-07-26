@@ -47,7 +47,12 @@ uniform float cirrus_amount : hint_range(0.0, 1.0) = 0.35;     // high thin veil
 uniform float storminess : hint_range(0.0, 1.0) = 0.0;         // darker, taller, denser
 
 // ---- Quality ---------------------------------------------------------------
-const int PRIMARY_STEPS = 96;
+// Raymarch quality. Making the deck actually render turned this into the
+// scene's dominant cost (~5x frame time), so it is a uniform, not a const:
+// CloudLayer lowers it on weaker GPUs via `-- --clouds=<0.25..1.0>` so the game
+// stays iterable on a laptop/Mac. Shape is unchanged; only step count varies.
+uniform int primary_steps : hint_range(16, 128) = 96;
+const int PRIMARY_STEPS_MAX = 128;
 const int LIGHT_STEPS = 6;
 const float PLANET_RADIUS = 4.0e6;         // ~4000 km: clouds recede ~115 km to a life-sized horizon, good float precision
 const float MAX_MARCH = 62000.0;          // cap the grazing-ray path length
@@ -307,7 +312,7 @@ vec4 march_clouds(float eye_h, vec3 dir, float jitter) {
 	t_end = min(t_end, t_start + MAX_MARCH);
 
 	float seg = t_end - t_start;
-	float step_len = seg / float(PRIMARY_STEPS);
+	float step_len = seg / float(primary_steps);
 	float t = t_start + step_len * jitter;
 
 	vec3 sun_dir = normalize(sun_direction);
@@ -330,7 +335,10 @@ vec4 march_clouds(float eye_h, vec3 dir, float jitter) {
 	float transmittance = 1.0;
 	vec3 scattered = vec3(0.0);
 
-	for (int i = 0; i < PRIMARY_STEPS; i++) {
+	for (int i = 0; i < PRIMARY_STEPS_MAX; i++) {
+		if (i >= primary_steps) {
+			break;
+		}
 		if (transmittance < 0.02) {
 			break;
 		}

@@ -65,6 +65,17 @@ func _try_bind() -> void:
 
 ## Gameplay hook (quests, the Phase 2 weather system): force a sky mood.
 ## Values clamp to [0,1]; pass -1.0 to release a channel back to the daily model.
+## Cloud raymarch quality. The deck is the scene's most expensive element, so a
+## weaker GPU (laptop / Mac) can dial it down with `-- --clouds=0.35` and keep
+## the game iterable; the cloudscape's shape is identical, only step count
+## changes. 96 steps is the shipped desktop quality.
+func _march_steps() -> int:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--clouds="):
+			return int(clampf(float(arg.get_slice("=", 1)), 0.2, 1.0) * 96.0)
+	return 96
+
+
 func set_weather_override(coverage: float, storminess: float) -> void:
 	_coverage_override = clampf(coverage, -1.0, 1.0)
 	_storminess_override = clampf(storminess, -1.0, 1.0)
@@ -133,6 +144,7 @@ func _apply_weather(hour: float) -> void:
 	# It favours dawn/dusk, where thin high wisps genuinely catch the low sun.
 	var cirrus: float = clampf(0.05 + twilight * 0.30 + (1.0 - front) * 0.10 + gust_mood * 0.05, 0.0, 0.6)
 
+	_sky_material.set_shader_parameter("primary_steps", _march_steps())
 	_sky_material.set_shader_parameter("cloud_coverage", coverage)
 	_sky_material.set_shader_parameter("cloud_density", density)
 	_sky_material.set_shader_parameter("cloud_base", base_m)

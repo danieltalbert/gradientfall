@@ -44,6 +44,18 @@ var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _field_chunks: Array[Dictionary] = []
 
 
+## Blade-count multiplier. The shipped density (~5.4M blades) is tuned for a
+## high-end desktop GPU per GDD §10 and will crawl on a laptop/Mac, which makes
+## the game hard to iterate on there. `-- --grass=0.25` (any 0.05-1.0 value)
+## scales every carpet without changing the look's character, so a weaker
+## machine can still run, test and judge everything else.
+func _grass_scale() -> float:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--grass="):
+			return clampf(float(arg.get_slice("=", 1)), 0.05, 1.0)
+	return 1.0
+
+
 func _ready() -> void:
 	var start_ms: int = Time.get_ticks_msec()
 	_rng.seed = SCATTER_SEED
@@ -55,8 +67,9 @@ func _ready() -> void:
 	_scatter_daisies()
 	_scatter_pebbles()
 	_plant_copses()
-	print("MeadowFlora: %d near + %d mid + %d far blades, %d irises, %d daisies, %d pebbles in %d ms." % [
-		NEAR_COUNT, MID_COUNT, FAR_COUNT,
+	var s: float = _grass_scale()
+	print("MeadowFlora: %d near + %d mid + %d far blades (scale %.2f), %d irises, %d daisies, %d pebbles in %d ms." % [
+		int(NEAR_COUNT * s), int(MID_COUNT * s), int(FAR_COUNT * s), s,
 		IRIS_COUNT, DAISY_COUNT, PEBBLE_COUNT,
 		Time.get_ticks_msec() - start_ms,
 	])
@@ -115,7 +128,8 @@ func _spawn_field(
 	field.name = node_name
 	add_child(field)
 	var chunk_size: float = tile / float(FIELD_CHUNKS)
-	var per_chunk: int = count / (FIELD_CHUNKS * FIELD_CHUNKS)
+	var scaled_count: int = maxi(1, int(count * _grass_scale()))
+	var per_chunk: int = maxi(1, scaled_count / (FIELD_CHUNKS * FIELD_CHUNKS))
 	for cz in FIELD_CHUNKS:
 		for cx in FIELD_CHUNKS:
 			var x0: float = -tile * 0.5 + chunk_size * float(cx)
