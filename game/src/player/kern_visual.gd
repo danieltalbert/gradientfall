@@ -463,7 +463,22 @@ const RESKIN_GARMENTS: Dictionary = {
 }
 
 
+## Rigid-mounting garments to the imported rig was a WORKAROUND for the
+## dual-skeleton depth bug: garments enclosed by the bare imported body lost the
+## depth test against it. `strip_covered_geometry` now deletes that body
+## geometry outright, so the contested surface no longer exists — and rigid
+## mounting costs real quality (a rigid cloak reads as a flat slab and sleeves
+## as boards, because `skin = null` stops them deforming with the pose).
+## So: strip only, and leave the garments skinned to the procedural skeleton
+## that authored them, which the animation already drives.
+const RIGID_MOUNT_GARMENTS: bool = false
+
+
 func _reskin_garments_to_base() -> void:
+	if not RIGID_MOUNT_GARMENTS:
+		var stripped_only: int = BaseModel.strip_covered_geometry(_base_root)
+		print("KernVisual: garments left skinned (deforming); %d covered body tris stripped" % stripped_only)
+		return
 	# Pose the imported skeleton in the neutral stance FIRST: the mount solve
 	# below uses the bone pose the garment was authored around (arms hanging),
 	# not the T-pose rest — otherwise the runtime pose carries each garment

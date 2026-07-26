@@ -367,6 +367,10 @@ const COVERED_ZONES: Array[Dictionary] = [
 	# along X, so they're selected by radius, not height; the hands sit beyond
 	# r_max and survive.
 	{"y_min": 1.28, "y_max": 1.60, "r_min": 0.12, "r_max": 0.70},
+	# Shoulder caps and upper chest under the tunic's yoke. Without this the
+	# bare shoulders poke through the garment in-game. In the T-pose the hands
+	# hang far out along X (r ~0.7), so this tight radius cannot reach them.
+	{"y_min": 1.34, "y_max": 1.62, "r_min": 0.0, "r_max": 0.33},
 ]
 
 
