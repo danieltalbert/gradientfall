@@ -82,17 +82,22 @@ func _on_combat_shake(amount: float) -> void:
 	_trauma = clampf(_trauma + amount, 0.0, 1.0)
 
 
+## Shake moves the camera with h_offset/v_offset, NEVER with `position`.
+## SpringArm3D positions its children itself every frame (that is how the camera
+## ends up `spring_length` behind Kern); writing `_camera.position` fights it and
+## wins, which snapped the view back to the arm's origin — i.e. inside Kern's
+## head — on every frame, not just while shaking. h_offset/v_offset exist for
+## exactly this and leave the arm's transform alone.
 func _apply_shake(delta: float) -> void:
 	if _trauma <= 0.0:
-		_camera.position = Vector3.ZERO
+		_camera.h_offset = 0.0
+		_camera.v_offset = 0.0
 		_camera.rotation.z = 0.0
 		return
 	_trauma = maxf(0.0, _trauma - SHAKE_DECAY * delta)
 	var s: float = _trauma * _trauma  # perceptually nicer falloff
-	_camera.position = Vector3(
-		randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s,
-		randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s,
-		0.0)
+	_camera.h_offset = randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s
+	_camera.v_offset = randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s
 	_camera.rotation.z = randf_range(-1.0, 1.0) * SHAKE_MAX_ROLL * s
 
 

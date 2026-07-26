@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled, diffuse_lambert_wrap, specular_schlick_ggx;
+render_mode diffuse_lambert_wrap, specular_schlick_ggx;
 // SOFT variant of toon.gdshader (Danny's realism decree): identical uniforms
 // and features — vertex-color albedo, fresnel rim, sky fill, world noise —
 // but with soft wrapped diffuse instead of hard cel banding. Terrain, rocks,

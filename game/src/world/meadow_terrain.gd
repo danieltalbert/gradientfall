@@ -186,7 +186,14 @@ func _build_mesh_and_collision() -> void:
 			var b: int = a + 1
 			var c: int = a + verts_per_side
 			var d: int = c + 1
-			indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+			# Counter-clockwise seen from above = front faces up. The old
+			# [a,c,b, b,c,d] wound them the other way, which cost us twice: the
+			# ground was back-face culled (the "gray hollow" — we were seeing the
+			# sky dome through it), and create_trimesh_shape() below inherited the
+			# inside-out surface, so the camera's SpringArm3D read itself as
+			# buried and collapsed to zero length — putting the view inside
+			# Kern's head on spawn.
+			indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
 
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
