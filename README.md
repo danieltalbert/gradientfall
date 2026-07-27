@@ -9,6 +9,19 @@ Gradientfall is an in-development 3D action-adventure that turns machine-learnin
 
 ![Gradientfall portfolio preview](docs/assets/social-preview.png)
 
+## Visual proof from the current slice
+
+| Datasedge Meadows | Gradient Peaks |
+| --- | --- |
+| ![Generated meadow terrain, vegetation, and distant settlement](docs/progress/milestone3_meadow_town.png) | ![Layered mountain silhouettes beyond the meadow](docs/progress/richness3_mountains.png) |
+| **One generated world, multiple systems.** Terrain, grass, paths, vegetation, landmarks, and atmosphere are authored in code. | **Readable depth without downloaded scenery.** Layering, color, and scale establish a destination beyond the playable meadow. |
+
+| Day | Dusk | Night |
+| --- | --- | --- |
+| ![Datasedge Meadows during the day](docs/progress/milestone4_day.png) | ![Datasedge Meadows at dusk](docs/progress/milestone4_dusk.png) | ![Datasedge Meadows at night](docs/progress/milestone4_night.png) |
+
+These are in-engine progress captures, not target renders. They document the current visual stack and make later regressions easier to recognize.
+
 ## What is working today
 
 - Godot 4.7 project with a typed GDScript architecture and autoload-based state/event boundaries.
@@ -25,6 +38,12 @@ This repository does **not** claim that the ten-region, 40–80 hour design is c
 
 - **Quality over speed.** The single most important factor of this entire project. Milestones ship when they are verified, documented, and understandable by a stranger — never to keep pace. The full contract lives in [CLAUDE.md](CLAUDE.md).
 - **Documentation is a first-class deliverable.** Every script carries a doc header and member docs to the standard in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); every session appends a dated entry to [the devlog](docs/DEVLOG.md); roadmap checkboxes and content-budget ticks are updated in the same commit as the work.
+
+## Worldbuilding mood study
+
+![Locally generated sunset desert mood study for the future Tensor Desert region](docs/concept-art/tensor-desert-mood-study.png)
+
+This locally generated image is an **art-direction mood study, not gameplay and not locked canon**. It explores the patient scale, warm twilight, and open traversal language of the future Tensor Desert; the [Worldbook](docs/WORLDBOOK.md) remains the authority for the region's golden dunes, buried matrix ruins, grid-patterned sands, and MNIST rune architecture.
 
 ## Architecture
 
