@@ -62,6 +62,10 @@ static func ensure() -> void:
 	_pad_button(&"interact", JOY_BUTTON_A)
 	# Dev-only: fill the focus meter to verify the special without a quiz UI.
 	_key(&"debug_charge", KEY_F)
+	# Compendium / journal (milestone 13). J for journal; Start/Menu on a pad.
+	# Back/Select already opens the pack, so sharing it would toggle both UIs.
+	_key(&"compendium", KEY_J)
+	_pad_button(&"compendium", JOY_BUTTON_START)
 
 
 static func _action(action: StringName) -> void:

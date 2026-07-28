@@ -1,0 +1,18 @@
+[
+  {
+    "id": "mon_the_gatekeeper",
+    "name": "the Gatekeeper",
+    "regions": ["datasedge_meadows"],
+    "tier": "dungeon_boss",
+    "hearts": 1,
+    "attack": 0.5,
+    "behavior": "tank",
+    "spawn": { "time_of_day": "any", "weather": "any" },
+    "drops": [
+      { "item_id": "item_threshold_stone", "chance": 1 },
+      { "item_id": "item_data_shard", "chance": 0.5 }
+    ],
+    "ml_flavor": "A threshold unit made walkable: it adds up everything that reaches it and does nothing at all until the total crosses its line.",
+    "description": "A doorway three times Kern's height that unmoored itself from its own arch, and the last thing the vault's builders left awake. It keeps a running total of everything that touches it and opens for nothing else. Half the time it draws a blow in; the rest of the time it refuses, and a blow landed then is a blow taken back. Overload it and it comes apart into the sum it was holding."
+  }
+]

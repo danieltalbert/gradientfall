@@ -5,10 +5,12 @@ extends Node3D
 ## Everything scattered deterministically (fixed seed) on the terrain the
 ## sibling MeadowTerrain generated: a photoreal 2.5M-blade grass carpet in two
 ## camera-wrapped MultiMesh fields (grass_field.gdshader does the planting,
-## clumping, wind, and trample), iris flats to the west (the region's canon
-## flora — collectible system arrives with the compendium milestone; today
-## they are scenery), daisies, pebbles, and tree copses with trunk collision.
-## Zero textures — all variation is procedural.
+## clumping, wind, and trample), daisies, pebbles, and tree copses with trunk
+## collision. Zero textures — all variation is procedural.
+##
+## The iris flats to the west are now collectible. IrisField keeps the current
+## high-density grass implementation intact while owning the 700 bloom
+## transforms, specimen records, collection animation, and compendium feed.
 
 const SCATTER_SEED: int = 20260717
 # Three camera-wrapped carpets share grass_field.gdshader. The near field is a
@@ -32,7 +34,6 @@ const BLADE_HALF_WIDTH: float = 0.017
 # wrapped world rects every frame — so Godot frustum-culls the blades behind
 # the camera (a single whole-map AABB defeats culling and doubles frame cost).
 const FIELD_CHUNKS: int = 8
-const IRIS_COUNT: int = 700
 const DAISY_COUNT: int = 1200
 const PEBBLE_COUNT: int = 750
 const EDGE_MARGIN: float = 12.0
@@ -42,6 +43,8 @@ const EDGE_MARGIN: float = 12.0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 # One entry per field chunk: {mmi, rect (tile-local), tile, cull_dist}.
 var _field_chunks: Array[Dictionary] = []
+## Collectible iris flats, exposed so Main can connect the compendium UI.
+var iris_field: IrisField
 
 
 ## Blade-count multiplier. The shipped density (~5.4M blades) is tuned for a
@@ -63,14 +66,16 @@ func _ready() -> void:
 	# can be attributed honestly (grass vs sky/GI/shadows).
 	if not OS.get_cmdline_user_args().has("--no-grass"):
 		_build_fine_field()
-	_scatter_irises()
 	_scatter_daisies()
 	_scatter_pebbles()
 	_plant_copses()
+	# Same seed the rest of the flora uses, preserving the established western
+	# clusters while giving every bloom a real specimen record.
+	iris_field = IrisField.build(self, _terrain, SCATTER_SEED)
 	var s: float = _grass_scale()
-	print("MeadowFlora: %d near + %d mid + %d far blades (scale %.2f), %d irises, %d daisies, %d pebbles in %d ms." % [
+	print("MeadowFlora: %d near + %d mid + %d far blades (scale %.2f), %d collectible irises, %d daisies, %d pebbles in %d ms." % [
 		int(NEAR_COUNT * s), int(MID_COUNT * s), int(FAR_COUNT * s), s,
-		IRIS_COUNT, DAISY_COUNT, PEBBLE_COUNT,
+		IrisField.IRIS_COUNT, DAISY_COUNT, PEBBLE_COUNT,
 		Time.get_ticks_msec() - start_ms,
 	])
 
@@ -240,85 +245,6 @@ func _ground_ok(x: float, z: float, h: float) -> bool:
 	if h < _terrain.water_level + 0.35:  # pond bed and waterline stay bare
 		return false
 	return true
-
-
-func _scatter_irises() -> void:
-	var mm: MultiMesh = MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = _build_iris_mesh()
-	mm.instance_count = IRIS_COUNT
-	# Canon: the iris flats lie west of Bootstrap (GDD §7, WORLDBOOK).
-	var clusters: Array[Vector2] = [
-		Vector2(-95.0, 25.0), Vector2(-130.0, -15.0), Vector2(-75.0, 70.0),
-		Vector2(-150.0, 55.0), Vector2(-110.0, 110.0),
-	]
-	# Real Iris dataset families, as bloom colors: setosa violet,
-	# versicolor blue, virginica pale — the rare white is the collector tease.
-	var petals: Array[Color] = [
-		Color(0.52, 0.34, 0.78), Color(0.36, 0.44, 0.85), Color(0.88, 0.86, 0.95),
-	]
-	for i in IRIS_COUNT:
-		var c: Vector2 = clusters[_rng.randi() % clusters.size()]
-		var ang: float = _rng.randf_range(0.0, TAU)
-		var dist: float = absf(_rng.randfn(0.0, 14.0))
-		var x: float = c.x + cos(ang) * dist
-		var z: float = c.y + sin(ang) * dist
-		var h: float = _terrain.get_height(x, z)
-		if not _ground_ok(x, z, h):
-			h = -10000.0
-		var t: Transform3D = Transform3D(Basis.IDENTITY, Vector3(x, h, z))
-		t = t.rotated_local(Vector3.UP, _rng.randf_range(0.0, TAU))
-		var s: float = _rng.randf_range(0.8, 1.2)
-		t = t.scaled_local(Vector3(s, s, s))
-		mm.set_instance_transform(i, t)
-		var roll: float = _rng.randf()
-		var family: int = 0 if roll < 0.45 else (1 if roll < 0.9 else 2)
-		mm.set_instance_color(i, petals[family])
-
-	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
-	mmi.name = "Irises"
-	mmi.multimesh = mm
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
-
-
-## An iris: short stem quad + three diamond petals. Petal verts are COLOR
-## white so instance color tints petals; stem verts stay green via COLOR.
-func _build_iris_mesh() -> ArrayMesh:
-	var st: SurfaceTool = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var stem_col: Color = Color(0.3, 0.5, 0.24)
-	var stem_h: float = 0.32
-	# Stem: two crossed thin triangles.
-	for k in 2:
-		var b: Basis = Basis(Vector3.UP, PI * 0.5 * float(k))
-		st.set_color(stem_col); st.set_normal(Vector3.UP)
-		st.add_vertex(b * Vector3(-0.015, 0.0, 0.0))
-		st.set_color(stem_col); st.set_normal(Vector3.UP)
-		st.add_vertex(b * Vector3(0.015, 0.0, 0.0))
-		st.set_color(stem_col); st.set_normal(Vector3.UP)
-		st.add_vertex(b * Vector3(0.0, stem_h, 0.0))
-	# Petals: three diamonds fanning from the stem tip. COLOR white = tinted.
-	for k in 3:
-		var b: Basis = Basis(Vector3.UP, TAU * float(k) / 3.0)
-		var tip: Vector3 = Vector3(0.0, stem_h, 0.0)
-		var out: Vector3 = b * Vector3(0.12, 0.06, 0.0)
-		var side: Vector3 = b * Vector3(0.05, 0.0, 0.05)
-		st.set_color(Color.WHITE); st.set_normal(Vector3.UP); st.add_vertex(tip)
-		st.set_color(Color.WHITE); st.set_normal(Vector3.UP); st.add_vertex(tip + out + side)
-		st.set_color(Color.WHITE); st.set_normal(Vector3.UP); st.add_vertex(tip + out * 1.6)
-		st.set_color(Color.WHITE); st.set_normal(Vector3.UP); st.add_vertex(tip)
-		st.set_color(Color.WHITE); st.set_normal(Vector3.UP); st.add_vertex(tip + out * 1.6)
-		st.set_color(Color.WHITE); st.set_normal(Vector3.UP); st.add_vertex(tip + out - side)
-	var mat: StandardMaterial3D = StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.vertex_color_is_srgb = true
-	mat.roughness = 0.9
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_fade_bloom(mat)
-	st.set_material(mat)
-	return st.commit()
 
 
 ## Blooms dissolve with distance — unfaded white petals read as scattered

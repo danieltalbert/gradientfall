@@ -4,6 +4,43 @@
 
 ---
 
+## 2026-07-27 (repository recovery) — Vault and Iris branches integrated
+
+**DONE**
+- Recovered the previously stranded milestone-12 branch onto the current
+  post-split `main` without replacing newer Kern, town, inventory, sky, or
+  meadow work.
+- Integrated the 2-3-1 walkable network dungeon, Gatekeeper encounter,
+  threshold/fount/weight-stone interactions, approved vault content, rune
+  shader, and five dungeon screenshot angles.
+- Reconciled screenshot positioning so existing terrain-relative, posed-Kern,
+  and new absolute-height interior shots share one capture path.
+- Recovered the milestone-13 Iris field and compendium without reverting the
+  newer photoreal multi-carpet grass system: 700 blooms now carry generated
+  Fisher-statistic specimens, proximity collection, boundary-bloom markings,
+  and a J/Start field notebook.
+- Restored the six missing milestone-8 Bootstrap progress frames (square,
+  market, inn, hall, night, and dialogue) from their completed remote branch.
+- Resolved the pre-existing controller collision between the pack and field
+  notebook: Back/Select remains the pack; Start/Menu now opens the compendium.
+
+**VERIFIED**
+- `validate_content.py --inbox` and `--all` pass (111 approved entries).
+- Godot 4.7.1 completed a clean editor parse/import and registered all 56
+  script classes, including every recovered vault and Iris class.
+- A 25-second clean runtime smoke boot built the 2-3-1 vault and generated 700
+  Iris blooms over 150 specimens (15 boundary blooms) with zero script or
+  runtime errors.
+- The restored Bootstrap square and dialogue frames were opened and inspected;
+  the six PNGs are valid progress evidence.
+
+**NEXT UP**
+- A future live visual session should still capture and inspect the recovered
+  vault interiors and hands-on Iris collection/compendium interaction under
+  the shipping Forward+ renderer, per the project's visual-quality rule.
+
+---
+
 ## 2026-07-24 (live session, Kern/character lane) — BASE MESH GENERATED; FITTING GATED ON AN ENGINE BUG
 
 *Commits `613652f` → `8aaca35` (branch fast-forwarded to `main`). Danny gave
