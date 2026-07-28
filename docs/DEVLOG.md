@@ -18,15 +18,26 @@
 - Recovered the milestone-13 Iris field and compendium without reverting the
   newer photoreal multi-carpet grass system: 700 blooms now carry generated
   Fisher-statistic specimens, proximity collection, boundary-bloom markings,
-  and a J/Back field notebook.
+  and a J/Start field notebook.
+- Restored the six missing milestone-8 Bootstrap progress frames (square,
+  market, inn, hall, night, and dialogue) from their completed remote branch.
+- Resolved the pre-existing controller collision between the pack and field
+  notebook: Back/Select remains the pack; Start/Menu now opens the compendium.
 
-**VERIFY BEFORE MERGE**
-- Content validation, Godot 4.7.1 parse/import, the vault runtime checks, and
-  the Iris classifier/collection checks remain the recovery gates.
+**VERIFIED**
+- `validate_content.py --inbox` and `--all` pass (111 approved entries).
+- Godot 4.7.1 completed a clean editor parse/import and registered all 56
+  script classes, including every recovered vault and Iris class.
+- A 25-second clean runtime smoke boot built the 2-3-1 vault and generated 700
+  Iris blooms over 150 specimens (15 boundary blooms) with zero script or
+  runtime errors.
+- The restored Bootstrap square and dialogue frames were opened and inspected;
+  the six PNGs are valid progress evidence.
 
 **NEXT UP**
-- Render and inspect the recovered dungeon and Iris surfaces before declaring
-  the recovery done.
+- A future live visual session should still capture and inspect the recovered
+  vault interiors and hands-on Iris collection/compendium interaction under
+  the shipping Forward+ renderer, per the project's visual-quality rule.
 
 ---
 
