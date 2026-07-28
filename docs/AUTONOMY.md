@@ -5,6 +5,26 @@ this file is the canonical copy of each prompt so they survive any conversation.
 
 ---
 
+## 0. Standing principles — every run, every surface
+
+These bind every agent and every session, scheduled or live, before anything
+in §1–§5:
+
+1. **Quality over speed — the utmost important factor of this entire project.**
+   No schedule, budget tick, or milestone count ever justifies rushed work.
+   A run that completes one thing deeply beats a run that half-finishes three.
+   Never tick a checkbox, merge a batch, or declare a milestone done to keep
+   pace — the pace is whatever quality allows.
+2. **Documentation is part of the work, not an afterthought.** Engine code
+   lands commented to the standard in `docs/ARCHITECTURE.md` ("Code
+   documentation standard") — undocumented code does not land. Every run
+   writes its dated DEVLOG entry, updates ROADMAP checkboxes and WORLDBOOK
+   ticks in the same commit as the work, and leaves the docs telling the
+   truth about the repo. The next session (or Danny) must be able to
+   reconstruct what happened and why from the repo alone.
+
+---
+
 ## 1. The brief queue — how the two AIs play tag
 
 Briefs are the unit of work handed to ChatGPT. They live in two folders:
@@ -188,7 +208,8 @@ by replying to any scheduled run or editing ROADMAP.md priorities.
 4. Brief authorship: keep ≥3 unclaimed briefs queued, targeting the largest
    gaps in WORLDBOOK Part III budgets for the active phase.
 5. Documentation truth: DEVLOG every run, ROADMAP checkboxes, WORLDBOOK budget
-   ticks, version-bump commits at phase completions.
+   ticks, version-bump commits at phase completions — and code comments held
+   to the `docs/ARCHITECTURE.md` standard on every script touched.
 6. Verification: boot-test whenever the environment has Godot; live sessions
    sweep, verify, and commit scheduled runs' work.
 

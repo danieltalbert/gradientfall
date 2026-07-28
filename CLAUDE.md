@@ -1,24 +1,41 @@
 # Gradientfall — builder's contract
 
-This folder is **Neural Quest: Gradientfall**, a 3D open-world Godot 4 game built
-across many sessions. The repo carries all project state — trust these docs over
-memory of past conversations.
+This repository is **Neural Quest: Gradientfall**, a 3D open-world Godot 4 game
+built across many sessions. The repo carries all project state — trust these
+docs over memory of past conversations. (`docs/AUTONOMY.md` §3 points scheduled
+runs here; this file is that session contract.)
+
+## The prime directive: quality over speed
+
+**Quality over speed is the utmost important factor of this entire project.**
+It outranks every schedule, milestone count, and content budget. One milestone
+built deeply — verified, documented, and understandable by a stranger — is worth
+more than three rushed ones. Never tick a ROADMAP box, merge a batch, or close a
+session to "keep pace"; the pace is whatever quality allows. When a session must
+choose between shipping more and shipping better, it ships better, and says so
+in the devlog.
 
 ## The one canonical workspace (check this before touching anything)
-- **Work here and nowhere else:** `C:\Users\danny\danieltalbert`, branch
-  **`main`**. One tree, one branch. `main` == `origin/main` is the real,
-  playable state; there are no side branches to reconcile.
-- **Stale copies exist on disk — never open, edit, or judge the game from
-  them.** Snapshots under `C:\Users\danny\Documents\Codex\...\gradientfall\`
-  are frozen 2026-07-20 captures predating the photoreal grass work (old
-  1.4M-blade spiky grass, no terrain cull fix → the "gray hollow ground").
-  Each is marked `STALE_DO_NOT_USE.md`. Mistaking one of these for the real
-  project has already cost this project real time.
+- **Work here and nowhere else:** `C:\Users\danny\danieltalbert\gradientfall`.
+  This folder is its own Git checkout of
+  `https://github.com/danieltalbert/gradientfall.git`; verify that exact
+  top-level path and remote before editing. `main == origin/main` is the
+  canonical playable state after a change is reviewed and merged.
+- **Other clones are review or recovery workspaces, not the live game.**
+  In particular, paths under `C:\Users\danny\Documents\Codex\...` may be
+  temporary clean checkouts. They are useful for integration and CI
+  reproduction, but never judge current visuals from one without fetching
+  `origin` and comparing its commit to the live workspace.
 - **Confirm before building or judging visuals:**
   ```
-  git branch --show-current && git log --oneline -1
+  git rev-parse --show-toplevel
+  git remote get-url origin
+  git branch --show-current
+  git log --oneline -1
   ```
-  Expect `main`. If it isn't, stop and fix that before anything else.
+  Expect the canonical path and Gradientfall remote above. Normally expect
+  `main`; a short-lived review/recovery branch is acceptable only when it has
+  an upstream and a visible pull request.
 
 ## Read first, every session
 1. `docs/DEVLOG.md` — last entry says exactly where things stand and what's next
@@ -32,7 +49,8 @@ memory of past conversations.
 ## The iron rules
 1. **Never commit a half-wired state — but never LEAVE work uncommitted either.**
    Every session ends with: game runs clean from the editor, docs updated to
-   match reality, and **all work committed AND pushed to `origin/main`**. If a
+   match reality, and **all work committed, pushed to an upstream branch, and
+   represented by a pull request (or merged into `origin/main`)**. If a
    feature is mid-flight at session end, it gets stashed behind a flag or
    reverted — the main line always runs.
    - "Other lanes are mid-flight, I'll let a later sweep commit it" is **not**
@@ -47,20 +65,32 @@ memory of past conversations.
      disk" as "it does not exist."
 2. **Docs are updated in the same commit as the work.** Checkboxes in ROADMAP.md,
    a dated entry in DEVLOG.md ("done / half-formed / next up").
-3. **GDD is locked.** Design pillar changes require Danny's explicit sign-off.
+3. **Code is documented as it is written — undocumented code does not land.**
+   Documentation is a first-class deliverable of every session, not a cleanup
+   task for later. Every script carries a doc header saying what it does and
+   where it sits in the architecture; every signal, export, and non-trivial
+   function carries a doc comment; non-obvious logic gets a *why* comment with
+   units and intent. The full standard lives in `docs/ARCHITECTURE.md`
+   ("Code documentation standard"). A wrong or stale comment is treated as a
+   bug. A milestone whose code a stranger can't read is not done.
+4. **GDD is locked.** Design pillar changes require Danny's explicit sign-off.
    Implementation details are builder's discretion.
-4. **Content flows through the pipeline.** All quests/NPCs/items/monsters/quizzes/
+5. **Content flows through the pipeline.** All quests/NPCs/items/monsters/quizzes/
    lore/POIs live as JSON under `content/approved/` and must pass
    `python tools/validate_content.py`. Externally-generated content lands in
    `content/inbox/` first — see `docs/CONTENT_PIPELINE.md`. Never hand-fix inbox
    files silently; fix-and-note or reject.
-5. **Save compatibility.** The save format carries a `save_version` int. Any change
+6. **Save compatibility.** The save format carries a `save_version` int. Any change
    to save structure bumps it and adds a migration. Never strand a player's file.
 
 ## Conventions
 - **Engine:** Godot 4.x, GDScript, statically typed everywhere (`var x: int`,
   typed funcs). All assets generated in code — no downloaded/purchased assets.
-- **Game project root:** `gradientfall/game/` (created in Phase 1).
+- **Game project root:** `game/`.
+- **Documentation:** GDScript doc comments (`##`) for script headers and
+  members; `//` headers in shaders; docstrings in Python tools. See
+  `docs/ARCHITECTURE.md` for the standard and `docs/DEVLOG.md` for the
+  session-journal format (DONE / HALF-FORMED / NEXT UP, newest first).
 - **Naming:** snake_case files/dirs; PascalCase node names & class_name; content
   IDs prefixed (`q_`, `npc_`, `item_`, `mon_`, `quiz_`, `lore_`, `poi_`).
 - **Region IDs** (canonical, used everywhere): `datasedge_meadows`,
@@ -72,8 +102,8 @@ memory of past conversations.
 - **Godot `.uid` files are committed**, same as scenes.
 
 ## Division of labor
-- **Claude:** all engine code, canon/voice, content review + merges to `approved/`.
+- **Claude:** all engine code, canon/voice, content review + merges to `approved/`,
+  documentation truth (code comments, devlog, roadmap ticks).
 - **ChatGPT (Danny's schedule):** bulk content generation from briefs in
-  `content/briefs/`, output dropped in `content/inbox/`.
-- **Local model (optional, unproven):** may attempt simple bulk content the same
-  way; the validator's rejection rate decides if it stays.
+  `docs/briefs/queue/`, output dropped in `content/inbox/`.
+- **Danny:** schedules, PR merges, phase-gate playtests, final review.

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">Gradientfall</title>
+  <desc id="desc">An active Godot vertical slice where machine learning becomes an explorable fantasy world.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#152b54"/><stop offset=".58" stop-color="#724b9a"/><stop offset="1" stop-color="#f5a35f"/></linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#4ea871"/><stop offset="1" stop-color="#183d32"/></linearGradient>
+  </defs>
+  <rect width="1280" height="640" fill="url(#sky)"/>
+  <circle cx="1030" cy="140" r="64" fill="#ffe7b0" opacity=".92"/>
+  <path d="M0 392L164 238 294 351 448 175 620 360 790 225 960 367 1128 206 1280 354V640H0Z" fill="#14243e" opacity=".92"/>
+  <path d="M0 448C220 370 408 454 620 390S1036 353 1280 433V640H0Z" fill="url(#field)"/>
+  <g fill="#b4f0bd" opacity=".55"><circle cx="180" cy="450" r="4"/><circle cx="224" cy="480" r="3"/><circle cx="816" cy="430" r="4"/><circle cx="906" cy="476" r="3"/></g>
+  <rect x="66" y="58" width="248" height="40" rx="20" fill="#0d1f2d" opacity=".72"/>
+  <text x="190" y="84" text-anchor="middle" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17" font-weight="700" fill="#8fe3ae">ACTIVE VERTICAL SLICE</text>
+  <text x="64" y="188" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="76" font-weight="800" fill="#ffffff">GRADIENTFALL</text>
+  <text x="68" y="236" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="25" fill="#e6e9ff">Machine learning becomes geography, combat, and discovery.</text>
+  <g transform="translate(68 496)">
+    <rect width="650" height="82" rx="20" fill="#0b1e2a" opacity=".78"/>
+    <text x="28" y="34" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="16" fill="#9bbbc8">GODOT 4.7 · TYPED GDSCRIPT · DATA-DRIVEN CONTENT</text>
+    <text x="28" y="62" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="18" font-weight="700" fill="#ffffff">Playable Datasedge Meadows · honest in-development scope</text>
+  </g>
+</svg>
