@@ -7,21 +7,11 @@ extends Node
 ## dawn gold → bright noon → warm dusk → blue night. Sky gradient, sun color
 ## and energy, ambient, and fog all interpolate between keyframes, so the
 ## whole meadow changes mood as time passes. Deterministic given `hour`.
-##
-## Sits at Main/World/SkyCycle (a plain Node, main.tscn) and drives sibling
-## scene nodes by relative path: ../../Sun and ../../MoonLight
-## (DirectionalLight3D) plus ../../WorldEnvironment's Environment and
-## ProceduralSkyMaterial. Emits no signals — CloudLayer and CelestialLayer
-## poll `hour` every frame to stay in sync, and main.gd sets `paused` /
-## calls `set_hour()` during screenshot capture. Conventions: `hour` is
-## game time in [0, 24) hours; `day_length` is real seconds per game day.
 
 const DAY_LENGTH_DEFAULT: float = 300.0  # seconds for a full 24 h (look-dev)
+const VOLUMETRIC_SKY_SHADER: Shader = preload("res://assets/shaders/volumetric_sky.gdshader")
 
 ## A moment in the color script.
-## Fields mirror exactly what `_apply()` pushes each frame: sky gradient
-## top/horizon colors, sun light color and energy, flat ambient color and
-## energy, and the fog tint shared by distance and volumetric fog.
 class SkyKey:
 	var hour: float
 	var sky_top: Color
@@ -43,37 +33,48 @@ class SkyKey:
 		ambient_energy = ae
 		fog = fg
 
-## Freezes the clock while true. `set_hour()` still works, which is how
-## screenshot mode pins deterministic times of day (main.gd).
 @export var paused: bool = false
-## Current game time in hours, [0, 24). main.tscn boots the world at 8.5
-## (mid-morning); CloudLayer and CelestialLayer read this every frame.
 @export_range(0.0, 24.0) var hour: float = 8.0
-## Real-time seconds for one full 24 h game day; values <= 0 halt the clock.
 @export var day_length: float = DAY_LENGTH_DEFAULT
 
 var _keys: Array[SkyKey] = []
 var _sun: DirectionalLight3D
 var _moon_light: DirectionalLight3D
 var _env: Environment
-var _sky_mat: ProceduralSkyMaterial
+var _vol_sky_mat: ShaderMaterial
 
 
-## Resolve scene siblings (paths are relative to Main/World/SkyCycle) and
-## apply the starting hour so the very first frame is already graded.
 func _ready() -> void:
 	_sun = get_node("../../Sun") as DirectionalLight3D
 	_moon_light = get_node_or_null("../../MoonLight") as DirectionalLight3D
 	var we: WorldEnvironment = get_node("../../WorldEnvironment") as WorldEnvironment
 	if we != null:
 		_env = we.environment
-		_sky_mat = _env.sky.sky_material as ProceduralSkyMaterial
+		# Swap the placeholder gradient sky for the volumetric cloud sky at
+		# runtime, so main.tscn is left untouched (the grass/mountain sessions
+		# edit that scene too). Only the sky RENDER changes; the sun/moon/
+		# ambient/fog driven below are identical to before, so scene lighting is
+		# unchanged and the vistas still meet the same horizon colour.
+		if _env.sky != null:
+			_vol_sky_mat = ShaderMaterial.new()
+			_vol_sky_mat.shader = VOLUMETRIC_SKY_SHADER
+			_env.sky.sky_material = _vol_sky_mat
+			# Animated radiance so the new sky reflects in the water. REALTIME
+			# requires a 256 radiance map; the shader's AT_CUBEMAP_PASS branch
+			# keeps that per-frame cubemap render cheap (no cloud march).
+			_env.sky.radiance_size = Sky.RADIANCE_SIZE_256
+			_env.sky.process_mode = Sky.PROCESS_MODE_REALTIME
 	_build_keys()
 	_apply(hour)
 
 
-## Jump the clock to `h` (wrapped into [0, 24)) and regrade immediately —
-## used by main.gd's screenshot mode for the time-of-day showcase shots.
+## The volumetric sky material. CloudLayer writes the weather-side uniforms
+## (coverage, wind, density, layer heights, detail); this node owns the
+## time-of-day atmosphere uniforms. The two write disjoint parameter sets.
+func get_sky_material() -> ShaderMaterial:
+	return _vol_sky_mat
+
+
 func set_hour(h: float) -> void:
 	hour = fposmod(h, 24.0)
 	_apply(hour)
@@ -82,15 +83,10 @@ func set_hour(h: float) -> void:
 func _process(delta: float) -> void:
 	if paused or day_length <= 0.0:
 		return
-	# 24.0 / day_length converts real seconds into game hours.
 	hour = fposmod(hour + delta * (24.0 / day_length), 24.0)
 	_apply(hour)
 
 
-## Author the eight keyframes of the color script. Hours between keys blend
-## with an eased t in `_sample()` (wrapping across midnight), so the fast
-## dawn/dusk transitions come from tight key spacing (5.5→6.5, 17.5→19.5)
-## while midday drifts slowly (9→13→17.5).
 func _build_keys() -> void:
 	# hour, sky_top, sky_horizon, sun_color, sun_energy, ambient, amb_energy, fog
 	_keys = [
@@ -113,11 +109,6 @@ func _build_keys() -> void:
 	]
 
 
-## Evaluate the color script at hour `h`: find the bracketing keys
-## (a = at/before h, b = next) and blend them into a fresh SkyKey.
-## `base`/`span` place a's hour on a continuous axis so the gap between the
-## last key (21.5) and the first (0.0, treated as 24.0) interpolates across
-## midnight without a discontinuity.
 func _sample(h: float) -> SkyKey:
 	var a: SkyKey = _keys[_keys.size() - 1]
 	var b: SkyKey = _keys[0]
@@ -137,8 +128,6 @@ func _sample(h: float) -> SkyKey:
 			base = a.hour
 			span = (b.hour + 24.0) - base
 	var t: float = clampf((h - base) / maxf(span, 0.001), 0.0, 1.0)
-	# Ease so every key is approached with zero slope — no grading "kinks"
-	# as the clock crosses a keyframe.
 	t = smoothstep(0.0, 1.0, t)
 	var out: SkyKey = SkyKey.new(h,
 		a.sky_top.lerp(b.sky_top, t), a.sky_horizon.lerp(b.sky_horizon, t),
@@ -148,57 +137,53 @@ func _sample(h: float) -> SkyKey:
 	return out
 
 
-## Push the palette sampled at hour `h` onto the sun, moon light, sky
-## material, and environment. Called every running frame from `_process()`
-## and once per `set_hour()` jump.
 func _apply(h: float) -> void:
 	var k: SkyKey = _sample(h)
 	# Sun arc: east at dawn, high at noon, west at dusk, below at night.
 	var elev: float = sin((h - 6.0) / 12.0 * PI)  # -1 midnight … 1 noon
-	# Pitch eases from +6° (horizon-grazing through the night) to -82°
-	# (near-zenith at noon); negative rotation.x tips the light downward.
 	var pitch: float = deg_to_rad(lerpf(6.0, -82.0, clampf(elev * 0.5 + 0.5, 0.0, 1.0)))
-	# Yaw sweeps 140° linearly across the whole 24 h day.
 	var yaw: float = deg_to_rad(lerpf(70.0, -70.0, clampf(h / 24.0, 0.0, 1.0)))
 	if _sun != null:
 		_sun.rotation = Vector3(pitch, yaw, 0.0)
 		_sun.light_color = k.sun_color
 		_sun.light_energy = k.sun_energy
-		# Skip sun shadow cost while the sun is effectively off — the
-		# MoonLight below owns nighttime shadows.
 		_sun.shadow_enabled = k.sun_energy > 0.2
 	# BOTW-like nights remain traversable and dimensional. A separate cool
 	# directional source behaves as moonlight instead of asking a near-zero
 	# below-horizon sun to carry every shadowed material.
-	# day_amount: 0 at night, 1 in full day; ramps over 5.4-7.2 h at dawn
-	# and back down over 18.2-20.4 h at dusk.
 	var day_amount: float = smoothstep(5.4, 7.2, h) * (1.0 - smoothstep(18.2, 20.4, h))
 	var moon_amount: float = 1.0 - day_amount
 	if _moon_light != null:
-		# A slow pitch wobble and yaw drift keep night shadows from feeling
-		# frozen; the light doesn't track CelestialLayer's visual moon.
 		_moon_light.rotation = Vector3(
 			deg_to_rad(-46.0 + sin(h * 0.24) * 6.0),
 			deg_to_rad(28.0 + h * 2.2),
 			0.0
 		)
 		_moon_light.light_energy = moon_amount * 0.42
-		# Only pay for moon shadows once night has more than half set in.
 		_moon_light.shadow_enabled = moon_amount > 0.42
-	if _sky_mat != null:
-		_sky_mat.sky_top_color = k.sky_top
-		_sky_mat.sky_horizon_color = k.sky_horizon
-		# The below-horizon half derives from the same script so it never
-		# clashes with the lit terrain or the fog band above it.
-		_sky_mat.ground_horizon_color = k.sky_horizon.darkened(0.28)
-		_sky_mat.ground_bottom_color = k.ambient.darkened(0.62)
+	if _vol_sky_mat != null:
+		_vol_sky_mat.set_shader_parameter("sky_top_color", k.sky_top)
+		_vol_sky_mat.set_shader_parameter("sky_horizon_color", k.sky_horizon)
+		_vol_sky_mat.set_shader_parameter("ground_color", k.ambient.darkened(0.55))
+		if _sun != null:
+			# DirectionalLight3D shines along -Z; +Z of its basis points AT the sun.
+			_vol_sky_mat.set_shader_parameter("sun_direction", _sun.global_transform.basis.z)
+			_vol_sky_mat.set_shader_parameter("sun_color", k.sun_color)
+			_vol_sky_mat.set_shader_parameter("sun_energy", k.sun_energy)
+		if _moon_light != null:
+			_vol_sky_mat.set_shader_parameter("moon_direction", _moon_light.global_transform.basis.z)
+			_vol_sky_mat.set_shader_parameter("moon_color", _moon_light.light_color)
+			_vol_sky_mat.set_shader_parameter("moon_energy", _moon_light.light_energy)
+		_vol_sky_mat.set_shader_parameter("day_amount", day_amount)
+		# Dawn/dusk thicken the horizon haze; clear noon thins it.
+		var warm: float = maxf(
+			maxf(0.0, 1.0 - absf(h - 6.25) / 2.0),
+			maxf(0.0, 1.0 - absf(h - 18.15) / 2.2)
+		)
+		_vol_sky_mat.set_shader_parameter("haze_strength", clampf(0.42 + warm * 0.34, 0.0, 1.0))
 	if _env != null:
 		_env.ambient_light_color = k.ambient
 		_env.ambient_light_energy = k.ambient_energy
-		# The keyframed ambient owns the term entirely; blending in sampled
-		# sky light would let bright sky colors leak into night ambience.
 		_env.ambient_light_sky_contribution = 0.0
 		_env.fog_light_color = k.fog
-		# Slightly lighter albedo keeps near volumetric haze luminous
-		# against the darker distance-fog tint.
 		_env.volumetric_fog_albedo = k.fog.lightened(0.08)

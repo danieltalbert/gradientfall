@@ -12,9 +12,15 @@ extends Node3D
 @onready var _terrain: MeadowTerrain = $World/Terrain
 @onready var _bit: Bit = $Bit
 @onready var _landmarks: MeadowLandmarks = $World/Landmarks
+@onready var _town: BootstrapTown = $World/Town
+@onready var _sky: SkyCycle = $World/SkyCycle
 
 var _spawner: MonsterSpawner
 var _hud: CombatHud
+var _dialogue: DialogueUi
+var _interactor: NpcInteractor
+var _pack: InventoryScreen
+var _forage: MeadowForage
 
 
 func _ready() -> void:
@@ -34,6 +40,7 @@ func _ready() -> void:
 		push_error("ContentDB reported %d load error(s) — see above." % errors.size())
 
 	_spawn_player()
+	_town.build(_terrain, _sky)
 	_landmarks.build(_terrain)
 	_bit.setup(_player, _terrain)
 
@@ -51,6 +58,9 @@ func _setup_combat() -> void:
 	_hud.name = "CombatHud"
 	add_child(_hud)
 	_player.broadcast_hearts()  # HUD was created after the player spawned
+	var prompt: KnowledgePrompt = KnowledgePrompt.new()
+	prompt.name = "KnowledgePrompt"
+	add_child(prompt)
 	_spawner = MonsterSpawner.new()
 	_spawner.name = "MonsterSpawner"
 	$World.add_child(_spawner)
@@ -58,6 +68,37 @@ func _setup_combat() -> void:
 	var spawn_pos: Vector3 = Vector3(sp.x, _terrain.get_height(sp.x, sp.y), sp.y)
 	_spawner.setup(_terrain, spawn_pos)
 	print("Combat v1 online: sword combo/dodge/block, hearts, monster spawner + proving ground.")
+	print("Knowledge charge v1 online: Q mid-fight calls the focus channel — answer with Bit to forge the strike.")
+	_setup_dialogue()
+
+
+## Bootstrap's villagers (milestone 8) talk back: a proximity interactor raises
+## the talk prompt, and the dialogue box plays the lines out of ContentDB.
+func _setup_dialogue() -> void:
+	_dialogue = DialogueUi.new()
+	_dialogue.name = "DialogueUi"
+	add_child(_dialogue)
+	_interactor = NpcInteractor.new()
+	_interactor.name = "NpcInteractor"
+	add_child(_interactor)
+	_interactor.setup(_player)
+	print("Bootstrap online: %d villagers to talk to — walk up and press E." % [
+		get_tree().get_nodes_in_group(&"npc").size(),
+	])
+	_setup_pack()
+
+
+## Milestone 10: the pack screen plus the forage that fills it. Forage is built
+## after the landmarks because curios and tools cluster around them.
+func _setup_pack() -> void:
+	_pack = InventoryScreen.new()
+	_pack.name = "InventoryScreen"
+	add_child(_pack)
+	_forage = MeadowForage.new()
+	_forage.name = "MeadowForage"
+	$World.add_child(_forage)
+	_forage.setup(_terrain)
+	print("Pack online: press I for the inventory; Tokens ride the HUD purse.")
 
 
 func _spawn_player() -> void:
@@ -79,6 +120,13 @@ func _capture_screens(dir: String) -> void:
 	# Angles chosen to judge the GDD §10 bar: the town-and-pond view, the
 	# Gradient Peaks vista, the sea horizon, and grass up close.
 	var rig: Node3D = _player.get_node("CameraRig")
+	# Keep the frame clean: Kern's body, Bit, and the floating landmark/bark
+	# labels otherwise sit right on the lens and block the world we're judging.
+	var kern_visual: Node3D = _player.get_node("Visual") as Node3D
+	if kern_visual != null:
+		kern_visual.visible = false
+	_bit.visible = false
+	_landmarks.visible = false
 	var cycle: SkyCycle = get_node("World/SkyCycle") as SkyCycle
 	if cycle != null:
 		cycle.paused = true
@@ -95,18 +143,79 @@ func _capture_screens(dir: String) -> void:
 			"pos": Vector2(15.0, -60.0)},
 		{"name": "detail_grass_horizon", "yaw": deg_to_rad(20.0), "pitch": 0.02,
 			"pos": Vector2(-42.0, -82.0)},
+		{"name": "detail_grass_closeup", "yaw": deg_to_rad(20.0), "pitch": -0.34,
+			"pos": Vector2(-42.0, -82.0), "eye": 0.55},
+		# Bootstrap (milestone 8): the square from the south road, the market
+		# and inn across the crossroads, and the mill out at the pond.
+		{"name": "town_square", "yaw": 0.0, "pitch": -0.04, "pos": Vector2(0.0, 54.0)},
+		{"name": "town_market", "yaw": deg_to_rad(37.0), "pitch": -0.06,
+			"pos": Vector2(19.0, 45.0)},
+		{"name": "town_mill", "yaw": deg_to_rad(-42.0), "pitch": -0.08,
+			"pos": Vector2(61.0, 21.0)},
+		# Sky/cloud verification: the volumetric deck lives at 600-1820 m, so a
+		# ground-facing frame shows almost none of it. These look UP.
+		{"name": "sky_clouds_up", "yaw": deg_to_rad(-40.0), "pitch": 0.62,
+			"pos": Vector2(-42.0, -82.0)},
+		{"name": "sky_clouds_horizon", "yaw": deg_to_rad(150.0), "pitch": 0.26,
+			"pos": Vector2(-42.0, -82.0)},
+		# In-game third-person shots: Kern visible in the dense meadow at the
+		# normal ~4.5 m behind-and-above framing — "how it actually looks in
+		# play." Camera is placed explicitly behind him (rig frozen, spring 0)
+		# because the spring arm mis-settles under teleport. `face` turns Kern
+		# into the view. `pos` = camera, `player_at` = where Kern stands.
+		{"name": "ingame_kern_meadow", "yaw": deg_to_rad(18.0), "pitch": -0.16,
+			"pos": Vector2(-40.6, -77.7), "eye": 2.0, "show_kern": true,
+			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(-42.0, -82.0),
+			"face": deg_to_rad(18.0)},
+		{"name": "ingame_kern_field", "yaw": deg_to_rad(-70.0), "pitch": -0.15,
+			"pos": Vector2(17.8, -42.5), "eye": 2.0, "show_kern": true,
+			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(22.0, -44.0),
+			"face": deg_to_rad(-70.0)},
+		{"name": "ingame_kern_toward_peaks", "yaw": deg_to_rad(40.0), "pitch": -0.10,
+			"pos": Vector2(-15.1, -26.5), "eye": 2.0, "show_kern": true,
+			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(-18.0, -30.0),
+			"face": deg_to_rad(40.0)},
+		# Kern standing in the sward — verifies the trample parting around him.
+		# Spring arm collapsed so the camera sits exactly at the posed point
+		# and looks straight down at his feet, where the parting shows.
+		{"name": "detail_trample", "yaw": 0.0, "pitch": -0.42,
+			"pos": Vector2(-40.0, -76.6), "eye": 1.7, "show_kern": true,
+			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(-40.0, -80.0)},
 	]
 	for i in 110:  # let terrain, shadows, TAA, and SDFGI converge
 		await get_tree().process_frame
+	# Honest steady-state frame rate: time a 60-frame window post-convergence
+	# (Engine.get_frames_per_second() right after boot reports compile spikes).
+	var t0: int = Time.get_ticks_usec()
+	for i in 60:
+		await get_tree().process_frame
+	var avg_fps: float = 60.0 * 1e6 / float(Time.get_ticks_usec() - t0)
+	print("Screenshot mode steady-state FPS: %.1f" % avg_fps)
 	for shot in shots:
+		if kern_visual != null:
+			kern_visual.visible = shot.get("show_kern", false)
+		# The rig normally re-follows the player every frame (and forces a
+		# 1.65 m eye) — freeze it so a posed camera that looks AT Kern (e.g.
+		# the trample shot) actually stays where it's put.
+		if shot.get("freeze_rig", false):
+			rig.set_process(false)
 		if shot.has("pos"):
 			var sample: Vector2 = shot["pos"]
+			var eye: float = shot.get("eye", 2.45)
+			# Kern normally stands at the camera spot; a shot can instead pose
+			# him elsewhere in frame (e.g. to verify the grass trample).
+			var stand: Vector2 = shot.get("player_at", sample)
 			_player.global_position = Vector3(
-				sample.x, _terrain.get_height(sample.x, sample.y) + 0.8, sample.y
+				stand.x, _terrain.get_height(stand.x, stand.y) + 0.8, stand.y
 			)
-			rig.global_position = _player.global_position + Vector3(0.0, 1.65, 0.0)
+			if shot.has("face"):
+				_player.rotation.y = shot["face"]
+			rig.global_position = Vector3(
+				sample.x, _terrain.get_height(sample.x, sample.y) + eye, sample.y
+			)
 		rig.rotation.y = shot["yaw"]
 		arm.rotation.x = shot["pitch"]
+		arm.spring_length = shot.get("spring", 5.0)
 		for i in 35:
 			await get_tree().process_frame
 		var img: Image = get_viewport().get_texture().get_image()
@@ -115,6 +224,9 @@ func _capture_screens(dir: String) -> void:
 		print("Screenshot %s -> %s" % ["OK" if err == OK else "FAILED", path])
 
 	# Day/night showcase: the same town view across the color script.
+	if kern_visual != null:
+		kern_visual.visible = false  # the trample shot re-showed him
+	arm.spring_length = 5.0          # the trample shot collapsed it
 	if cycle != null:
 		var sp: Vector2 = MeadowTerrain.SPAWN_POINT
 		_player.global_position = Vector3(sp.x, _terrain.get_height(sp.x, sp.y) + 0.8, sp.y)

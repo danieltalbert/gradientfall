@@ -49,6 +49,11 @@ const SPECIAL_DAMAGE: float = 1.6
 const SPECIAL_RADIUS: float = 4.6
 const SPECIAL_KNOCKBACK: float = 10.0
 
+# Knowledge channel (milestone 7): while Kern and Bit combine power through
+# the quiz card, the world crawls and Kern is untouchable (Danny's call:
+# live fight, but slow-mo + safe while focusing).
+const CHANNEL_TIME_SCALE: float = 0.15
+
 # --- Outputs read by player.gd after tick() ---
 var move_scale: float = 1.0
 var use_velocity_override: bool = false
@@ -77,6 +82,7 @@ var _block_time: float = 0.0
 
 var _charge: float = 0.0
 var _last_charge_sent: float = -1.0
+var _channeling: bool = false
 
 var _hitbox: Area3D
 var _in_hitstop: bool = false
@@ -90,6 +96,10 @@ func setup(player: CharacterBody3D, visual: Node, rig: Node3D, health: Health) -
 	_build_hitbox()
 	if not EventBus.quiz_answered.is_connected(_on_quiz_answered):
 		EventBus.quiz_answered.connect(_on_quiz_answered)
+	if not EventBus.knowledge_channel_started.is_connected(_on_channel_started):
+		EventBus.knowledge_channel_started.connect(_on_channel_started)
+	if not EventBus.knowledge_channel_ended.is_connected(_on_channel_ended):
+		EventBus.knowledge_channel_ended.connect(_on_channel_ended)
 	_emit_charge()
 
 
@@ -114,6 +124,13 @@ func tick(delta: float) -> void:
 	_dodge_cd = maxf(0.0, _dodge_cd - delta)
 
 	_read_special()
+	if _channeling:
+		# Kern stands braced, focusing with Bit; the prompt owns all input.
+		move_scale = 0.0
+		_update_hitbox()
+		if _visual != null and _visual.has_method(&"pose_guard"):
+			_visual.pose_guard(true)
+		return
 	_read_dodge()
 
 	if _dodge_left > 0.0:
@@ -356,8 +373,15 @@ func _update_hitbox() -> void:
 func _read_special() -> void:
 	if Input.is_action_just_pressed(&"debug_charge"):
 		add_charge(1.0)  # dev-only: verify the special without the quiz system
+	if _channeling:
+		return  # the KnowledgePrompt owns the special key until the card closes
 	if Input.is_action_just_pressed(&"special"):
-		_try_special()
+		if _charge >= 1.0:
+			_try_special()
+		elif _atk == Atk.READY and _dodge_left <= 0.0 and not _blocking:
+			# Part-full meter: the strike must be CAST — call the channel
+			# (Kern + Bit combine power through questions; milestone 7).
+			EventBus.knowledge_channel_requested.emit()
 
 
 func _try_special() -> void:
@@ -386,6 +410,28 @@ func add_charge(amount: float) -> void:
 func _on_quiz_answered(_quiz_id: String, correct: bool) -> void:
 	if correct:
 		add_charge(CHARGE_PER_QUIZ)
+
+
+# --- Knowledge channel (milestone 7) -----------------------------------------
+
+func _on_channel_started() -> void:
+	_cancel_swing()
+	_blocking = false
+	_channeling = true
+	_health.set_external_invuln(true)
+	Engine.time_scale = CHANNEL_TIME_SCALE
+
+
+func _on_channel_ended(completed: bool) -> void:
+	if not _channeling:
+		return
+	_channeling = false
+	_health.set_external_invuln(false)
+	if not _in_hitstop:
+		Engine.time_scale = 1.0
+	if completed:
+		# The channel's climax: the combined Kern+Bit strike fires itself.
+		_try_special()
 
 
 func _emit_charge() -> void:
@@ -418,11 +464,11 @@ func _drive_visual() -> void:
 # --- Small helpers -----------------------------------------------------------
 
 func is_busy() -> bool:
-	return _atk != Atk.READY or _dodge_left > 0.0
+	return _atk != Atk.READY or _dodge_left > 0.0 or _channeling
 
 
 func blocks_jump() -> bool:
-	return _dodge_left > 0.0 or _atk == Atk.WINDUP or _atk == Atk.ACTIVE
+	return _dodge_left > 0.0 or _atk == Atk.WINDUP or _atk == Atk.ACTIVE or _channeling
 
 
 func _input_world_dir() -> Vector3:
@@ -466,5 +512,7 @@ func _hitstop(duration: float, scale: float) -> void:
 
 
 func _end_hitstop() -> void:
-	Engine.time_scale = 1.0
+	# A hitstop that overlaps the knowledge channel must hand back the
+	# channel's slow-mo, not full speed.
+	Engine.time_scale = CHANNEL_TIME_SCALE if _channeling else 1.0
 	_in_hitstop = false

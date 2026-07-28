@@ -106,24 +106,34 @@ func _height_raw(x: float, z: float) -> float:
 
 
 func _vertex_color(x: float, z: float, h: float, normal: Vector3) -> Color:
-	var meadow_light: Color = Color(0.48, 0.64, 0.21)
-	var meadow_deep: Color = Color(0.32, 0.49, 0.13)
-	var dry_gold: Color = Color(0.7, 0.57, 0.23)
-	var rock: Color = Color(0.42, 0.41, 0.34)
+	# The ground the player glimpses BETWEEN and UNDER the blades is soil, not
+	# green — real dirt and thatch with mossy patches where roots are thick.
+	# Values are deliberately BRIGHT for display: the shader linearizes them
+	# (pow 2.2), so anything under ~0.4 crushes to a near-black void — which is
+	# exactly what read as "gray and hollow." The blade carpet dims it on top.
+	var soil_dark: Color = Color(0.27, 0.185, 0.115)   # damp earth in the hollows
+	var soil: Color = Color(0.42, 0.30, 0.185)         # plain dirt
+	var soil_dry: Color = Color(0.55, 0.44, 0.28)      # sun-baked dusty dirt
+	var moss: Color = Color(0.34, 0.40, 0.19)          # mossy root mat over the dirt
+	var rock: Color = Color(0.46, 0.44, 0.37)
 	var sand: Color = Color(0.72, 0.62, 0.38)
 
+	# Two independent noise bands: earth value drift, and where the root mat
+	# greens over vs. stays bare dirt — so the ground reads as patchy, lived-in.
 	var t: float = clampf(_tint.get_noise_2d(x, z) * 0.5 + 0.5, 0.0, 1.0)
-	var col: Color = meadow_deep.lerp(meadow_light, t)
-	# Sun-dried golden patches (its own noise band, meadow character).
+	var mossiness: float = clampf(_tint.get_noise_2d(x - 500.0, z + 500.0) * 0.5 + 0.5, 0.0, 1.0)
+	var col: Color = soil_dark.lerp(soil, t)
+	col = col.lerp(moss, smoothstep(0.4, 0.85, mossiness) * 0.5)
+	# Sun-dried dusty patches (its own noise band, meadow character).
 	var dry: float = smoothstep(0.55, 0.8, _tint.get_noise_2d(x + 900.0, z - 900.0) * 0.5 + 0.5)
-	col = col.lerp(dry_gold, dry * 0.38)
+	col = col.lerp(soil_dry, dry * 0.45)
 	# Steep ground reads as worn rock.
 	col = col.lerp(rock, smoothstep(0.82, 0.6, normal.y))
 	# Pond bed and rim read as sand.
 	var pond_dist: float = Vector2(x, z).distance_to(POND_CENTER)
 	col = col.lerp(sand, 1.0 - smoothstep(POND_RADIUS * 0.85, POND_RADIUS * 1.25, pond_dist))
 	# Bake soft sun-side variation so the ground never reads flat.
-	col = col * (0.94 + 0.06 * t)
+	col = col * (0.92 + 0.08 * t)
 	return col
 
 
@@ -176,7 +186,14 @@ func _build_mesh_and_collision() -> void:
 			var b: int = a + 1
 			var c: int = a + verts_per_side
 			var d: int = c + 1
-			indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+			# Counter-clockwise seen from above = front faces up. The old
+			# [a,c,b, b,c,d] wound them the other way, which cost us twice: the
+			# ground was back-face culled (the "gray hollow" — we were seeing the
+			# sky dome through it), and create_trimesh_shape() below inherited the
+			# inside-out surface, so the camera's SpringArm3D read itself as
+			# buried and collapsed to zero length — putting the view inside
+			# Kern's head on spawn.
+			indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
 
 	var arrays: Array = []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -194,10 +211,18 @@ func _build_mesh_and_collision() -> void:
 	mat.set_shader_parameter("albedo_boost", 1.04)
 	mat.set_shader_parameter("rim_amount", 0.08)
 	mat.set_shader_parameter("rim_width", 0.82)
-	mat.set_shader_parameter("fill_amount", 0.16)
-	mat.set_shader_parameter("shadow_fill", Color(0.48, 0.58, 0.44))
-	mat.set_shader_parameter("noise_amount", 0.08)
-	mat.set_shader_parameter("noise_scale", 0.3)
+	mat.set_shader_parameter("fill_amount", 0.24)
+	# Warm earthy fill so shadowed soil stays dirt-brown, not sky-blue-gray —
+	# the exact thing that made the exposed ground read as a hollow void.
+	mat.set_shader_parameter("shadow_fill", Color(0.40, 0.31, 0.19))
+	# Fine grain + gentle crevice darkening turns the flat plane into real dirt.
+	mat.set_shader_parameter("noise_amount", 0.20)
+	mat.set_shader_parameter("noise_scale", 1.05)
+	mat.set_shader_parameter("earth_grain", 0.45)
+	# Warm ambient floor so shadowed / north-facing ground stays visible damp
+	# earth instead of the black void that read as "gray and hollow."
+	mat.set_shader_parameter("ambient_floor", 0.3)
+	mat.set_shader_parameter("ambient_floor_tint", Color(1.0, 0.76, 0.5))
 	mesh.surface_set_material(0, mat)
 
 	var mesh_instance: MeshInstance3D = MeshInstance3D.new()

@@ -6,29 +6,15 @@ extends Area3D
 ##
 ## Layer discipline: the bolt sits on no layer and only *watches* the player
 ## body and the world, so bolts never collide with each other or their caster.
-##
-## Fired by Enemy._fire_projectile() via the static `spawn()`, parented to
-## the current scene rather than to its caster so a bolt outlives the
-## monster that fired it. Travels in a straight line at constant speed — no
-## gravity, no homing — so sidestepping always works. Units: meters,
-## seconds, meters/second; damage is in hearts.
 
-## Normalized direction of travel, fixed at spawn.
 var _dir: Vector3 = Vector3.FORWARD
 var _speed: float = 14.0
-## Damage in hearts, passed to the player's `apply_hit()`.
 var _damage: float = 0.5
-## Seconds before the bolt expires on its own, so strays are never leaked.
 var _life: float = 4.0
 var _color: Color = Color(0.7, 0.45, 1.0)
-## Set once the bolt has popped; stops movement and a second hit landing in
-## the same frame the node is queued for deletion.
 var _spent: bool = false
 
 
-## Fire a bolt from `from_position` along `dir`. Parent it to `host` (the
-## caller passes the current scene) and place it after adding to the tree so
-## `global_position` is meaningful. No-op if the host is not in the tree.
 static func spawn(host: Node, from_position: Vector3, dir: Vector3, speed: float,
 		damage: float, color: Color) -> void:
 	if host == null or not host.is_inside_tree():
@@ -42,8 +28,6 @@ static func spawn(host: Node, from_position: Vector3, dir: Vector3, speed: float
 	p.global_position = from_position
 
 
-## Build the bolt: a small sphere sensor watching the player and the world,
-## plus the visual. On no layer itself, so nothing can ever detect a bolt.
 func _ready() -> void:
 	collision_layer = 0
 	collision_mask = CombatLayers.PLAYER | CombatLayers.WORLD
@@ -57,9 +41,6 @@ func _ready() -> void:
 	body_entered.connect(_on_body_entered)
 
 
-## Assemble the bolt's look: an unshaded emissive core, an additive stretched
-## tail behind it for motion, and a small omni light so the bolt actually
-## lights the ground it passes over. Nothing here casts shadows.
 func _build_visual() -> void:
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
 	mat.albedo_color = _color
@@ -89,7 +70,6 @@ func _build_visual() -> void:
 	tail_mesh.size = Vector3(0.12, 0.12, 0.7)
 	tail.mesh = tail_mesh
 	tail.material_override = tail_mat
-	# Half the tail's length behind the core: forward is -Z, so +Z trails.
 	tail.position = Vector3(0.0, 0.0, 0.35)
 	tail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(tail)
@@ -102,13 +82,10 @@ func _build_visual() -> void:
 	add_child(glow)
 
 	# Orient the tail down-range, guarding the degenerate straight-up/down case.
-	# A near-vertical direction would make look_at's up vector ambiguous, so
-	# the bolt simply keeps its default orientation there.
 	if _dir.length_squared() > 0.0001 and absf(_dir.normalized().dot(Vector3.UP)) < 0.99:
 		look_at(global_position + _dir, Vector3.UP)
 
 
-## Fly straight at constant speed and expire when the life timer runs out.
 func _physics_process(delta: float) -> void:
 	if _spent:
 		return
@@ -118,8 +95,6 @@ func _physics_process(delta: float) -> void:
 		_pop()
 
 
-## Contact handler. Damages Kern if he is what was struck, then pops either
-## way — hitting terrain stops the bolt just as hitting the player does.
 func _on_body_entered(body: Node) -> void:
 	if _spent:
 		return
@@ -128,8 +103,6 @@ func _on_body_entered(body: Node) -> void:
 	_pop()
 
 
-## Burst into shards and free the node. Monitoring is disabled first so no
-## further contacts can fire during the frame before deletion.
 func _pop() -> void:
 	_spent = true
 	monitoring = false

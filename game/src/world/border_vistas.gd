@@ -7,56 +7,22 @@ extends Node3D
 ## branching ridge fields, gullies, strata, broken snow, a connected foothill
 ## apron, and a dense tree belt for scale. East is a layered 3D forest canopy,
 ## west is animated water, and south is a deep rank of rolling downs.
-##
-## Attached to the World/Vistas Node3D in main.tscn, next to World/Terrain
-## (MeadowTerrain), which it samples so the northern apron meets the real
-## ground without a seam. Everything is generated in code during _ready():
-## purely visual scenery — no collision, no shadow casting, and no per-frame
-## script work (the sea animates in its shader). Positions are in meters
-## with the meadow centered on the origin; compass mapping is north = -Z,
-## east = +X, south = +Z, west = -X. Generation is deterministic: every
-## feature draws from its own RNG stream derived from VISTA_SEED, so the
-## horizon is identical on every boot.
 
-## Master seed for every horizon feature (date-stamped: 2026-07-18). Each
-## builder derives an offset seed from it, keeping features on independent,
-## reproducible RNG streams regardless of build order.
 const VISTA_SEED: int = 20260718
-## Quad columns across each peak's footprint (local X).
 const MOUNTAIN_GRID_X: int = 44
-## Quad rows across each peak's footprint depth (local Z). 44x36 keeps each
-## of the ~38 peaks around 3.2k triangles before edge culling.
 const MOUNTAIN_GRID_Z: int = 36
-## Distinct tree silhouettes shared by the mountain tree belt and the
-## eastern forest wall (0 wind-bent pine, 1 narrow fir, 2 broad spruce,
-## 3 clustered cedar).
 const HORIZON_TREE_VARIANTS: int = 4
-## Rock/strata/snow shader used by every peak and the foothill apron. It
-## reads the authored ridge/gully mask from UV.x and normalized altitude
-## from UV.y — see the UV writes in _build_peak_mesh().
 const MOUNTAIN_SHADER_PATH: String = "res://assets/shaders/mountain_vista.gdshader"
-## Soft-banded toon shader (shared with characters/props elsewhere), used
-## here for the horizon trees and the southern downs.
 const TOON_SOFT_SHADER_PATH: String = "res://assets/shaders/toon_soft.gdshader"
+const CLIMBABLE_PEAKS := preload("res://src/world/gradient_peaks.gd")
 
-## Class-level RNG; its only consumer is _roll_southern_downs(). The other
-## builders create locally seeded RNGs so their output cannot shift if the
-## build order or another feature's draw count changes.
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
-## Low-frequency simplex shared by the apron heightfield and its tinting.
 var _apron_noise: FastNoiseLite = FastNoiseLite.new()
-## The playable meadow (sibling "../Terrain" node), sampled to stitch the
-## apron's near edge onto real ground. Null-safe: vistas build without it.
 var _terrain: MeadowTerrain
-## Loaded once and shared by all peak materials and the apron material.
 var _mountain_shader: Shader
-## Lazily built tree meshes, one per variant, shared by both MultiMesh
-## consumers (mountain belt and forest wall) via _get_horizon_tree_mesh().
 var _horizon_tree_meshes: Array[ArrayMesh] = []
 
 
-## Builds all four horizons once at scene load. Order is cosmetic — every
-## builder is independently seeded and self-contained.
 func _ready() -> void:
 	_rng.seed = VISTA_SEED
 	_apron_noise.seed = VISTA_SEED + 71
@@ -66,13 +32,24 @@ func _ready() -> void:
 	_terrain = get_node_or_null("../Terrain") as MeadowTerrain
 	_mountain_shader = load(MOUNTAIN_SHADER_PATH) as Shader
 
-	_build_northern_apron()
+	_raise_climbable_peaks()
 	_raise_gradient_peaks()
-	_plant_mountain_tree_belt()
 	_grow_latent_forest_wall()
 	_lay_convolution_sea()
 	_roll_southern_downs()
-	print("BorderVistas: four-rank Gradient Peaks, forest canopy, coast, and downs ready.")
+	print("BorderVistas: climbable Gradient Peaks + distant snow giants, forest, coast, and downs ready.")
+
+
+## The near mountains are no longer painted cards: this stands up the real,
+## collidable Gradient Peaks massif — the one the player can climb, valley
+## through, and that future POIs anchor onto — rising off the meadow's north
+## seam. _raise_gradient_peaks then keeps only the two distant ranks, which sit
+## above and behind it as the snow-giant backdrop.
+func _raise_climbable_peaks() -> void:
+	var peaks := CLIMBABLE_PEAKS.new()
+	peaks.name = "ClimbablePeaks"
+	add_child(peaks)
+	peaks.setup(_terrain)
 
 
 ## Build the main landmark from hand-composed ranks rather than an evenly
@@ -103,47 +80,13 @@ func _raise_gradient_peaks() -> void:
 		Vector4(505.0, -900.0, 255.0, 415.0),
 		Vector4(745.0, -855.0, 230.0, 350.0),
 	]
-	var middle_layout: Array[Vector4] = [
-		Vector4(-790.0, -690.0, 185.0, 235.0),
-		Vector4(-625.0, -655.0, 175.0, 285.0),
-		Vector4(-445.0, -720.0, 205.0, 260.0),
-		Vector4(-260.0, -650.0, 165.0, 305.0),
-		Vector4(-90.0, -700.0, 190.0, 250.0),
-		Vector4(80.0, -660.0, 170.0, 290.0),
-		Vector4(255.0, -715.0, 205.0, 275.0),
-		Vector4(445.0, -650.0, 175.0, 310.0),
-		Vector4(625.0, -705.0, 200.0, 255.0),
-		Vector4(810.0, -665.0, 180.0, 275.0),
-	]
-	var rampart_layout: Array[Vector4] = [
-		Vector4(-820.0, -515.0, 155.0, 145.0),
-		Vector4(-685.0, -485.0, 140.0, 185.0),
-		Vector4(-535.0, -530.0, 165.0, 155.0),
-		Vector4(-385.0, -475.0, 135.0, 205.0),
-		Vector4(-245.0, -525.0, 160.0, 165.0),
-		Vector4(-90.0, -480.0, 145.0, 215.0),
-		Vector4(60.0, -525.0, 165.0, 170.0),
-		Vector4(215.0, -475.0, 140.0, 200.0),
-		Vector4(360.0, -530.0, 160.0, 160.0),
-		Vector4(515.0, -480.0, 145.0, 210.0),
-		Vector4(660.0, -525.0, 160.0, 155.0),
-		Vector4(810.0, -490.0, 145.0, 180.0),
-	]
-
-	# Rank runs 0 (nearest) to 3 (farthest). base_y sinks the distant ranks
-	# so their feet stay hidden behind nearer ridges; the front rank rides
-	# at +20 m to stand on top of the foothill apron.
+	# The former MiddleCrags and FrontRamparts ranks lived inside the footprint
+	# the climbable massif now fills, so only the two distant ranges remain —
+	# they read as the snow giants rising above and behind the real mountains.
 	_add_mountain_rank(peaks, "FarGhostRange", far_layout, 3, -42.0)
 	_add_mountain_rank(peaks, "HighSnowRange", high_layout, 2, -24.0)
-	_add_mountain_rank(peaks, "MiddleCrags", middle_layout, 1, 0.0)
-	_add_mountain_rank(peaks, "FrontRamparts", rampart_layout, 0, 20.0)
 
 
-## Instantiates one row of peaks from a hand-authored layout table. rank
-## runs 0 (FrontRamparts) to 3 (FarGhostRange) and selects the mesh style,
-## vertex palette, and material snow/haze register; base_y is the rank's
-## ground level in meters. Every peak derives its own seed from rank and
-## index, so no two peaks share ridge patterns.
 func _add_mountain_rank(
 		parent: Node3D,
 		rank_name: String,
@@ -166,11 +109,7 @@ func _add_mountain_rank(
 			rank, spec.w, i, peak_rng
 		)
 		mountain.position = Vector3(spec.x, base_y, spec.y)
-		# Small random yaw (about +-18 degrees) adds silhouette variety on
-		# top of the per-peak seed.
 		mountain.rotation.y = peak_rng.randf_range(-0.32, 0.32)
-		# All vista geometry skips shadows: it sits far beyond the shadow
-		# map range, so casting would only waste draw calls.
 		mountain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		rank_node.add_child(mountain)
 
@@ -184,8 +123,6 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 	# Roughly one peak in four remains a sharp landmark. The rest use a wider,
 	# lower compound crown so the range does not become a forest of needles.
 	var sharp_landmark: bool = posmod(seed + rank * 3, 4) == 0
-	# Two noise fields: smooth simplex shapes the outline and ledge masks,
-	# harsher standard simplex supplies high-frequency crag fracture.
 	var surface_noise: FastNoiseLite = FastNoiseLite.new()
 	surface_noise.seed = seed + 17
 	surface_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -197,14 +134,7 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 	fracture_noise.frequency = 1.65
 	fracture_noise.fractal_octaves = 3
 
-	# All shaping happens in a normalized footprint space: x/z span roughly
-	# [-1.08, 1.08] where 1.0 maps to base_radius meters, and altitude runs
-	# 0..1 where 1.0 maps to `height` meters. depth_scale squashes local Z
-	# so the massif reads elliptical rather than round.
 	var depth_scale: float = peak_rng.randf_range(0.74, 0.98)
-	# The crest axis is the mountain's spine; summits, shoulders, and the
-	# outcrop are all placed relative to it so the mass reads as one
-	# connected ridge line rather than unrelated bumps.
 	var crest_angle: float = peak_rng.randf_range(-0.65, 0.65)
 	var crest_axis: Vector2 = Vector2(cos(crest_angle), sin(crest_angle))
 	var crest_perpendicular: Vector2 = Vector2(-crest_axis.y, crest_axis.x)
@@ -222,13 +152,6 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 	var ridge_widths: PackedFloat32Array = PackedFloat32Array()
 	var ridge_strengths: PackedFloat32Array = PackedFloat32Array()
 	var gully_segments: Array[Vector4] = []
-	# Five primary spurs radiate from the summit area, ~72 degrees apart
-	# with jitter. Each spur is three segments — trunk (start->split), a
-	# continuation (split->end), and a fork (split->branch_end) — with
-	# ridge width and lift shrinking toward the tips. A gully is carved
-	# beside each spur, rotated ~20-33 degrees off it and starting away
-	# from the center so the summit crown itself is never cut. Widths and
-	# strengths are in normalized footprint/altitude units.
 	for ridge_index in 5:
 		var angle: float = crest_angle + TAU * float(ridge_index) / 5.0
 		angle += peak_rng.randf_range(-0.36, 0.36)
@@ -277,8 +200,6 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 		peak_rng.randf_range(0.63, 0.76), peak_rng.randf_range(0.68, 0.84)
 	)
 	var main_exponent: float = peak_rng.randf_range(1.04, 1.3)
-	# Twin summit kernels straddle the crest line; landmark peaks get tight
-	# radii (a sharp horn), everything else a wide, lower compound crown.
 	var summit_a_center: Vector2 = main_center + crest_perpendicular * peak_rng.randf_range(0.055, 0.1)
 	summit_a_center += crest_axis * peak_rng.randf_range(-0.04, 0.06)
 	var summit_b_center: Vector2 = main_center - crest_perpendicular * peak_rng.randf_range(0.07, 0.13)
@@ -305,14 +226,10 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 		)
 		summit_a_height = peak_rng.randf_range(0.94, 0.98)
 		summit_b_height = peak_rng.randf_range(0.82, 0.9)
-	# Non-landmark peaks get slightly taller shoulders to fill out their
-	# broader crowns.
 	var shoulder_a_height: float = peak_rng.randf_range(0.62, 0.74) + (0.05 if not sharp_landmark else 0.0)
 	var shoulder_b_height: float = peak_rng.randf_range(0.49, 0.64) + (0.045 if not sharp_landmark else 0.0)
 	var outcrop_height: float = peak_rng.randf_range(0.37, 0.52)
 	var gully_depth: float = peak_rng.randf_range(0.045, 0.07)
-	# World-space riser height (m) for the terracing pass: 3.2-4.7% of the
-	# peak height, e.g. ~13-19 m ledges on a 400 m peak.
 	var ledge_step: float = height * peak_rng.randf_range(0.032, 0.047)
 	for iz in vertex_depth:
 		var nz: float = lerpf(-1.08, 1.08, float(iz) / float(MOUNTAIN_GRID_Z))
@@ -320,9 +237,6 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 			var nx: float = lerpf(-1.08, 1.08, float(ix) / float(MOUNTAIN_GRID_X))
 			var point: Vector2 = Vector2(nx, nz)
 			var index: int = iz * vertex_width + ix
-			# Noise-warped silhouette: footprint fades 1 -> 0 across a band
-			# around a wobbling outline radius, so the base edge is an
-			# irregular blob instead of the square mesh boundary.
 			var outline_noise: float = surface_noise.get_noise_2d(nx * 1.8, nz * 1.8)
 			var outline_radius: float = 1.0 + outline_noise * 0.095
 			var footprint: float = 1.0 - smoothstep(
@@ -330,10 +244,6 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 			)
 			footprint_weights[index] = footprint
 
-			# Altitude is the union (max) of overlapping kernels: broad
-			# base, two summits, two shoulders, one low outcrop. max()
-			# keeps crisp saddle creases where kernels meet, where a sum
-			# would mound them together.
 			var broad_main: float = _massif_kernel(
 				point, main_center, main_radii, crest_angle,
 				main_exponent, 0.42
@@ -355,22 +265,15 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 				point, outcrop_center, Vector2(0.3, 0.4), crest_angle + 0.9, 0.78, 0.78
 			) * outcrop_height
 			var altitude: float = maxf(maxf(main, first_shoulder), maxf(second_shoulder, outcrop))
-			# Guarantee a low pedestal across the whole footprint so gaps
-			# between kernels never drop to bare zero inside the silhouette.
 			altitude = maxf(altitude, footprint * 0.14)
 
 			var authored_ridge: float = 0.0
 			for ridge_index in ridge_segments.size():
 				var ridge_metric: Vector2 = _segment_metric(point, ridge_segments[ridge_index])
-				# pow 2.2 sharpens the cross-section falloff so ridges read
-				# as ribs rather than soft welts; influence is faded to
-				# nothing at the silhouette edge.
 				var ridge_influence: float = pow(
 					maxf(1.0 - ridge_metric.y / ridge_widths[ridge_index], 0.0), 2.2
 				)
 				ridge_influence *= smoothstep(0.0, 0.12, footprint)
-				# Lift decays 34% along each segment so spurs descend from
-				# the summit outward.
 				altitude += ridge_influence * ridge_strengths[ridge_index] \
 						* (1.0 - ridge_metric.x * 0.34)
 				authored_ridge = maxf(authored_ridge, ridge_influence)
@@ -379,37 +282,23 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 			for gully_segment in gully_segments:
 				var gully_metric: Vector2 = _segment_metric(point, gully_segment)
 				var gully_influence: float = pow(maxf(1.0 - gully_metric.y / 0.068, 0.0), 1.65)
-				# Gullies deepen with distance from the summit (progress
-				# gate) so the crown stays intact while lower faces erode.
 				gully_influence *= smoothstep(0.08, 0.7, gully_metric.x)
 				authored_gully = maxf(authored_gully, gully_influence)
 			altitude -= authored_gully * gully_depth
 
-			# High-frequency crag jitter, damped toward the crest
-			# (1 - altitude * 0.38) so summit lines stay clean.
 			var crag_noise: float = fracture_noise.get_noise_2d(nx * 3.8, nz * 3.8)
 			altitude += crag_noise * 0.022 * footprint * (1.0 - altitude * 0.38)
 			altitude = maxf(altitude, -0.035)
 			var y: float = height * altitude
-			# Terracing pass: quantize height into ledge_step risers, but
-			# only where the noise mask allows, only at mid altitudes, and
-			# suppressed on authored ridges. The final 0.34 blend keeps
-			# shelves patchy — broken strata, not a ziggurat.
 			var ledge_noise: float = surface_noise.get_noise_3d(nx * 2.8, nz * 2.8, altitude * 5.0)
 			var ledge_mask: float = smoothstep(0.05, 0.62, ledge_noise)
 			ledge_mask *= smoothstep(0.16, 0.34, altitude) * (1.0 - smoothstep(0.78, 0.94, altitude))
 			ledge_mask *= 1.0 - authored_ridge * 0.48
 			var terraced_y: float = floor(y / ledge_step) * ledge_step
 			y = lerpf(y, terraced_y, ledge_mask * 0.34)
-			# Fully outside the silhouette: drop to a shallow buried skirt.
 			if footprint < 0.01:
 				y = -height * 0.045
 
-			# Shader contract: UV.x carries the ridge/gully mask (0.39 =
-			# neutral face, higher = ridge rib, lower = ravine), UV.y the
-			# normalized altitude; vertex color is the authored rank
-			# palette. mountain_vista.gdshader derives strata, scree,
-			# gullies, and snow entirely from these channels.
 			var ridge_mask: float = clampf(
 				0.39 + authored_ridge * 0.58 - authored_gully * 0.47 + crag_noise * 0.06,
 				0.0, 1.0
@@ -421,8 +310,6 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 			)
 			uvs[index] = Vector2(ridge_mask, normalized_altitude)
 
-	# Emit only quads touching the footprint; cells fully outside are
-	# culled, trimming the buried skirt down to the silhouette.
 	for iz in MOUNTAIN_GRID_Z:
 		for ix in MOUNTAIN_GRID_X:
 			var a: int = iz * vertex_width + ix
@@ -436,14 +323,6 @@ func _build_peak_mesh(base_radius: float, height: float, seed: int, rank: int) -
 	return _create_indexed_mesh(positions, colors, uvs, indices)
 
 
-## Height contribution (0..1) of one elliptical hill kernel at `point`, in
-## normalized footprint space. The distance metric blends the true
-## elliptical (round contours) metric with a Chebyshev square metric via
-## `facet`, so high facet values yield flat faces and diamond contours
-## instead of a smooth cone. The ellipse is rotated by `angle` (radians)
-## and sized by `radii`. `exponent` shapes the falloff profile: > 1
-## sharpens the tip into a horn with gentle skirts, < 1 rounds the crown
-## and steepens the flanks.
 func _massif_kernel(
 		point: Vector2,
 		center: Vector2,
@@ -455,19 +334,12 @@ func _massif_kernel(
 	var delta: Vector2 = (point - center).rotated(-angle)
 	var scaled: Vector2 = Vector2(delta.x / radii.x, delta.y / radii.y)
 	var euclidean: float = scaled.length()
-	# max(|x|, |y|) is the square metric; the 1.08 inflation shrinks the
-	# faceted footprint slightly so it reads tighter than the round one at
-	# equal radii.
 	var angular: float = maxf(absf(scaled.x), absf(scaled.y)) * 1.08
 	var distance: float = lerpf(euclidean, angular, facet)
 	return pow(maxf(1.0 - distance, 0.0), exponent)
 
 
 ## Returns segment progress in x and perpendicular distance in y.
-## Standard point-to-segment projection with progress clamped to [0, 1],
-## so points past either endpoint measure distance to that endpoint.
-## Segments are packed as Vector4 (start.x, start.y, end.x, end.y) in the
-## same normalized footprint space the ridge/gully tables use.
 func _segment_metric(point: Vector2, segment: Vector4) -> Vector2:
 	var start: Vector2 = Vector2(segment.x, segment.y)
 	var end: Vector2 = Vector2(segment.z, segment.w)
@@ -478,12 +350,6 @@ func _segment_metric(point: Vector2, segment: Vector4) -> Vector2:
 	return Vector2(progress, point.distance_to(nearest))
 
 
-## Base rock color for one peak vertex. Each rank owns a low/middle/high
-## palette stepping from dark warm grey (rank 0, front) to pale hazy blue
-## (rank 3, farthest), baking painterly aerial perspective straight into
-## the geometry. Altitude blends the three stops; gullies darken (up to
-## -16%), ridge ribs lighten slightly, and crag noise adds ~+-4.5%
-## brightness grain so faces don't render as flat gradients.
 func _mountain_vertex_color(
 		rank: int,
 		altitude: float,
@@ -519,14 +385,6 @@ func _mountain_vertex_color(
 	return color
 
 
-## Per-peak ShaderMaterial for mountain_vista.gdshader. Snow follows the
-## rank: the front ramparts stay bare except a dusting on a few tall
-## peaks, the middle crags snow only when tall (or by index), and the two
-## far ranks carry low snowlines with occasional bare peaks so the range
-## never reads as uniformly frosted. Rock detail uniforms (strata,
-## fracture, scree, gully, detail scale) fade with rank distance while
-## haze and shadow fill grow — matching aerial perspective. seed_offset
-## de-correlates the shader's procedural noise between neighboring peaks.
 func _make_mountain_material(
 		rank: int,
 		height: float,
@@ -553,7 +411,6 @@ func _make_mountain_material(
 			snowline_value = peak_rng.randf_range(0.56, 0.72)
 			snow_amount_value = 0.0 if peak_index % 4 == 0 else peak_rng.randf_range(0.45, 0.78)
 
-	# Indexed by rank, 0 (front) to 3 (farthest).
 	var haze_by_rank: PackedFloat32Array = PackedFloat32Array([0.035, 0.105, 0.205, 0.34])
 	var strata_by_rank: PackedFloat32Array = PackedFloat32Array([0.28, 0.245, 0.185, 0.115])
 	material.set_shader_parameter("snowline", snowline_value)
@@ -579,9 +436,6 @@ func _build_northern_apron() -> void:
 	const X_SEGMENTS: int = 64
 	const Z_SEGMENTS: int = 18
 	const WIDTH: float = 1900.0
-	# NEAR_Z starts 4 m inside the meadow's north boundary (-240) so the
-	# two meshes overlap instead of merely touching; FAR_Z ends underneath
-	# the MiddleCrags rank (z ~ -650..-720).
 	const NEAR_Z: float = -236.0
 	const FAR_Z: float = -670.0
 	var positions: PackedVector3Array = PackedVector3Array()
@@ -600,9 +454,6 @@ func _build_northern_apron() -> void:
 			var across: float = float(ix) / float(X_SEGMENTS)
 			var x: float = lerpf(-WIDTH * 0.5, WIDTH * 0.5, across)
 			var y: float = _north_apron_height(x, z)
-			# Across the first 12% of rows the apron sinks to 0.65 m below
-			# the sampled terrain height and eases up to its own profile,
-			# burying the seam under the real meadow surface.
 			if depth < 0.12 and _terrain != null and absf(x) <= MeadowTerrain.SIZE * 0.5:
 				var terrain_y: float = _terrain.get_height(x, maxf(z, -MeadowTerrain.SIZE * 0.5))
 				y = lerpf(terrain_y - 0.65, y, smoothstep(0.0, 0.12, depth))
@@ -617,10 +468,6 @@ func _build_northern_apron() -> void:
 			color *= 0.94 + tint_noise * 0.055
 			color.a = 1.0
 			colors[index] = color
-			# Shader contract in a quieter register than the peaks: UV.x
-			# fakes the ridge channel from tint noise, and UV.y caps
-			# "altitude" at 0.58 so the apron can never cross the snowline
-			# and strata/scree stay in their low-altitude bands.
 			uvs[index] = Vector2(tint_noise * 0.5 + 0.5, depth * 0.58)
 
 	for iz in Z_SEGMENTS:
@@ -632,8 +479,6 @@ func _build_northern_apron() -> void:
 			indices.append_array(PackedInt32Array([a, b, c, b, d, c]))
 
 	var apron_mesh: ArrayMesh = _create_indexed_mesh(positions, colors, uvs, indices)
-	# Same mountain shader, tuned way down: no snow, faint strata and
-	# fractures, minimal haze — foothill rock, not alpine cliff.
 	var material: ShaderMaterial = ShaderMaterial.new()
 	material.shader = _mountain_shader
 	material.set_shader_parameter("snow_amount", 0.0)
@@ -655,12 +500,6 @@ func _build_northern_apron() -> void:
 	add_child(apron)
 
 
-## Apron surface height (m) at world x/z — also the planting surface for
-## the mountain tree belt. A 19 -> 58 m base ramp between the apron's near
-## and far edges (-236/-670, mirroring the constants in
-## _build_northern_apron) is layered with simplex swell plus two diagonal
-## sine ridge trains, all of whose amplitudes grow with depth so the
-## foothills roughen as they approach the peaks.
 func _north_apron_height(x: float, z: float) -> float:
 	var depth: float = clampf(inverse_lerp(-236.0, -670.0, z), 0.0, 1.0)
 	var broad: float = _apron_noise.get_noise_2d(x, z) * (5.0 + depth * 10.0)
@@ -676,8 +515,6 @@ func _plant_mountain_tree_belt() -> void:
 	var belt: Node3D = Node3D.new()
 	belt.name = "MountainTreeBelt"
 	add_child(belt)
-	# Per-variant instance counts and crown proportions, indexed pine, fir,
-	# spruce, cedar (240 trees total).
 	var counts: PackedInt32Array = PackedInt32Array([72, 42, 72, 54])
 	var width_factors: PackedFloat32Array = PackedFloat32Array([0.95, 0.7, 1.15, 1.08])
 	var height_factors: PackedFloat32Array = PackedFloat32Array([1.0, 1.08, 0.9, 0.86])
@@ -692,14 +529,9 @@ func _plant_mountain_tree_belt() -> void:
 		var belt_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 		belt_rng.seed = VISTA_SEED + 401 + variant * 97
 		for i in multimesh.instance_count:
-			# Stride-3 striping over 5 depth rows (gcd(3,5)=1 visits every
-			# row) interleaves families instead of clumping one per row.
-			# Rows sit 55 m apart starting at z = -305, all on the apron.
 			var row: int = (i * 3 + variant) % 5
 			var x: float = belt_rng.randf_range(-900.0, 900.0)
 			var z: float = -305.0 - float(row) * 55.0 + belt_rng.randf_range(-24.0, 24.0)
-			# Base meshes stand ~50-60 units; the +6% per row keeps back
-			# rows visible over the front despite distance.
 			var uniform_scale: float = belt_rng.randf_range(0.42, 0.86) * (1.0 + float(row) * 0.06)
 			var scale: Vector3 = Vector3(
 				uniform_scale * width_factors[variant] * belt_rng.randf_range(0.78, 1.2),
@@ -707,11 +539,8 @@ func _plant_mountain_tree_belt() -> void:
 				uniform_scale * width_factors[variant] * belt_rng.randf_range(0.76, 1.16)
 			)
 			var basis: Basis = Basis(Vector3.UP, belt_rng.randf_range(0.0, TAU)).scaled(scale)
-			# Sunk 2 m into the apron so sloped ground never exposes roots.
 			var origin: Vector3 = Vector3(x, _north_apron_height(x, z) - 2.0, z)
 			multimesh.set_instance_transform(i, Transform3D(basis, origin))
-			# Instance color multiplies the mesh's vertex colors; keeping
-			# blue strongest cools the belt toward the mountain haze.
 			var tint: float = belt_rng.randf_range(0.76, 1.0)
 			multimesh.set_instance_color(i, Color(tint * 0.82, tint * 0.93, tint, 1.0))
 		trees.multimesh = multimesh
@@ -740,15 +569,10 @@ func _grow_latent_forest_wall() -> void:
 		var forest_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 		forest_rng.seed = VISTA_SEED + 809 + variant * 113
 		for i in multimesh.instance_count:
-			# Four canopy layers stepping east from x = 430 (the playable
-			# meadow ends at +240, so the wall stands ~190 m past the
-			# border); stride-3 striping spreads families across layers.
 			var layer: int = (i * 3 + variant) % 4
 			var x: float = 430.0 + float(layer) * 58.0 + forest_rng.randf_range(-20.0, 24.0)
 			var z: float = forest_rng.randf_range(-650.0, 650.0)
 			var height_scale: float = forest_rng.randf_range(0.88, 1.56)
-			# Roughly every 29th instance becomes an emergent giant poking
-			# through the canopy roofline.
 			if (i + variant * 7) % 29 == 0:
 				height_scale *= 1.42
 			var scale: Vector3 = Vector3(
@@ -757,12 +581,8 @@ func _grow_latent_forest_wall() -> void:
 				height_scale * width_factors[variant] * forest_rng.randf_range(0.7, 1.06)
 			)
 			var basis: Basis = Basis(Vector3.UP, forest_rng.randf_range(0.0, TAU)).scaled(scale)
-			# Faked rolling ground line; each deeper layer sits 2 m higher
-			# so back crowns peek over the rank in front.
 			var ground_y: float = -5.0 + sin(z * 0.014) * 7.0 + float(layer) * 2.0
 			multimesh.set_instance_transform(i, Transform3D(basis, Vector3(x, ground_y, z)))
-			# Darker with depth (0.94 down to ~0.78) — cheap ambient
-			# occlusion for the canopy interior.
 			var depth_tint: float = 0.94 - float(layer) * 0.055
 			multimesh.set_instance_color(i, Color(
 				depth_tint * forest_rng.randf_range(0.75, 0.91),
@@ -775,22 +595,12 @@ func _grow_latent_forest_wall() -> void:
 		wall.add_child(forest)
 
 
-## Lazy per-variant cache so the mountain belt and forest wall share one
-## ArrayMesh (and its material) per silhouette family.
 func _get_horizon_tree_mesh(variant: int) -> ArrayMesh:
 	while _horizon_tree_meshes.size() <= variant:
 		_horizon_tree_meshes.append(_build_horizon_tree_mesh(_horizon_tree_meshes.size()))
 	return _horizon_tree_meshes[variant]
 
 
-## Assembles one tree silhouette: a tapered trunk plus one to three lofted
-## crowns. The heights/radii pairs trace the crown profile in mesh units
-## (roughly meters before instance scaling); the alternating wide/narrow
-## radii carve bulging branch tiers rather than a smooth cone. Variants:
-## 0 wind-bent pine (main crown plus a small offset clump), 1 narrow fir
-## (single slim crown), 2 broad spruce (wide crown plus side mass), 3
-## clustered cedar (three offset crowns, no single apex). Rendered with
-## the soft toon shader at a whisper of rim so distant trees don't shimmer.
 func _build_horizon_tree_mesh(variant: int) -> ArrayMesh:
 	var st: SurfaceTool = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -831,10 +641,6 @@ func _build_horizon_tree_mesh(variant: int) -> ArrayMesh:
 	return tree_mesh
 
 
-## Ten-sided tapered trunk: radius 2.7 -> 1.35 over 27 units of height,
-## with a deterministic per-variant lean at the top so trunks aren't all
-## plumb. Bark color runs dark at the base to warmer at the top for cheap
-## vertical shading.
 func _append_tree_trunk(st: SurfaceTool, variant: int) -> void:
 	const SEGMENTS: int = 10
 	var bark_low: Color = Color(0.16, 0.115, 0.075)
@@ -851,14 +657,6 @@ func _append_tree_trunk(st: SurfaceTool, variant: int) -> void:
 		_add_colored_triangle(st, lower_b, upper_a, upper_b, bark_low, bark_high, bark_high)
 
 
-## Lofts one crown as stacked 16-segment rings between consecutive
-## height/radius entries. Two sine harmonics (3-lobe and 7-lobe) modulate
-## each ring's radius by roughly +-14% for a ragged silhouette; `phase`
-## offsets the harmonics so no two crowns share the same lumps. `drift`
-## makes ring centers wander from ring to ring (a leaning, wind-shaped
-## axis), and per-vertex y jitter breaks the horizontal ring lines.
-## Needle color lightens with height and slightly on outward bulges,
-## faking sky light on the upper foliage.
 func _append_tree_crown(
 		st: SurfaceTool,
 		heights: PackedFloat32Array,
@@ -921,8 +719,6 @@ func _append_tree_crown(
 			_add_colored_triangle(st, p01, p10, p11, color0, color1, color1)
 
 
-## SurfaceTool helper: emits one triangle with an explicit vertex color
-## per corner (winding order is the caller's responsibility).
 func _add_colored_triangle(
 		st: SurfaceTool,
 		a: Vector3,
@@ -940,11 +736,6 @@ func _add_colored_triangle(
 	st.add_vertex(c)
 
 
-## Western horizon: the sea toward Convolution Coast. A 1500 x 1700 m
-## subdivided plane whose east edge lands exactly on the meadow's west
-## boundary (x = -240); the shared water shader animates its ripples and
-## waves, so the vista moves with zero script cost. Sits at y = -13.5 so
-## the meadow's westward fall stays above the waterline.
 func _lay_convolution_sea() -> void:
 	var plane: PlaneMesh = PlaneMesh.new()
 	plane.size = Vector2(1500.0, 1700.0)
@@ -966,11 +757,6 @@ func _lay_convolution_sea() -> void:
 	add_child(sea)
 
 
-## Southern horizon: a double rank of grassy downs. Twelve squashed
-## sphere hills march west to east at ~145 m spacing; even indices form a
-## rear rank that is larger and 85 m farther back, interleaving the two
-## rows into a rolling skyline. Hills are buried at y = -22 so only their
-## smooth crowns break the horizon, shaded with the soft toon grass tint.
 func _roll_southern_downs() -> void:
 	var downs: Node3D = Node3D.new()
 	downs.name = "SouthernDowns"
@@ -1004,11 +790,6 @@ func _roll_southern_downs() -> void:
 		downs.add_child(hill_instance)
 
 
-## Shared mesh assembly for the peaks and the apron: computes smooth
-## vertex normals by averaging normalized face normals across shared
-## vertices, then packs everything into a single-surface ArrayMesh.
-## Degenerate triangles are skipped, and vertices no triangle references
-## (culled skirt cells on peak meshes) fall back to an up normal.
 func _create_indexed_mesh(
 		positions: PackedVector3Array,
 		colors: PackedColorArray,

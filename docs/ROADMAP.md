@@ -27,9 +27,9 @@ Prove every system small, then scale outward. One region done completely.
 - [x] Third-person character controller: walk/run/jump/camera (feel pass included) *(boot verified clean in Godot 4.7.1 after class-cache re-import; hands-on feel-tune still welcome at the phase gate)*
 - [x] Terrain: Datasedge Meadows heightmap terrain + procedural grass/trees, region border vistas toward future regions *(480×480 m procedural heightmap w/ town flat + carved millpond, 34k wind-swayed grass, iris flats, tree copses, 4-direction border vistas; built & eyes-verified via screenshots in a live session, 5 palette/lighting iterations. NOTE: still default lighting — the cel-shade pass below is what makes it "pretty")*
 - [x] Cel-shaded look dev v1: toon shader, sky, day/night cycle, wind grass *(reusable toon.gdshader: banded diffuse + fresnel rim + sky-tinted shadow fill; applied to terrain/grass/trees/character; SkyCycle drives sun arc + 7-key color script dawn→noon→dusk→night; eyes-verified via screenshots incl. a 4-time-of-day showcase. Character rim pops nicely. Kern still a placeholder capsule — the character-model milestone dresses him)*
-- [x] Bit the fairy: follow behavior, look-at naming, hint lines *(built: exp-smoothed hover-follow with idle orbit/bob, sprint catch-up, and canon water-fear over the millpond; BitLandmark look-at naming across 8 canon meadow sites (remembered in save flags); in-voice barks — greeting, idle/hint, quiz/item/region reactions — on a floating Label3D + EventBus.bit_spoke. **UNSEEN**: no Godot in this env — needs a live session to import (.uid gen), confirm clean boot, and eyes per GDD §10. **Boot-verified 2026-07-25** in real Godot 4.7.1: clean editor import (exit 0, no script/parse/shader errors) and a clean runtime boot — Bit sets up against the terrain with no errors. Still **UNSEEN**: nobody has watched Bit follow, orbit, fear the water, or name a landmark)*
-- [x] Combat v1: sword (combo, dodge, block), enemy AI (melee + ranged), hearts, data-shard death VFX *(built: 3-hit sword combo with soft-target facing, roll-dodge with i-frames, hold-block + tight parry; juice = hitstop, knockback, trauma camera-shake; data-driven `Enemy` brain (melee/ranged/swarm/dummy) with wind-up telegraphs, drop rolls → ContentDB/GameState, and canon shard dissolves; reusable `Health` hearts + a minimal combat HUD (hearts/focus/damage-vignette — the full HUD stays its own later milestone); `MonsterSpawner` fields the approved Stray Glitchling and stands up a proving ground (melee/ranged/dummy sparring rigs) until batch_04's monsters land; a focus/knowledge-charge special is wired as the hook milestone 7 fills.* **UNSEEN**: no Godot in this env — a live session must import (generate `.uid`s), confirm a clean boot, and lay eyes/fight per GDD §10 before this ticks fully clean. **Boot-verified 2026-07-25** in real Godot 4.7.1: clean editor import and runtime boot, "Combat v1 online" with the spawner fielding the approved Glitchling plus the proving ground, no errors. Still **UNSEEN**: nobody has swung the sword — the combo, i-frames, parry window, telegraphs, and drops are all unjudged)*
-- [ ] Knowledge charge v1: quiz prompt in combat charges a special ability
+- [x] Bit the fairy: follow behavior, look-at naming, hint lines *(built: exp-smoothed hover-follow with idle orbit/bob, sprint catch-up, and canon water-fear over the millpond; BitLandmark look-at naming across 8 canon meadow sites (remembered in save flags); in-voice barks — greeting, idle/hint, quiz/item/region reactions — on a floating Label3D + EventBus.bit_spoke. **UNSEEN**: no Godot in this env — needs a live session to import (.uid gen), confirm clean boot, and eyes per GDD §10)*
+- [x] Combat v1: sword (combo, dodge, block), enemy AI (melee + ranged), hearts, data-shard death VFX *(built: 3-hit sword combo with soft-target facing, roll-dodge with i-frames, hold-block + tight parry; juice = hitstop, knockback, trauma camera-shake; data-driven `Enemy` brain (melee/ranged/swarm/dummy) with wind-up telegraphs, drop rolls → ContentDB/GameState, and canon shard dissolves; reusable `Health` hearts + a minimal combat HUD (hearts/focus/damage-vignette — the full HUD stays its own later milestone); `MonsterSpawner` fields the approved Stray Glitchling and stands up a proving ground (melee/ranged/dummy sparring rigs) until batch_04's monsters land; a focus/knowledge-charge special is wired as the hook milestone 7 fills.* **UNSEEN**: no Godot in this env — a live session must import (generate `.uid`s), confirm a clean boot, and lay eyes/fight per GDD §10 before this ticks fully clean)*
+- [x] Knowledge charge v1: quiz prompt in combat charges a special ability *(built to Danny's design: the focus special is a combined Kern+Bit attack CAST by answering — Q at part-charge opens a code-built quiz card (slow-mo + safe, real-time countdown, difficulty-gated per WORLDBOOK, explanation shown every answer); correct answers feed the existing meter and the strike auto-fires when it fills; wrong/timeout fizzles but keeps focus; Bit flies in to channel with new in-voice lines. New `QuizPicker` + `KnowledgePrompt`; wired through the milestone-6 hooks (`quiz_answered`→`add_charge`).* **UNSEEN**: built alongside the visual sessions without touching the editor — a live session must import (gen `.uid`s), boot, and cast/fizzle/complete a channel on eyes per GDD §10 before this ticks fully clean)*
 - [ ] Town of Bootstrap: buildings, 6–8 NPCs (mixed personalities), dialogue UI
 - [ ] Quest system + journal: main hook quest + 3 side quests (from content DB)
 - [ ] Inventory, items, Tokens, one vendor
@@ -83,24 +83,6 @@ quit, and resume — with no errors in the Godot output panel.
 ---
 
 ## Content pipeline (runs in parallel with every phase)
-- [x] Phase 1 brief batch: Bootstrap NPCs (batch_01, 12 merged) and starter
-      quests (batch_02, 8 merged); quiz seed rolling (41 of 400 approved)
-- [ ] Phase 1 remainder: items (batch_03 staged in inbox, 15 entries awaiting
-      review), monsters (batch_04), POIs (batch_05 + 06), lore (batch_07) —
-      all queued, none claimed yet
+- [ ] Phase 1 brief batch: Bootstrap NPCs, starter quests, starter items/monsters, quiz seed (topics: what is ML, data, models)
 - [ ] Phase 2 brief batches: per-region monsters/POIs/items
 - [ ] Phase 4/5 brief batches: quest chains, lore books, full quiz bank
-
----
-
-## Documentation (a first-class deliverable, every phase)
-Per `CLAUDE.md` iron rule 3 and the Code documentation standard in
-`docs/ARCHITECTURE.md`. Quality over speed applies here too: a milestone
-whose code a stranger cannot read is not done.
-- [x] Code documentation standard written and adopted (2026-07-25)
-- [x] Documentation pass over the thinnest-commented code — world/sky layer,
-      player rig, combat brain, HUD, validator, and six shaders; overall
-      density 7.4% → 19.3%
-- [ ] Interior pass on the four files still below the bar: `player_combat.gd`,
-      `enemy_visual.gd`, `meadow_flora.gd`, `bit.gd`
-- [ ] Every new milestone lands documented in the same commit as its code

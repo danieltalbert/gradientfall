@@ -73,6 +73,7 @@ var _water_bark_cd: float = 0.0
 var _item_bark_cd: float = 0.0
 var _greeted: bool = false
 var _last_region: String = ""
+var _channeling: bool = false
 
 # Speech
 var _label: Label3D
@@ -91,6 +92,8 @@ func _ready() -> void:
 	EventBus.region_entered.connect(_on_region_entered)
 	EventBus.quiz_answered.connect(_on_quiz_answered)
 	EventBus.item_acquired.connect(_on_item_acquired)
+	EventBus.knowledge_channel_started.connect(_on_channel_started)
+	EventBus.knowledge_channel_ended.connect(_on_channel_ended)
 
 
 ## Called by the world builder once Kern and the terrain exist.
@@ -123,6 +126,16 @@ func _process(delta: float) -> void:
 # --- Follow ------------------------------------------------------------------
 
 func _follow(delta: float) -> void:
+	if _channeling:
+		# Milestone 7: Bit darts in over Kern's head to combine power. The
+		# world is in channel slow-mo, so undo Engine.time_scale on the lerp —
+		# Bit visibly flies IN while everything else crawls.
+		var over: Vector3 = _player.global_position + Vector3(0.0, HOVER_HEIGHT + 0.55, 0.0)
+		var real_delta: float = delta / maxf(Engine.time_scale, 0.05)
+		var ct: float = 1.0 - exp(-RESPONSE_FAR * real_delta)
+		global_position = global_position.lerp(over, ct)
+		_face(_player.global_position + Vector3(0.0, HOVER_HEIGHT * 0.6, 0.0), real_delta)
+		return
 	var anchor: Vector3 = _player.global_position + Vector3(0.0, HOVER_HEIGHT, 0.0)
 	var planar: Vector2 = Vector2(_player.velocity.x, _player.velocity.z)
 	var side: Vector3
@@ -253,6 +266,17 @@ func _on_region_entered(region_id: String) -> void:
 func _on_quiz_answered(_quiz_id: String, correct: bool) -> void:
 	var pool: Array[String] = BitLines.QUIZ_CORRECT if correct else BitLines.QUIZ_WRONG
 	_say(BitLines.any(pool), PRIO_REACT, "quiz")
+
+
+func _on_channel_started() -> void:
+	_channeling = true
+	_say(BitLines.any(BitLines.CHANNEL_START), PRIO_URGENT, "channel")
+
+
+func _on_channel_ended(completed: bool) -> void:
+	_channeling = false
+	var pool: Array[String] = BitLines.CHANNEL_SUCCESS if completed else BitLines.CHANNEL_FIZZLE
+	_say(BitLines.any(pool), PRIO_URGENT, "channel")
 
 
 func _on_item_acquired(_item_id: String, _count: int) -> void:

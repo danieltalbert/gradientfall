@@ -20,6 +20,20 @@ teaches you who you are — and why Echo has been searching for you.
 **Audience:** all-ages. Real stakes, zero gore — enemies dissolve into data shards.
 **Engine:** Godot 4.x, GDScript, everything generated in-code (no purchased assets).
 
+> **Amendment — 2026-07-21 (Danny's explicit sign-off).** The in-code rule is
+> relaxed for **one thing only: the player hero's base body mesh.** A long
+> look-dev pass established that procedural geometry plateaus at "soft stylized
+> figure" for a *face* (bodies generate fine; faces do not), and the bar for
+> Kern is photoreal, Link-quality. Kern may therefore use an imported,
+> permissively-licensed (**CC0**) rigged humanoid base mesh — currently
+> generated with MakeHuman/MPFB, whose output is CC0. Everything else about him
+> stays code-generated: clothing, cloak, hair, gear, sword, the arcane
+> hand-mark, all shaders, and all animation. No copyrighted character models,
+> and nothing from Mixamo (its licence forbids redistributing raw mesh files).
+> Provenance, the body spec, and export settings live in
+> `game/assets/models/README.md`. This applies to the hero only — the rest of
+> the game remains code-only.
+
 ## 2. Design pillars
 
 These four sentences win every argument:
@@ -169,6 +183,12 @@ rushed, trimmed, or marked done at 'good enough for programmer art').
   you stare" — full photorealism is explicitly NOT the target (code-only
   assets fail hardest at it), but geometric/atmospheric richness is pushed
   to modern-AAA density.
+  - **Amendment (Danny, 2026-07-20, explicit sign-off in chat):** the target
+    moved to **full photorealism, starting with the grass** — "make grass
+    that literally looks like real life." The world catches up element by
+    element in later realism passes; a temporary stylized/real mismatch
+    (toon mountains behind photoreal grass) is accepted cost. The 2026-07-17
+    "painterly" phrasing above is superseded where the two conflict.
 - **The governing principle (Danny, 2026-07-17):** the player's *feeling* is
   the metric — it must feel as close to real life / BOTW as possible at all
   times. Raw counts don't matter; the illusion does. Spend cleverness on

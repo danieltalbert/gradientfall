@@ -50,6 +50,24 @@ const ITEM_PICKUP: Array[String] = [
 	"That'll be worth something to the right person.",
 ]
 
+# The knowledge channel (milestone 7): Kern calls Bit in to combine power,
+# and questions forge the strike. Start / it lands / it fizzles.
+const CHANNEL_START: Array[String] = [
+	"Together, then! Think fast and think TRUE.",
+	"Focus! I'll hold the light steady — you hold the answers.",
+	"Combining power! Don't overthink it. Or under-think it.",
+]
+
+const CHANNEL_SUCCESS: Array[String] = [
+	"THAT'S the stuff! Did you feel that?!",
+	"Ha! We are unreasonably good at this.",
+]
+
+const CHANNEL_FIZZLE: Array[String] = [
+	"Whoop — lost the thread. We'll catch it next time.",
+	"The spark slipped. Shake it off, Kern.",
+]
+
 
 static func any(pool: Array[String]) -> String:
 	if pool.is_empty():

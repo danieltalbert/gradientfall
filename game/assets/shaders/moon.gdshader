@@ -1,33 +1,19 @@
-// The moon disc for CelestialLayer's night sky.
-//
-// A single camera-facing quad painted as a cratered disc with a soft outer
-// halo. Additive and unshaded — it is a light source in the sky, not lit
-// geometry — with depth writes off so cloud banks in front still composite
-// correctly. Craters are procedural value noise; no textures are used
-// anywhere in this project.
-//
-// celestial_layer.gd owns `visibility`, ramping it in after the first stars
-// appear and out again at dawn. Note that the visual moon and SkyCycle's
-// MoonLight are independent: this shader does not track that light's angle.
-
 shader_type spatial;
-render_mode unshaded, blend_add, depth_draw_never, cull_disabled;
+render_mode unshaded, blend_mix, depth_draw_never, cull_disabled;
 
-// 0 = hidden (day), 1 = fully visible. Animated by CelestialLayer.
+// Billboard moon with a REAL lunar phase: the disc is shaded as a sphere lit
+// by the actual sun direction, so the terminator sweeps correctly as the sun
+// travels — full when opposite the sun, a crescent when trailing it.
 uniform float visibility : hint_range(0.0, 1.0) = 0.0;
-// Base tint of the lunar surface, before crater and limb shading.
-uniform vec4 moon_color : source_color = vec4(0.76, 0.84, 1.0, 1.0);
+uniform vec4 moon_color : source_color = vec4(0.82, 0.87, 1.0, 1.0);
+uniform vec3 sun_dir_world = vec3(0.35, 0.72, 0.28);
 
 varying vec2 v_uv;
 
-// Cheap hash -> pseudo-random float in [0, 1) from a 2D cell coordinate.
 float hash21(vec2 p) {
 	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
 
-// Value noise: bilinear blend of four hashed lattice corners, with the
-// smoothstep curve f*f*(3-2f) easing the interpolation so cell boundaries
-// don't show as a grid.
 float noise(vec2 p) {
 	vec2 i = floor(p);
 	vec2 f = fract(p);
@@ -36,8 +22,6 @@ float noise(vec2 p) {
 			mix(hash21(i + vec2(0.0, 1.0)), hash21(i + vec2(1.0)), f.x), f.y);
 }
 
-// Billboard the quad toward the camera, preserving the instance's X/Y
-// scale so the authored disc size is unchanged.
 void vertex() {
 	float sx = length(MODEL_MATRIX[0].xyz);
 	float sy = length(MODEL_MATRIX[1].xyz);
@@ -52,18 +36,33 @@ void vertex() {
 void fragment() {
 	vec2 p = v_uv - vec2(0.5);
 	float d = length(p);
-	// The disc fills most of the quad with a 0.035-wide antialiased edge;
-	// the halo bleeds well past it for atmospheric glow.
-	float disc = 1.0 - smoothstep(0.46, 0.495, d);
-	float halo = 1.0 - smoothstep(0.30, 0.74, d);
-	// Two noise octaves: broad maria plus finer cratering.
-	float craters = noise(v_uv * 15.0) * 0.65 + noise(v_uv * 43.0) * 0.35;
-	// Fake sphere shading: sqrt(1 - r²) is the z of a unit hemisphere, so
-	// brightness falls off toward the rim. The 3.9 factor makes it reach
-	// zero right at the disc edge (r ≈ 0.5) instead of at r = 1.
-	float limb = sqrt(max(0.0, 1.0 - d * d * 3.9));
-	vec3 surface = moon_color.rgb * (0.72 + craters * 0.22) * (0.72 + limb * 0.28);
-	ALBEDO = surface;
-	EMISSION = surface * (1.6 + disc * 0.65);
-	ALPHA = clamp((disc + halo * 0.20) * visibility, 0.0, 1.0);
+	float disc = 1.0 - smoothstep(0.44, 0.468, d);
+
+	// Treat the billboard as the visible hemisphere of a sphere: reconstruct a
+	// view-space normal from the disc, take it to world space, and light it
+	// with the true sun direction. This IS the lunar phase.
+	vec2 q = p / 0.45;
+	float rr = clamp(dot(q, q), 0.0, 1.0);
+	vec3 n_view = normalize(vec3(q.x, -q.y, sqrt(max(1.0 - rr, 0.0002))));
+	vec3 n_world = normalize(mat3(INV_VIEW_MATRIX) * n_view);
+	float terminator = dot(n_world, normalize(sun_dir_world));
+	float lit = smoothstep(-0.02, 0.22, terminator);
+	// The night side keeps a whisper of earthshine so the full circle reads.
+	float light_amount = mix(0.045, 1.0, lit);
+
+	// Maria + craters: two noise octaves, darker "seas" in the low band.
+	float relief = noise(v_uv * 14.0) * 0.6 + noise(v_uv * 41.0) * 0.4;
+	float maria = smoothstep(0.36, 0.62, noise(v_uv * 5.0 + vec2(3.7, 1.2)));
+	float surface_tone = (0.78 + relief * 0.22) * mix(1.0, 0.68, maria);
+	float limb = sqrt(max(0.0, 1.0 - rr * 0.92));  // limb darkening
+	vec3 surface = moon_color.rgb * surface_tone * (0.70 + limb * 0.30) * light_amount;
+
+	// Halo follows the lit fraction so a thin crescent doesn't over-glow.
+	float lit_center = clamp(dot(normalize(mat3(INV_VIEW_MATRIX) * vec3(0.0, 0.0, 1.0)),
+			normalize(sun_dir_world)) * 0.5 + 0.5, 0.05, 1.0);
+	float halo = (1.0 - smoothstep(0.30, 0.78, d)) * (1.0 - disc) * lit_center;
+
+	ALBEDO = surface + moon_color.rgb * halo * 0.55;
+	EMISSION = surface * (1.35 + disc * 0.55) + moon_color.rgb * halo * 0.85;
+	ALPHA = clamp((disc + halo * 0.30) * visibility, 0.0, 1.0);
 }

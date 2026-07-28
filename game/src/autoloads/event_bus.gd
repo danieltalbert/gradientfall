@@ -23,8 +23,15 @@ signal tokens_changed(new_total: int)
 # Knowledge charge / quizzes
 signal quiz_answered(quiz_id: String, correct: bool)
 ## Combat charge meter (0..1). Combat v1 owns the meter and the special that
-## spends it; the Knowledge-charge milestone will feed it from in-combat quizzes.
+## spends it; the knowledge channel (milestone 7) feeds it from in-combat quizzes.
 signal knowledge_charge_changed(fraction: float)
+## The knowledge channel — Kern and Bit combining power through questions
+## (milestone 7). PlayerCombat requests it (special pressed, meter part-full);
+## KnowledgePrompt opens and owns the card, then reports how it closed.
+## completed=true means the meter filled and the combined strike fires.
+signal knowledge_channel_requested()
+signal knowledge_channel_started()
+signal knowledge_channel_ended(completed: bool)
 
 # Combat
 ## An enemy came apart. monster_id is "" for non-content sparring rigs.
@@ -40,3 +47,19 @@ signal combat_shake(amount: float)
 # Companion (Bit) & discovery
 signal bit_spoke(line: String, kind: String)
 signal landmark_named(landmark_id: String, display_name: String)
+
+# Dialogue & interaction (Town of Bootstrap, milestone 8)
+## A villager is close enough to talk to, or "" when none is. `prompt` is the
+## ready-made label ("Talk to Mara Mallow") so the UI stays content-blind.
+signal interact_target_changed(npc_id: String, prompt: String)
+## A conversation opened / closed. Systems that must hold still (the player
+## controller) listen to this pair.
+signal dialogue_started(npc_id: String, speaker: String)
+signal dialogue_ended(npc_id: String)
+## One line of it. The box types the line out, then answers with
+## `dialogue_line_revealed`; `dialogue_skip_requested` finishes the typing
+## early, so the first press completes the sentence and the next turns the page.
+signal dialogue_line(npc_id: String, line: String)
+signal dialogue_line_revealed(npc_id: String)
+signal dialogue_skip_requested()
+signal npc_met(npc_id: String, display_name: String)

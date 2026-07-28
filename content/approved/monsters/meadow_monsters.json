@@ -2,17 +2,266 @@
   {
     "id": "mon_stray_glitchling",
     "name": "Stray Glitchling",
-    "regions": ["datasedge_meadows"],
+    "regions": [
+      "datasedge_meadows"
+    ],
     "tier": "fodder",
     "hearts": 1.5,
     "attack": 0.5,
     "behavior": "swarm",
-    "spawn": { "time_of_day": "any", "weather": "any" },
-    "variants": ["golden", "night"],
+    "spawn": {
+      "time_of_day": "any",
+      "weather": "any"
+    },
+    "variants": [
+      "golden",
+      "night"
+    ],
     "drops": [
-      { "item_id": "item_data_shard", "chance": 0.8 }
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.8
+      }
     ],
     "ml_flavor": "Noisy data points that wandered off from any known distribution — outliers with legs.",
     "description": "A knee-high wobble of mismatched pixels that bumbles through the meadow grass. Mostly harmless, endlessly curious, and prone to charging at anything shiny — including Bit, who does not appreciate it."
+  },
+  {
+    "id": "mon_meanwing_finch",
+    "name": "Meanwing Finch",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "fodder",
+    "hearts": 1.5,
+    "attack": 0.25,
+    "behavior": "swarm",
+    "spawn": {
+      "time_of_day": "day",
+      "weather": "clear"
+    },
+    "variants": [
+      "golden"
+    ],
+    "drops": [
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.55
+      },
+      {
+        "item_id": "item_iris_petal",
+        "chance": 0.35
+      }
+    ],
+    "ml_flavor": "Each bird steers toward the average position of its neighbors, showing how a simple mean can organize a whole flock.",
+    "description": "Round meadow birds that peck between the iris beds in chattering clusters. Startle one and the flock sweeps toward its shared middle before whirling back in a loose, feathery charge."
+  },
+  {
+    "id": "mon_trail_loop_leveret",
+    "name": "Trail-Loop Leveret",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "fodder",
+    "hearts": 2,
+    "attack": 0.25,
+    "behavior": "swarm",
+    "spawn": {
+      "time_of_day": "dawn_dusk",
+      "weather": "any"
+    },
+    "variants": [
+      "golden",
+      "night"
+    ],
+    "drops": [
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.65
+      }
+    ],
+    "ml_flavor": "It memorizes one safe route and repeats it when conditions change, showing overfitting: perfect recall without adaptation.",
+    "description": "A long-eared meadow runner whose paws have worn the same curling trail through the grass. Small groups race that remembered loop together, even when Kern is standing squarely in it."
+  },
+  {
+    "id": "mon_patchmunch_bramblehog",
+    "name": "Patchmunch Bramblehog",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "fodder",
+    "hearts": 3,
+    "attack": 0.5,
+    "behavior": "melee",
+    "spawn": {
+      "time_of_day": "any",
+      "weather": "rain"
+    },
+    "variants": [
+      "golden",
+      "weather"
+    ],
+    "drops": [
+      {
+        "item_id": "item_iris_petal",
+        "chance": 0.5
+      },
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.35
+      }
+    ],
+    "ml_flavor": "It adjusts its path after each small patch it grazes, like mini-batch learning that updates from a few examples at a time.",
+    "description": "A burr-coated grazer that nibbles one tiny square of meadow, thinks hard, then trots toward the tastiest nearby patch. When bothered, it snuffles a warning and makes one short, springy lunge."
+  },
+  {
+    "id": "mon_middleset_mossram",
+    "name": "Middleset Mossram",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "standard",
+    "hearts": 6,
+    "attack": 0.75,
+    "behavior": "melee",
+    "spawn": {
+      "time_of_day": "day",
+      "weather": "any"
+    },
+    "variants": [
+      "golden"
+    ],
+    "drops": [
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.55
+      },
+      {
+        "item_id": "item_iris_petal",
+        "chance": 0.45
+      }
+    ],
+    "ml_flavor": "It keeps moving toward the center of nearby grazers, acting like a cluster centroid that represents the group around it.",
+    "description": "A broad little ram with mossy curls and iris pollen on its nose. It calmly shuffles to the middle of every grazing herd; scatter its neighbors and it picks a new center before lowering its horns."
+  },
+  {
+    "id": "mon_rustlewatch_prowler",
+    "name": "Rustlewatch Prowler",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "standard",
+    "hearts": 5,
+    "attack": 0.75,
+    "behavior": "ambush",
+    "spawn": {
+      "time_of_day": "night",
+      "weather": "any"
+    },
+    "variants": [
+      "golden",
+      "night"
+    ],
+    "drops": [
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.7
+      }
+    ],
+    "ml_flavor": "It predicts visitors from one feature—rustling grass—and often pounces at wind, showing the weakness of a single-feature classifier.",
+    "description": "Two moon-bright ears and a soft striped tail are all that show above the tall grass. It waits for one convincing rustle, then bounds out—sometimes at Kern, sometimes at a completely innocent breeze."
+  },
+  {
+    "id": "mon_lilywise_newt",
+    "name": "Lilywise Newt",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "standard",
+    "hearts": 4.5,
+    "attack": 0.5,
+    "behavior": "ranged",
+    "spawn": {
+      "time_of_day": "any",
+      "weather": "rain"
+    },
+    "variants": [
+      "golden",
+      "weather"
+    ],
+    "drops": [
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.6
+      },
+      {
+        "item_id": "item_iris_petal",
+        "chance": 0.25
+      }
+    ],
+    "ml_flavor": "It copies the majority color of its three nearest lily pads before firing, showing how nearest neighbors classify by local company.",
+    "description": "A bright-eyed millpond newt that skips from pad to pad while keeping safely out of reach. Its frill takes the color most common nearby, then flicks a matching bead of harmlessly crackling data."
+  },
+  {
+    "id": "mon_lastlook_jackdaw",
+    "name": "Lastlook Jackdaw",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "standard",
+    "hearts": 5.5,
+    "attack": 0.75,
+    "behavior": "ranged",
+    "spawn": {
+      "time_of_day": "dawn_dusk",
+      "weather": "clear"
+    },
+    "variants": [
+      "golden",
+      "night"
+    ],
+    "drops": [
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.75
+      },
+      {
+        "item_id": "item_meadow_honey",
+        "chance": 0.2
+      }
+    ],
+    "ml_flavor": "It copies only the most recent action it observed, a simple form of recency bias that forgets older examples too quickly.",
+    "description": "A blue-black bird perched on the old ruins, watching every footstep with scholarly intensity. See Kern dodge and it side-hops; swing a sword and it answers with a beak-flicked data bolt."
+  },
+  {
+    "id": "mon_brackenhoof_keeper_of_forks",
+    "name": "Brackenhoof, Keeper of Forks",
+    "regions": [
+      "datasedge_meadows"
+    ],
+    "tier": "elite",
+    "hearts": 18,
+    "attack": 1.25,
+    "behavior": "melee",
+    "spawn": {
+      "time_of_day": "any",
+      "weather": "any"
+    },
+    "variants": [
+      "golden",
+      "corrupted"
+    ],
+    "drops": [
+      {
+        "item_id": "item_data_shard",
+        "chance": 0.9
+      },
+      {
+        "item_id": "item_iris_petal",
+        "chance": 0.4
+      }
+    ],
+    "ml_flavor": "At each pause it asks one simple question—near or far, moving or still—then follows that branch like a decision tree.",
+    "description": "A stately antlered guardian roaming the meadow's ruined edge, with ferny plates and tiny stone bells. Brackenhoof studies Kern through a sequence of solemn head tilts, chooses a branch, and commits to a grand, clearly signaled charge."
   }
 ]

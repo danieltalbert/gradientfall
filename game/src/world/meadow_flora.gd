@@ -1,21 +1,37 @@
 class_name MeadowFlora
 extends Node3D
-## Datasedge Meadows vegetation — Phase 1 milestone 3.
+## Datasedge Meadows vegetation.
 ##
 ## Everything scattered deterministically (fixed seed) on the terrain the
-## sibling MeadowTerrain generated: ~34k wind-swayed grass blades and dry-gold
-## accents (MultiMesh + grass_wind shader), iris flats to the west (the
-## region's canon flora — collectible system arrives with the compendium
-## milestone; today they are scenery), and low-poly tree copses with trunk
-## collision. Instance colors carry all variation; zero textures.
+## sibling MeadowTerrain generated: a photoreal 2.5M-blade grass carpet in two
+## camera-wrapped MultiMesh fields (grass_field.gdshader does the planting,
+## clumping, wind, and trample), iris flats to the west (the region's canon
+## flora — collectible system arrives with the compendium milestone; today
+## they are scenery), daisies, pebbles, and tree copses with trunk collision.
+## Zero textures — all variation is procedural.
 
 const SCATTER_SEED: int = 20260717
-const FIELD_COUNT: int = 1400000  # independently positioned fine blades
-const FIELD_BLADES_PER_TUFT: int = 1
-const FIELD_TILE: float = 190.0
-const GRASS_COUNT: int = 180000   # uniformly scattered horizon accents
-const ACCENT_BLADES_PER_TUFT: int = 2
-const GRASS_INSTANCES_PER_CLUMP: int = 9
+# Three camera-wrapped carpets share grass_field.gdshader. The near field is a
+# BURY-THE-GROUND sward right around the camera (~1700 blades/m², 5-segment
+# cards) — dense enough that grass is practically all you see, with only faint
+# dirt peeking through (Danny's directive); the far fields carry the sweep to
+# the horizon with fewer, wider, cheaper 3-segment blades (Ghost-of-Tsushima
+# distance trick). ~8.5M blades: deliberately extravagant for a high-end GPU
+# (GDD §10 "spend the budget"). Grass still thins on slopes / near rocks &
+# water via the shader's alive-mask, so those spots keep showing ground.
+const NEAR_COUNT: int = 2800000
+const NEAR_TILE: float = 48.0
+const NEAR_SEGMENTS: int = 5
+const MID_COUNT: int = 1300000
+const MID_TILE: float = 104.0
+const FAR_COUNT: int = 1300000
+const FAR_TILE: float = 190.0
+const FAR_SEGMENTS: int = 3
+const BLADE_HALF_WIDTH: float = 0.017
+# Each field is split into CHUNKS×CHUNKS MultiMeshes whose AABBs track their
+# wrapped world rects every frame — so Godot frustum-culls the blades behind
+# the camera (a single whole-map AABB defeats culling and doubles frame cost).
+const FIELD_CHUNKS: int = 8
 const IRIS_COUNT: int = 700
 const DAISY_COUNT: int = 1200
 const PEBBLE_COUNT: int = 750
@@ -24,73 +40,196 @@ const EDGE_MARGIN: float = 12.0
 @onready var _terrain: MeadowTerrain = $"../Terrain"
 
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
+# One entry per field chunk: {mmi, rect (tile-local), tile, cull_dist}.
+var _field_chunks: Array[Dictionary] = []
+
+
+## Blade-count multiplier. The shipped density (~5.4M blades) is tuned for a
+## high-end desktop GPU per GDD §10 and will crawl on a laptop/Mac, which makes
+## the game hard to iterate on there. `-- --grass=0.25` (any 0.05-1.0 value)
+## scales every carpet without changing the look's character, so a weaker
+## machine can still run, test and judge everything else.
+func _grass_scale() -> float:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--grass="):
+			return clampf(float(arg.get_slice("=", 1)), 0.05, 1.0)
+	return 1.0
 
 
 func _ready() -> void:
 	var start_ms: int = Time.get_ticks_msec()
 	_rng.seed = SCATTER_SEED
-	_build_fine_field()
-	_scatter_grass()
+	# Dev A/B: `-- --no-grass` boots without the blade carpets so frame cost
+	# can be attributed honestly (grass vs sky/GI/shadows).
+	if not OS.get_cmdline_user_args().has("--no-grass"):
+		_build_fine_field()
 	_scatter_irises()
 	_scatter_daisies()
 	_scatter_pebbles()
 	_plant_copses()
-	print("MeadowFlora: %d fine blades + %d accent blades, %d irises, %d daisies, %d pebbles in %d ms." % [
-		FIELD_COUNT * FIELD_BLADES_PER_TUFT,
-		GRASS_COUNT * ACCENT_BLADES_PER_TUFT,
+	var s: float = _grass_scale()
+	print("MeadowFlora: %d near + %d mid + %d far blades (scale %.2f), %d irises, %d daisies, %d pebbles in %d ms." % [
+		int(NEAR_COUNT * s), int(MID_COUNT * s), int(FAR_COUNT * s), s,
 		IRIS_COUNT, DAISY_COUNT, PEBBLE_COUNT,
 		Time.get_ticks_msec() - start_ms,
 	])
 
 
-## The infinite fine-grass carpet: one MultiMesh of thin 3-segment blades on
-## identity transforms scattered in a flat tile; the grass_field shader wraps
-## them around the camera, plants them on the heightmap, and animates gusts.
-## Buffer is written directly (12 floats/instance) — 400k via set_instance_*
-## would take seconds; this takes tens of milliseconds.
+## The photoreal carpet: two camera-wrapped MultiMesh fields of unit-height
+## blade strips on identity transforms. grass_field.gdshader wraps each tile
+## around the camera, plants blades on the height map, rounds their normals,
+## and curves/winds them. Buffers are written directly (12 floats/instance) —
+## millions of blades in tens of milliseconds, zero CPU after boot.
 func _build_fine_field() -> void:
-	var st: SurfaceTool = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	# One narrow curved leaf per transform eliminates repeated radial tuft silhouettes.
-	_append_grass_ribbon(st, 0.0, 0.22, 0.0125, 0.09, 0.0, Vector3.ZERO, 3)
+	# Three carpets, each fading out as the next takes over. Blades get fewer
+	# but wider with distance so PROJECTED coverage stays level — no visible
+	# handoff bands: near ~1700/m² to 25 m (buries the ground), mid ~222/m² to
+	# 51 m, far ~42/m² to the fog line. Cheap 3-segment cards past the near ring.
+	var far_mesh: ArrayMesh = _build_blade_strip(FAR_SEGMENTS)
+	_spawn_field("FineFieldNear", _build_blade_strip(NEAR_SEGMENTS), NEAR_TILE,
+			NEAR_COUNT, 0.42, 1.0, NEAR_TILE * 0.40, NEAR_TILE * 0.49)
+	_spawn_field("FineFieldMid", far_mesh, MID_TILE,
+			MID_COUNT, 0.46, 1.7, MID_TILE * 0.42, MID_TILE * 0.49)
+	_spawn_field("FineFieldFar", far_mesh, FAR_TILE,
+			FAR_COUNT, 0.50, 2.6, FAR_TILE * 0.42, FAR_TILE * 0.49)
+
+
+## One camera-wrapped grass carpet, emitted as FIELD_CHUNKS² MultiMeshes so
+## the engine can frustum-cull the blades behind the camera (see
+## _update_field_culling). Height, width, and fade are per-field so the
+## carpets differ while sharing the one shader.
+func _spawn_field(
+	node_name: String,
+	blade: ArrayMesh,
+	tile: float,
+	count: int,
+	blade_height: float,
+	width_scale: float,
+	fade_start: float,
+	fade_end: float
+) -> void:
 	var mat: ShaderMaterial = ShaderMaterial.new()
 	mat.shader = load("res://assets/shaders/grass_field.gdshader")
 	mat.set_shader_parameter("height_map", _terrain.height_texture)
 	mat.set_shader_parameter("terrain_size", MeadowTerrain.SIZE)
 	mat.set_shader_parameter("water_level", _terrain.water_level)
-	mat.set_shader_parameter("tile", FIELD_TILE)
-	mat.set_shader_parameter("fade_start", FIELD_TILE * 0.41)
-	mat.set_shader_parameter("fade_end", FIELD_TILE * 0.49)
-	st.set_material(mat)
-	var mesh: ArrayMesh = st.commit()
+	mat.set_shader_parameter("tile", tile)
+	mat.set_shader_parameter("fade_start", fade_start)
+	mat.set_shader_parameter("fade_end", fade_end)
+	mat.set_shader_parameter("blade_height", blade_height)
+	mat.set_shader_parameter("width_scale", width_scale)
+	# Bootstrap's footprint: the field thins and crops short through town so the
+	# square reads as trodden ground rather than waist-high meadow.
+	mat.set_shader_parameter("town_center", MeadowTerrain.TOWN_CENTER)
+	mat.set_shader_parameter("town_inner", MeadowTerrain.TOWN_FLAT_INNER * 0.9)
+	mat.set_shader_parameter("town_outer", MeadowTerrain.TOWN_FLAT_OUTER * 0.85)
 
-	var mm: MultiMesh = MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mesh
-	mm.instance_count = FIELD_COUNT
-	var buf: PackedFloat32Array = PackedFloat32Array()
-	buf.resize(FIELD_COUNT * 12)
-	var half_tile: float = FIELD_TILE * 0.5
-	var idx: int = 0
-	for i in FIELD_COUNT:
-		buf[idx] = 1.0
-		buf[idx + 3] = _rng.randf_range(-half_tile, half_tile)
-		buf[idx + 5] = 1.0
-		buf[idx + 10] = 1.0
-		buf[idx + 11] = _rng.randf_range(-half_tile, half_tile)
-		idx += 12
-	mm.buffer = buf
+	var field: Node3D = Node3D.new()
+	field.name = node_name
+	add_child(field)
+	var chunk_size: float = tile / float(FIELD_CHUNKS)
+	var scaled_count: int = maxi(1, int(count * _grass_scale()))
+	var per_chunk: int = maxi(1, scaled_count / (FIELD_CHUNKS * FIELD_CHUNKS))
+	for cz in FIELD_CHUNKS:
+		for cx in FIELD_CHUNKS:
+			var x0: float = -tile * 0.5 + chunk_size * float(cx)
+			var z0: float = -tile * 0.5 + chunk_size * float(cz)
+			var mm: MultiMesh = MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.mesh = blade
+			mm.instance_count = per_chunk
+			var buf: PackedFloat32Array = PackedFloat32Array()
+			buf.resize(per_chunk * 12)
+			var idx: int = 0
+			for i in per_chunk:
+				buf[idx] = 1.0
+				buf[idx + 3] = x0 + _rng.randf() * chunk_size
+				buf[idx + 5] = 1.0
+				buf[idx + 10] = 1.0
+				buf[idx + 11] = z0 + _rng.randf() * chunk_size
+				idx += 12
+			mm.buffer = buf
 
-	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
-	mmi.name = "FineField"
-	mmi.multimesh = mm
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# Blades relocate to wherever the camera is — cull against the whole map.
-	mmi.custom_aabb = AABB(
-		Vector3(-MeadowTerrain.SIZE * 0.5, -60.0, -MeadowTerrain.SIZE * 0.5),
-		Vector3(MeadowTerrain.SIZE, 140.0, MeadowTerrain.SIZE)
-	)
-	add_child(mmi)
+			var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
+			mmi.name = "C%d_%d" % [cx, cz]
+			mmi.multimesh = mm
+			mmi.material_override = mat
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			field.add_child(mmi)
+			_field_chunks.append({
+				"mmi": mmi,
+				"rect": Rect2(x0, z0, chunk_size, chunk_size),
+				"tile": tile,
+				"cull_dist": fade_end + chunk_size * 0.2,
+			})
+
+
+## Every frame each chunk's AABB is moved to the world rect its blades
+## currently wrap to, and chunks fully outside their field's fade ring are
+## hidden. ~200 cheap AABB updates buy back roughly half the vertex work.
+func _update_field_culling() -> void:
+	var cam: Camera3D = get_viewport().get_camera_3d()
+	if cam == null:
+		return
+	var cp: Vector3 = cam.global_position
+	for chunk in _field_chunks:
+		var tile: float = chunk["tile"]
+		var rect: Rect2 = chunk["rect"]
+		var mmi: MultiMeshInstance3D = chunk["mmi"]
+		# Wrap each axis: a chunk maps to a contiguous world interval unless
+		# it straddles the wrap seam — then fall back to the full tile span.
+		var wx: float = cp.x + fposmod(rect.position.x - cp.x + tile * 0.5, tile) - tile * 0.5
+		var wz: float = cp.z + fposmod(rect.position.y - cp.z + tile * 0.5, tile) - tile * 0.5
+		var sx: float = rect.size.x
+		var sz: float = rect.size.y
+		if wx + sx > cp.x + tile * 0.5:
+			wx = cp.x - tile * 0.5
+			sx = tile
+		if wz + sz > cp.z + tile * 0.5:
+			wz = cp.z - tile * 0.5
+			sz = tile
+		# Distance cull: past the fade ring every blade has already died.
+		var nearest: Vector2 = Vector2(
+			clampf(cp.x, wx, wx + sx), clampf(cp.z, wz, wz + sz)
+		)
+		if nearest.distance_to(Vector2(cp.x, cp.z)) > chunk["cull_dist"]:
+			mmi.visible = false
+			continue
+		mmi.visible = true
+		mmi.custom_aabb = AABB(Vector3(wx, -40.0, wz), Vector3(sx, 100.0, sz))
+
+
+func _process(_delta: float) -> void:
+	_update_field_culling()
+
+
+## One unit-height grass blade as a tapered vertical strip in the local XY
+## plane (x = width in metres, y = 0→1 height, facing +Z). All curvature,
+## normal rounding, and wind happen in the shader; this stays a cheap card.
+## UV.x runs 0→1 across the width (drives normal rounding); UV.y runs 0→1
+## root→tip. The final segment tapers to a point, giving a true blade tip.
+func _build_blade_strip(segments: int) -> ArrayMesh:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var order: Array[int] = [0, 1, 2, 0, 2, 3]
+	for seg in segments:
+		var v0: float = float(seg) / float(segments)
+		var v1: float = float(seg + 1) / float(segments)
+		var w0: float = BLADE_HALF_WIDTH * pow(1.0 - v0, 0.7)
+		var w1: float = BLADE_HALF_WIDTH * pow(1.0 - v1, 0.7)
+		var pts: Array[Vector3] = [
+			Vector3(-w0, v0, 0.0), Vector3(w0, v0, 0.0),
+			Vector3(w1, v1, 0.0), Vector3(-w1, v1, 0.0),
+		]
+		var uvs: Array[Vector2] = [
+			Vector2(0.0, v0), Vector2(1.0, v0),
+			Vector2(1.0, v1), Vector2(0.0, v1),
+		]
+		for k in order:
+			st.set_uv(uvs[k])
+			st.set_normal(Vector3(0.0, 0.0, 1.0))
+			st.add_vertex(pts[k])
+	return st.commit()
 
 
 func _ground_ok(x: float, z: float, h: float) -> bool:
@@ -101,136 +240,6 @@ func _ground_ok(x: float, z: float, h: float) -> bool:
 	if h < _terrain.water_level + 0.35:  # pond bed and waterline stay bare
 		return false
 	return true
-
-
-func _scatter_grass() -> void:
-	var mesh: ArrayMesh = _build_blade_mesh()
-	var mm: MultiMesh = MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = mesh
-	mm.instance_count = GRASS_COUNT
-	var half: float = MeadowTerrain.SIZE * 0.5 - EDGE_MARGIN
-	# BOTW-style patchiness: blades grow in clumps, and each clump owns a
-	# coherent hue so the field reads as drifts of color, not confetti.
-	var green_a: Color = Color(0.22, 0.39, 0.095)
-	var green_b: Color = Color(0.32, 0.48, 0.13)
-	var gold: Color = Color(0.47, 0.38, 0.10)
-	var hue_noise: FastNoiseLite = FastNoiseLite.new()
-	hue_noise.seed = SCATTER_SEED + 41
-	hue_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	hue_noise.frequency = 0.014
-	hue_noise.fractal_octaves = 3
-	var dry_noise: FastNoiseLite = FastNoiseLite.new()
-	dry_noise.seed = SCATTER_SEED + 83
-	dry_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	dry_noise.frequency = 0.008
-	dry_noise.fractal_octaves = 2
-	var i: int = 0
-	while i < GRASS_COUNT:
-		var cx: float = _rng.randf_range(-half, half)
-		var cz: float = _rng.randf_range(-half, half)
-		var hue: float = hue_noise.get_noise_2d(cx, cz) * 0.5 + 0.5
-		var dry: float = smoothstep(0.55, 0.82, dry_noise.get_noise_2d(cx, cz) * 0.5 + 0.5)
-		var clump_col: Color = green_a.lerp(green_b, hue)
-		clump_col = clump_col.lerp(gold, dry * 0.58)
-		var spread: float = _rng.randf_range(1.8, 3.4)
-		var clump_size: int = mini(GRASS_INSTANCES_PER_CLUMP, GRASS_COUNT - i)
-		for j in clump_size:
-			var x: float = cx + _rng.randfn(0.0, spread)
-			var z: float = cz + _rng.randfn(0.0, spread)
-			var h: float = _terrain.get_height(x, z)
-			if not _ground_ok(x, z, h):
-				h = -10000.0  # park unusable blades far underground
-			var t: Transform3D = Transform3D(Basis.IDENTITY, Vector3(x, h, z))
-			t = t.rotated_local(Vector3.UP, _rng.randf_range(0.0, TAU))
-			var s: float = _rng.randf_range(0.78, 1.18)
-			t = t.scaled_local(Vector3(s, s * _rng.randf_range(0.84, 1.12), s))
-			mm.set_instance_transform(i, t)
-			var col: Color = clump_col.lerp(green_b, _rng.randf_range(0.0, 0.12))
-			mm.set_instance_color(i, col)
-			i += 1
-
-	var mmi: MultiMeshInstance3D = MultiMeshInstance3D.new()
-	mmi.name = "Grass"
-	mmi.multimesh = mm
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
-
-
-## Adds one curved ribbon to a shared tuft mesh. Four or five articulated
-## segments produce a soft arc and a broad middle before tapering to a true
-## leaf tip; the small upward normal bias keeps both faces readable at dusk.
-func _append_grass_ribbon(
-	st: SurfaceTool,
-	yaw: float,
-	height: float,
-	half_width: float,
-	lean: float,
-	phase: float,
-	base_offset: Vector3,
-	segments: int
-) -> void:
-	var forward: Vector3 = Vector3(cos(yaw), 0.0, sin(yaw))
-	var side: Vector3 = Vector3(-sin(yaw), 0.0, cos(yaw))
-	var normal: Vector3 = (-forward * 0.48 + Vector3.UP * 0.88).normalized()
-	var order: Array[int] = [0, 1, 2, 0, 2, 3]
-	for segment in segments:
-		var t0: float = float(segment) / float(segments)
-		var t1: float = float(segment + 1) / float(segments)
-		var bend0: float = t0 * t0
-		var bend1: float = t1 * t1
-		var curl: float = sin(phase * TAU) * 0.025
-		var center0: Vector3 = base_offset + Vector3.UP * (height * t0)
-		center0 += forward * (lean * bend0) + side * (curl * bend0 * t0)
-		var center1: Vector3 = base_offset + Vector3.UP * (height * t1)
-		center1 += forward * (lean * bend1) + side * (curl * bend1 * t1)
-		var width0: float = half_width * pow(maxf(0.0, 1.0 - t0), 0.72)
-		var width1: float = half_width * pow(maxf(0.0, 1.0 - t1), 0.72)
-		width0 *= 0.84 + 0.34 * sin(PI * t0)
-		width1 *= 0.84 + 0.34 * sin(PI * t1)
-		var points: Array[Vector3] = [
-			center0 - side * width0,
-			center0 + side * width0,
-			center1 + side * width1,
-			center1 - side * width1,
-		]
-		var uvs: Array[Vector2] = [
-			Vector2(0.0, t0), Vector2(1.0, t0),
-			Vector2(1.0, t1), Vector2(0.0, t1),
-		]
-		for point_index in order:
-			st.set_uv(uvs[point_index])
-			st.set_uv2(Vector2(phase, height))
-			st.set_normal(normal)
-			st.add_vertex(points[point_index])
-
-
-## A lush accent tuft: five independently phased curved ribbons. The field
-## shader supplies the dense sward; these taller silhouettes break it into
-## readable wind-swept clumps without the old crossed-triangle spikes.
-func _build_blade_mesh() -> ArrayMesh:
-	var st: SurfaceTool = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for blade_index in ACCENT_BLADES_PER_TUFT:
-		var phase: float = float(blade_index) / float(ACCENT_BLADES_PER_TUFT)
-		var yaw: float = float(blade_index) * 2.39996 + 0.23
-		var radius: float = 0.035 + 0.018 * float(blade_index % 3)
-		var offset: Vector3 = Vector3(cos(yaw), 0.0, sin(yaw)) * radius
-		_append_grass_ribbon(
-			st,
-			yaw,
-			0.34 + 0.055 * float(blade_index),
-			0.015 + 0.003 * float(blade_index % 2),
-			0.12 + 0.035 * float(blade_index),
-			phase,
-			offset,
-			3
-		)
-	var mat: ShaderMaterial = ShaderMaterial.new()
-	mat.shader = load("res://assets/shaders/grass_wind.gdshader")
-	st.set_material(mat)
-	return st.commit()
 
 
 func _scatter_irises() -> void:
@@ -307,8 +316,17 @@ func _build_iris_mesh() -> ArrayMesh:
 	mat.vertex_color_is_srgb = true
 	mat.roughness = 0.9
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_fade_bloom(mat)
 	st.set_material(mat)
 	return st.commit()
+
+
+## Blooms dissolve with distance — unfaded white petals read as scattered
+## litter across the far sward instead of flowers.
+func _fade_bloom(mat: StandardMaterial3D) -> void:
+	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_DITHER
+	mat.distance_fade_min_distance = 34.0
+	mat.distance_fade_max_distance = 58.0
 
 
 ## Daisies: tiny white/cream blooms sprinkled everywhere — the ground clutter
@@ -341,6 +359,7 @@ func _scatter_daisies() -> void:
 	mat.vertex_color_is_srgb = true
 	mat.roughness = 0.9
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_fade_bloom(mat)
 	st.set_material(mat)
 	var mesh: ArrayMesh = st.commit()
 

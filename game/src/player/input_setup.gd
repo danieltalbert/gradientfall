@@ -43,6 +43,23 @@ static func ensure() -> void:
 	_pad_button(&"dodge", JOY_BUTTON_B)
 	_key(&"special", KEY_Q)
 	_pad_button(&"special", JOY_BUTTON_Y)
+	# Knowledge channel (milestone 7): answer keys for the quiz card.
+	# 1–4 on keyboard; d-pad clockwise-from-up on gamepad.
+	_key(&"quiz_answer_1", KEY_1)
+	_key(&"quiz_answer_2", KEY_2)
+	_key(&"quiz_answer_3", KEY_3)
+	_key(&"quiz_answer_4", KEY_4)
+	_pad_button(&"quiz_answer_1", JOY_BUTTON_DPAD_UP)
+	_pad_button(&"quiz_answer_2", JOY_BUTTON_DPAD_RIGHT)
+	_pad_button(&"quiz_answer_3", JOY_BUTTON_DPAD_DOWN)
+	_pad_button(&"quiz_answer_4", JOY_BUTTON_DPAD_LEFT)
+	# The pack (milestone 10).
+	_key(&"inventory", KEY_I)
+	_pad_button(&"inventory", JOY_BUTTON_BACK)
+	# Talk / advance dialogue (milestone 8). The gamepad's A is also jump, so
+	# player.gd hands the button to the villager while a talk prompt is up.
+	_key(&"interact", KEY_E)
+	_pad_button(&"interact", JOY_BUTTON_A)
 	# Dev-only: fill the focus meter to verify the special without a quiz UI.
 	_key(&"debug_charge", KEY_F)
 

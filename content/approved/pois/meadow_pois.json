@@ -5,8 +5,150 @@
     "region": "datasedge_meadows",
     "kind": "buried_cache",
     "description": "An old stone well east of Bootstrap that hums faintly at dusk. Villagers toss Tokens in for luck; something at the bottom has been keeping count, and it rounds in your favor if you ask nicely.",
-    "reward_items": ["item_data_shard"],
+    "reward_items": [
+      "item_data_shard"
+    ],
     "reward_tokens": 25,
     "bit_sense": true
+  },
+  {
+    "id": "poi_old_mill_millpond",
+    "name": "The Old Mill & Millpond",
+    "region": "datasedge_meadows",
+    "kind": "buried_cache",
+    "description": "Bootstrap's lazy waterwheel turns even when the millrace runs still, which the miller has stopped explaining. Out past the reeds, something long and regular lies under the pond — too straight to be a log, too patient to be a fish. Bit hums a little louder near the water.",
+    "reward_items": [
+      "item_data_shard"
+    ],
+    "reward_tokens": 30,
+    "bit_sense": true
+  },
+  {
+    "id": "poi_hivewise_apiary",
+    "name": "Hivewise Apiary",
+    "region": "datasedge_meadows",
+    "kind": "secret_vendor",
+    "description": "Rows of white hives humming like a contented town. The keeper insists the bees visit every iris bed in strict rotation — 'never twice the same patch till they've tasted them all' — and trades jars of honey and the odd tonic for well-kept petals.",
+    "reward_items": [
+      "item_meadow_honey"
+    ]
+  },
+  {
+    "id": "poi_old_boundary_stones",
+    "name": "The Old Boundary Stones",
+    "region": "datasedge_meadows",
+    "kind": "mini_shrine",
+    "description": "Ancient standing stones marking a line nothing visible needs marking. Farmers plow around them without asking why. Offerings left on one side are always found on that same side — and standing in the gap at dusk, travelers report being quite unable to decide which field they are in.",
+    "reward_tokens": 20
+  },
+  {
+    "id": "poi_seed_vault_outer_ruins",
+    "name": "The Seed Vault Outer Ruins",
+    "region": "datasedge_meadows",
+    "kind": "collapsed_vault",
+    "description": "The shattered stone throat where Kern was found. Old machinery under the rubble stirs faintly whenever he returns, like a sleeper recognizing a footstep. Some nights a violet shimmer plays over the deepest stones; Bootstrap folk agree it is marsh-light, and agree not to look long.",
+    "reward_items": [
+      "item_data_shard"
+    ],
+    "reward_tokens": 40
+  },
+  {
+    "id": "poi_ascent_tally_knoll",
+    "name": "Ascent Tally Knoll",
+    "region": "datasedge_meadows",
+    "kind": "vista",
+    "description": "A grassy knob crowned with a cairn — one stone added per visitor, the pile leaning north as if it wants to go. From the top the Gradient Peaks stand rank on rank, each ridge a step higher than the last, climbing toward one far summit. On clear days a white thread of falling water glints partway up.",
+    "reward_tokens": 0
+  },
+  {
+    "id": "poi_deepgreen_overlook",
+    "name": "Deepgreen Overlook",
+    "region": "datasedge_meadows",
+    "kind": "vista",
+    "description": "A split-rail fence at the meadow's eastern hem, sagging from generations of leaners. Beyond it the Latent Forest rises — a green so deep it looks poured rather than grown. Count the ranks of trees twice and you will get two answers. The second one feels more true.",
+    "reward_tokens": 0
+  },
+  {
+    "id": "poi_goose_hoard",
+    "name": "The Goose Hoard",
+    "region": "datasedge_meadows",
+    "kind": "buried_cache",
+    "description": "A hollow under the millrace bank, hidden behind a curtain of roots, where Bootstrap's geese have been banking every shiny thing the town has ever lost. Buttons, buckles, Tokens — sorted, somehow, by size. Tilly the goose-girl swears they are organized. Nobody believes Tilly yet.",
+    "reward_tokens": 45,
+    "bit_sense": true
+  },
+  {
+    "id": "poi_sluicework_chest",
+    "name": "The Sluicework Chest",
+    "region": "datasedge_meadows",
+    "kind": "puzzle_chest",
+    "description": "An iron-strapped chest in a dry basin at the foot of the irrigation ditches. Open the sluice gates and the water picks its own way down, always the steepest, pooling wherever it can sink no further. The lock only gives when the last ripple settles in the basin — you steer the gates, the water finds the way.",
+    "reward_items": [
+      "item_travelers_tonic"
+    ],
+    "reward_tokens": 25
+  },
+  {
+    "id": "poi_florists_lockbox",
+    "name": "The Florist's Lockbox",
+    "region": "datasedge_meadows",
+    "kind": "puzzle_chest",
+    "description": "A brass lockbox abandoned in the iris flats, its lid grown over with one live bloom. Four dials ring the clasp: petal length, petal width, and two more for the leaves. Set them to match the flower above and it opens sweetly. Guess wrong and the lid grows a trickier specimen.",
+    "reward_items": [
+      "item_iris_petal"
+    ],
+    "reward_tokens": 20
+  },
+  {
+    "id": "poi_tempering_pool",
+    "name": "The Tempering Pool",
+    "region": "datasedge_meadows",
+    "kind": "hot_spring",
+    "description": "A steaming pool tucked in a fold of the southern downs, rimmed with stones worn perfectly smooth. Shepherd custom: sink in, stay still, and let every ache 'settle to its lowest' — you are not done until the ripples stop moving and so have you.",
+    "reward_tokens": 0
+  },
+  {
+    "id": "poi_hillwatchers_camp",
+    "name": "The Hill-Watcher's Camp",
+    "region": "datasedge_meadows",
+    "kind": "hermit_camp",
+    "description": "A patched tent, a kettle, and a hermit who forecasts weather by 'asking the five nearest hills what they did last time.' He is right far more often than the town's almanac, cannot explain himself, and considers this a fair trade. Guests get tea and tomorrow's clouds.",
+    "reward_tokens": 15
+  },
+  {
+    "id": "poi_sunken_granary",
+    "name": "The Sunken Granary",
+    "region": "datasedge_meadows",
+    "kind": "collapsed_vault",
+    "description": "A collapsed stone granary half-swallowed by the turf. After one legendary turnip year, the old cooperative stocked it with nothing but turnips — 'it worked once, so it must always' — until the floor gave beneath the weight of a single idea. The cellar below survived, and it is not empty.",
+    "reward_items": [
+      "item_data_shard"
+    ],
+    "reward_tokens": 35
+  },
+  {
+    "id": "poi_petal_brokers_wagon",
+    "name": "The Petal-Broker's Wagon",
+    "region": "datasedge_meadows",
+    "kind": "secret_vendor",
+    "description": "A green wagon parked deep in the tall iris flats, findable mostly by accident. The broker buys petals — but only with their measurements neatly noted, and pays triple for any bloom that refuses to fit a family. Sells tonics, twine, and opinions about collectors in the capital.",
+    "reward_tokens": 0,
+    "bit_sense": true
+  },
+  {
+    "id": "poi_wayfinders_nook",
+    "name": "The Wayfinder's Nook",
+    "region": "datasedge_meadows",
+    "kind": "mini_shrine",
+    "description": "A knee-high roadside shrine with a carved wooden face, worn kind by weather. Farmers leave a Token before trying a new way to town. However the shrine is turned overnight, by morning the face points down the gentlest road — never the shortest, always the easiest walking.",
+    "reward_tokens": 10
+  },
+  {
+    "id": "poi_long_fallow_chest",
+    "name": "The Long Fallow",
+    "region": "datasedge_meadows",
+    "kind": "puzzle_chest",
+    "description": "A field no one farms where the grass is mown anyway — in perfectly straight rows that run to the horizon, cut in the night by something heavy and methodical. Mid-field sits a scarred oak chest that opens only for a walker who keeps one row true the whole way. Cut across, and it waits for someone with better discipline.",
+    "reward_tokens": 50
   }
 ]

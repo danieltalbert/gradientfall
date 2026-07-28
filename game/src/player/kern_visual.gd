@@ -1,403 +1,636 @@
 class_name KernVisual
 extends Node3D
-## Code-built silhouette-first look-dev for Kern.
+## Kern's character rig: a code-built, skinned, life-sized hero (1.78 m) with a
+## sculpted head, five-fingered hands, and layered travel-gear — assembled from
+## the kern/ builder modules and animated procedurally here.
 ##
-## This is still a procedural Phase-1 hero, but it is deliberately shaped as
-## a small adventurer rather than a capsule: layered tunic, wind cape, hooded
-## head, limbs, boots, sword, and the canon glowing hand mark. The simple
-## animation pass keeps the silhouette alive while walking or standing.
+## Public API is unchanged from the placeholder version so the rest of the game
+## keeps working untouched:
+##   * this Node3D is rotated (`rotation.y`) to face travel, scaled for the
+##     jump/land squash, and hidden on the come-apart — all still valid, since
+##     the skeleton + head are its children.
+##   * pose_attack(phase) / pose_guard(active) / combat_release() are the exact
+##     hooks PlayerCombat drives; they now choreograph the arm+sword on the
+##     skeleton instead of a floating primitive.
 ##
-## Attached to the Visual child of player.tscn's CharacterBody3D, whose
-## `velocity` it reads each frame to drive the walk cycle — it never moves
-## the body itself. Every mesh is primitive geometry built in `_build_hero()`
-## and shaded with toon.gdshader; there are no imported assets or animation
-## resources. PlayerCombat calls `pose_attack()`, `pose_guard()`, and
-## `combat_release()` to take over the right arm and sword during swings and
-## guards; while it holds that override the idle/walk cycle leaves both
-## alone. All positions are meters in the body's local frame (Kern stands
-## about 1.75 m), rotations are radians, and -Z is forward (Godot's
-## convention), which is why the face and eyes sit at negative Z.
+## Animation is layered: a locomotion base (gait, torso counter-rotation, head
+## carriage) is computed every frame, then combat can override the sword arm,
+## and idle life (breathing, weight-shift, blinks, saccades) plays on top.
 
-const TOON_SHADER: String = "res://assets/shaders/toon.gdshader"
+const BodyBuilder: GDScript = preload("res://src/player/kern/kern_body_builder.gd")
+const GearBuilder: GDScript = preload("res://src/player/kern/kern_gear_builder.gd")
+const HeadScene: GDScript = preload("res://src/player/kern/kern_head.gd")
+const KM: GDScript = preload("res://src/player/kern/kern_materials.gd")
+const BaseModel: GDScript = preload("res://src/player/kern/kern_base_model.gd")
 
-# Sword rest pose (matches _build_sword). Combat poses lerp away and back.
-const SWORD_REST_POS: Vector3 = Vector3(0.30, 1.00, 0.30)
-const SWORD_REST_ROT: Vector3 = Vector3(0.10, 0.0, -0.62)
+## The First Model showing through: 0 = ordinary disguised traveller, 1 = fully
+## lit. A faint rest ember, rising with the knowledge-charge meter (and, later,
+## machinery proximity / hallucination zones). Set >= 0 to force a level
+## (the character studio uses this to render rest vs charged).
+const AWAKEN_REST: float = 0.12
+var awaken_override: float = -1.0
+var _awaken: float = AWAKEN_REST
+var _charge01: float = 0.0
 
-## The parent CharacterBody3D; its velocity is the only animation input.
+# Sword carry pose in the right-hand frame (grip seated in the curled fingers,
+# blade up and canted out to the side + forward so it clears Kern's face — a
+# traveller's ready-but-relaxed hold rather than a ceremonial vertical salute).
+const SWORD_REST_POS: Vector3 = Vector3(0.02, 0.02, 0.0)
+const SWORD_REST_ROT: Vector3 = Vector3(-0.5, 0.0, 0.5)
+
+# Neutral joint offsets (radians) layered under all animation so the arms hang
+# with a little life instead of dead-vertical.
+const NEUTRAL: Dictionary = {
+	"UpperArmL": Vector3(0.10, 0.0, 0.14),
+	"UpperArmR": Vector3(0.10, 0.0, -0.14),
+	"ForearmL": Vector3(0.18, 0.10, 0.0),
+	"ForearmR": Vector3(0.18, -0.10, 0.0),
+	"ClavicleL": Vector3(0.0, 0.0, 0.05),
+	"ClavicleR": Vector3(0.0, 0.0, -0.05),
+}
+
+enum Combat { NONE, ATTACK, GUARD }
+
 var _body: CharacterBody3D
-## Rig roots. The torso carries every head/body part so bob and breathe move
-## them as one; the four limb pivots and the cape rotate independently.
-var _torso: Node3D
-var _cape: Node3D
-var _left_arm: Node3D
-var _right_arm: Node3D
-var _left_leg: Node3D
-var _right_leg: Node3D
+var _skeleton: Skeleton3D
+var _bones: Dictionary
+
+# Imported CC0 base body (null until the .glb is dropped in).
+var _base_root: Node3D
+var _base_skeleton: Skeleton3D
+var _base_bones: Dictionary = {}
+# Retarget cache per mapped bone: our pose eulers are MODEL-space rotations
+# (the procedural rig's rest rotations are identity by construction), but the
+# imported rig's bones carry real rest orientations. For each bone we keep its
+# local rest rotation and its global rest basis so a model-space delta can be
+# re-expressed in that bone's frame:  pose = rest_local * (Gᵀ · delta · G).
+var _base_retarget: Dictionary = {}
+var _head: KernHead
 var _sword: Node3D
-## Walk-cycle accumulator in radians, advanced by a speed-scaled rate.
-var _phase: float = 0.0
-## While true, PlayerCombat owns the right arm + sword; idle/walk anim yields.
-var _combat_arm_override: bool = false
+
+var _phase: float = 0.0          # gait cycle
+var _idle_t: float = 0.0
+var _speed_smooth: float = 0.0
+
+# Combat overlay.
+var _combat: int = Combat.NONE
+var _attack_phase: float = 0.0
+var _combat_blend: float = 0.0   # eases the sword arm in/out of combat
+
+# Head / eye life.
+var _blink: float = 0.0
+var _blink_cd: float = 2.0
+var _blinking: bool = false
+var _blink_t: float = 0.0
+var _gaze: Vector2 = Vector2.ZERO
+var _gaze_target: Vector2 = Vector2.ZERO
+var _saccade_cd: float = 1.2
+var _head_look: Vector2 = Vector2.ZERO
+
+# Cloak spring (lags Kern's motion so it swings and settles).
+var _cloak_swing: float = 0.0
+var _cloak_vel: float = 0.0
+var _prev_pos: Vector3 = Vector3.ZERO
 
 
-## Cache the parent body and assemble the whole hero once at scene load.
 func _ready() -> void:
 	_body = get_parent() as CharacterBody3D
-	_build_hero()
+
+	# If the imported CC0 base body mesh is present (assets/models/README.md),
+	# report that it loaded and hand its rig to the animation via the bone map.
+	# Fitting the code-built gear onto it is the next pass — until then the
+	# procedural body stays the active path so the main line always runs.
+	# Build the procedural rig FIRST, then load the imported body. With the
+	# import loaded first, every mesh skinned to the procedural skeleton
+	# rendered displaced (swallowed by the body) — two Skeleton3D siblings
+	# interact badly in the skinning path depending on creation order.
+	var body_data: Dictionary = BodyBuilder.build(self)
+	_skeleton = body_data["skeleton"]
+	_bones = body_data["bones"]
+
+	var base: Dictionary = BaseModel.load_into(self)
+	if base["ok"]:
+		_base_root = base["root"]
+		_base_skeleton = base["skeleton"]
+		_base_bones = base["bones"]
+		_cache_retarget()
+		print("KernVisual: base mesh loaded (%.2f m), driving %d bones." % [
+			BaseModel.measure_height(_base_root), _base_retarget.size()])
+	elif String(base["reason"]) != "":
+		print("KernVisual: ", base["reason"])
+
+	_head = HeadScene.new()
+	_head.name = "Head"
+	(body_data["head_attach"] as BoneAttachment3D).add_child(_head)
+	_head.build(_head_pivot())
+
+	# With the imported body live, the procedural SKIN becomes a duplicate —
+	# hide it (face/eyes, neck, hands, nails). Garments, boots, cloak, sword,
+	# hair and the hand-mark stay: they are the code-built layer worn on top.
+	if _base_skeleton != null:
+		_retire_procedural_skin(body_data)
+
+	var gear: Dictionary = GearBuilder.build(_skeleton, _bones, body_data)
+	_sword = gear["sword"]
+	_build_shards()
+	# The sword rides the right hand so combat poses move it for free.
+	var hand_attach: BoneAttachment3D = body_data["hand_r_attach"]
+	hand_attach.add_child(_sword)
+	_sword.position = SWORD_REST_POS
+	_sword.rotation = SWORD_REST_ROT
+
+	# Move the torso/limb garments onto the imported skeleton. Anything
+	# skinned to the procedural skeleton renders displaced when the imported
+	# body is present (an engine-level skinning conflict between the two
+	# Skeleton3D siblings: the tunic's fragments lose the depth test against
+	# a body they geometrically enclose, while rigid geometry at the same
+	# coordinates wins it). The imported skeleton's skinning provably renders
+	# true, so the garments ride it; the retargeted pose already drives it
+	# with the same animation. Runs after GearBuilder so belt/scarf move too.
+	if _base_skeleton != null:
+		_reskin_garments_to_base()
+
+	if _body != null:
+		_prev_pos = _body.global_position
 
 
-## Procedural walk/idle cycle, driven entirely by horizontal speed.
-##
-## `moving` fades the whole cycle in between 0.15 and 2.5 m/s so a standing
-## Kern doesn't twitch, and the phase rate ramps from 1.4 to 8.5 rad/s as
-## speed approaches the 7.5 m/s sprint cap — faster movement, faster steps.
-## Arms and legs counter-swing (legs at 72% amplitude), the torso bobs at
-## twice the step frequency, and an independent slow sine breathes the torso
-## by ±1.2% (squashing width as height grows, so volume reads constant) —
-## the one motion that continues while standing still. The cape's lift is
-## the sum of a baseline, a speed term, and a slow flutter.
+	# The magic answers to the knowledge-charge meter (Combat v1 owns it).
+	if EventBus.knowledge_charge_changed and not \
+			EventBus.knowledge_charge_changed.is_connected(_on_charge_changed):
+		EventBus.knowledge_charge_changed.connect(_on_charge_changed)
+	KM.set_awaken(_awaken)
+
+
+func _on_charge_changed(fraction: float) -> void:
+	_charge01 = clampf(fraction, 0.0, 1.0)
+
+
+## The head bone's global rest position — kern_head builds around this so its
+## own origin lands on the pivot and it rotates like a real head.
+func _head_pivot() -> Vector3:
+	var idx: int = _bones["Head"]
+	return _skeleton.get_bone_global_rest(idx).origin
+
+
 func _process(delta: float) -> void:
-	if _body == null:
+	if _body == null or _skeleton == null:
 		return
 	var speed: float = Vector2(_body.velocity.x, _body.velocity.z).length()
-	var moving: float = smoothstep(0.15, 2.5, speed)
-	_phase += delta * lerpf(1.4, 8.5, clampf(speed / 7.5, 0.0, 1.0))
-	var swing: float = sin(_phase) * 0.52 * moving
-	_left_arm.rotation.x = swing
-	# The right arm belongs to PlayerCombat mid-swing or mid-guard.
-	if not _combat_arm_override:
-		_right_arm.rotation.x = -swing
-	_left_leg.rotation.x = -swing * 0.72
-	_right_leg.rotation.x = swing * 0.72
-	_torso.position.y = sin(_phase * 2.0) * 0.018 * moving
-	var breathe: float = sin(Time.get_ticks_msec() * 0.0021) * 0.012
-	_torso.scale = Vector3(1.0 - breathe * 0.25, 1.0 + breathe, 1.0 - breathe * 0.25)
-	_cape.rotation.x = 0.11 + speed * 0.018 + sin(_phase * 1.37) * (0.025 + moving * 0.035)
+	_speed_smooth = lerpf(_speed_smooth, speed, 1.0 - exp(-8.0 * delta))
+	var moving: float = smoothstep(0.12, 2.2, _speed_smooth)
+	_phase += delta * lerpf(2.6, 9.0, clampf(_speed_smooth / 7.5, 0.0, 1.0))
+	_idle_t += delta
+
+	var pose: Dictionary = {}
+	_locomotion(pose, moving)
+	_idle_life(pose, delta, moving)
+
+	# Combat overlay on the right arm + sword.
+	var want_combat: float = 1.0 if _combat != Combat.NONE else 0.0
+	_combat_blend = lerpf(_combat_blend, want_combat, 1.0 - exp(-16.0 * delta))
+	if _combat_blend > 0.001:
+		_apply_combat(pose)
+
+	_commit(pose)
+	_animate_cloak(delta, moving)
+	_animate_head_extras(delta, moving)
+	_drive_awaken(delta)
 
 
-## Assemble the hero from primitives, in silhouette order: torso stack
-## (tunic, belt, mantle), head (hood, face, eyes, hair, scarf), then the
-## four limb pivots, the cape, and the sword. Parts that must animate hang
-## off their own pivot node; everything else parents to the torso rig.
-func _build_hero() -> void:
-	_torso = Node3D.new()
-	_torso.name = "TorsoRig"
-	add_child(_torso)
-
-	var tunic: CylinderMesh = CylinderMesh.new()
-	tunic.top_radius = 0.27
-	tunic.bottom_radius = 0.36
-	tunic.height = 0.66
-	tunic.radial_segments = 12
-	tunic.rings = 2
-	_add_part(_torso, "Tunic", tunic, Vector3(0.0, 0.98, 0.0),
-		Color(0.20, 0.34, 0.22), Vector3.ONE)
-
-	var belt: CylinderMesh = CylinderMesh.new()
-	belt.top_radius = 0.365
-	belt.bottom_radius = 0.365
-	belt.height = 0.105
-	belt.radial_segments = 12
-	_add_part(_torso, "Belt", belt, Vector3(0.0, 0.78, 0.0),
-		Color(0.20, 0.12, 0.075), Vector3.ONE)
-
-	var mantle: CylinderMesh = CylinderMesh.new()
-	mantle.top_radius = 0.29
-	mantle.bottom_radius = 0.39
-	mantle.height = 0.18
-	mantle.radial_segments = 12
-	_add_part(_torso, "ShoulderMantle", mantle, Vector3(0.0, 1.27, 0.0),
-		Color(0.32, 0.23, 0.16), Vector3.ONE)
-
-	var hood: SphereMesh = SphereMesh.new()
-	hood.radius = 0.255
-	hood.height = 0.51
-	hood.radial_segments = 14
-	hood.rings = 7
-	_add_part(_torso, "Hood", hood, Vector3(0.0, 1.51, 0.055),
-		Color(0.18, 0.25, 0.16), Vector3(1.08, 1.06, 1.02))
-
-	var face: SphereMesh = SphereMesh.new()
-	face.radius = 0.205
-	face.height = 0.41
-	face.radial_segments = 14
-	face.rings = 7
-	_add_part(_torso, "Face", face, Vector3(0.0, 1.49, -0.115),
-		Color(0.52, 0.32, 0.18), Vector3(0.92, 1.0, 0.68))
-	var eye: SphereMesh = SphereMesh.new()
-	eye.radius = 0.022
-	eye.height = 0.044
-	eye.radial_segments = 8
-	eye.rings = 4
-	_add_part(_torso, "LeftEye", eye, Vector3(-0.068, 1.52, -0.252),
-		Color(0.035, 0.045, 0.035), Vector3(0.76, 1.1, 0.52))
-	_add_part(_torso, "RightEye", eye, Vector3(0.068, 1.52, -0.252),
-		Color(0.035, 0.045, 0.035), Vector3(0.76, 1.1, 0.52))
-	var fringe: BoxMesh = BoxMesh.new()
-	fringe.size = Vector3(0.30, 0.085, 0.055)
-	_add_part(_torso, "HairFringe", fringe, Vector3(-0.025, 1.655, -0.235),
-		Color(0.13, 0.075, 0.035), Vector3.ONE, Vector3(0.0, 0.0, -0.10))
-
-	var hair: CylinderMesh = CylinderMesh.new()
-	hair.top_radius = 0.0
-	hair.bottom_radius = 0.095
-	hair.height = 0.28
-	hair.radial_segments = 7
-	_add_part(_torso, "HairTuft", hair, Vector3(-0.08, 1.73, -0.04),
-		Color(0.16, 0.10, 0.055), Vector3.ONE, Vector3(0.18, 0.0, -0.42))
-
-	var scarf: BoxMesh = BoxMesh.new()
-	scarf.size = Vector3(0.44, 0.11, 0.12)
-	_add_part(_torso, "Scarf", scarf, Vector3(0.0, 1.30, -0.20),
-		Color(0.66, 0.25, 0.12), Vector3.ONE, Vector3(0.08, 0.0, 0.0))
-
-	_left_arm = _build_limb("LeftArm", Vector3(-0.34, 1.24, 0.0),
-		Color(0.25, 0.37, 0.22), false)
-	_right_arm = _build_limb("RightArm", Vector3(0.34, 1.24, 0.0),
-		Color(0.25, 0.37, 0.22), true)
-	_left_leg = _build_leg("LeftLeg", Vector3(-0.15, 0.70, 0.0))
-	_right_leg = _build_leg("RightLeg", Vector3(0.15, 0.70, 0.0))
-
-	_build_cape()
-	_build_sword()
+## Ease the arcane glow toward its target and push it to every magical material.
+func _drive_awaken(delta: float) -> void:
+	var target: float = awaken_override
+	if target < 0.0:
+		target = maxf(AWAKEN_REST, _charge01)
+	_awaken = lerpf(_awaken, target, 1.0 - exp(-4.0 * delta))
+	KM.set_awaken(_awaken)
+	_orbit_shards(delta)
 
 
-## One arm: a pivot node at the shoulder (so `rotation.x` swings the whole
-## limb) carrying a sleeve capsule and a hand. `marked` adds the canon
-## glowing hand mark — an emissive sphere on Kern's right palm, the only
-## part not using the toon shader, since it must self-illuminate at night.
-func _build_limb(part_name: String, pos: Vector3, color: Color, marked: bool) -> Node3D:
-	var pivot: Node3D = Node3D.new()
-	pivot.name = part_name
-	pivot.position = pos
-	add_child(pivot)
-	var arm: CapsuleMesh = CapsuleMesh.new()
-	arm.radius = 0.085
-	arm.height = 0.58
-	arm.radial_segments = 10
-	arm.rings = 4
-	_add_part(pivot, "Sleeve", arm, Vector3(0.0, -0.27, 0.0), color, Vector3.ONE)
-	var hand: SphereMesh = SphereMesh.new()
-	hand.radius = 0.095
-	hand.height = 0.19
-	hand.radial_segments = 10
-	hand.rings = 5
-	_add_part(pivot, "Hand", hand, Vector3(0.0, -0.56, -0.01),
-		Color(0.52, 0.32, 0.18), Vector3(0.9, 1.15, 0.8))
-	if marked:
-		var mark: SphereMesh = SphereMesh.new()
-		mark.radius = 0.045
-		mark.height = 0.09
-		mark.radial_segments = 10
-		var mark_node: MeshInstance3D = MeshInstance3D.new()
-		mark_node.name = "HandMark"
-		mark_node.mesh = mark
-		mark_node.position = Vector3(0.075, -0.56, -0.045)
-		var mark_mat: StandardMaterial3D = StandardMaterial3D.new()
-		mark_mat.albedo_color = Color(1.0, 0.74, 0.16)
-		mark_mat.emission_enabled = true
-		mark_mat.emission = Color(1.0, 0.55, 0.08)
-		mark_mat.emission_energy_multiplier = 3.2
-		mark_node.material_override = mark_mat
-		pivot.add_child(mark_node)
-	return pivot
+# --- Orbiting data-shards (charged VFX) -------------------------------------
+
+const SHARD_COUNT: int = 11
+
+var _shards: Array = []
+var _shard_t: float = 0.0
 
 
-## One leg: a hip pivot carrying a trouser capsule and a boot. The boot is
-## rotated 90° about X so the capsule lies along Z (a foot pointing forward)
-## and stretched 1.35x in Z for toe length.
-func _build_leg(part_name: String, pos: Vector3) -> Node3D:
-	var pivot: Node3D = Node3D.new()
-	pivot.name = part_name
-	pivot.position = pos
-	add_child(pivot)
-	var leg: CapsuleMesh = CapsuleMesh.new()
-	leg.radius = 0.105
-	leg.height = 0.55
-	leg.radial_segments = 10
-	leg.rings = 4
-	_add_part(pivot, "Trouser", leg, Vector3(0.0, -0.25, 0.0),
-		Color(0.14, 0.19, 0.17), Vector3.ONE)
-	var boot: CapsuleMesh = CapsuleMesh.new()
-	boot.radius = 0.12
-	boot.height = 0.27
-	boot.radial_segments = 10
-	boot.rings = 4
-	_add_part(pivot, "Boot", boot, Vector3(0.0, -0.55, -0.055),
-		Color(0.16, 0.095, 0.055), Vector3(1.0, 0.9, 1.35), Vector3(PI * 0.5, 0.0, 0.0))
-	return pivot
+func _build_shards() -> void:
+	var mesh: PrismMesh = PrismMesh.new()
+	mesh.size = Vector3(0.03, 0.11, 0.03)
+	for i in SHARD_COUNT:
+		var shard: MeshInstance3D = MeshInstance3D.new()
+		shard.name = "DataShard%d" % i
+		shard.mesh = mesh
+		shard.material_override = KM.glow()
+		shard.visible = false
+		add_child(shard)
+		_shards.append(shard)
 
 
-## The wind cape: a pivot at the upper back (+Z is behind Kern) holding the
-## custom cape mesh plus two patches. The pivot is what `_process()` tilts,
-## so the whole cape lifts as one piece.
-func _build_cape() -> void:
-	_cape = Node3D.new()
-	_cape.name = "CapeRig"
-	_cape.position = Vector3(0.0, 1.30, 0.20)
-	add_child(_cape)
-	var cape_node: MeshInstance3D = MeshInstance3D.new()
-	cape_node.name = "PatchedCape"
-	cape_node.mesh = _make_cape_mesh()
-	cape_node.material_override = _make_toon_material(Color(0.28, 0.16, 0.11), 0.46)
-	_cape.add_child(cape_node)
-	# Two visible repair patches break up the large cape shape.
-	var patch_mesh: BoxMesh = BoxMesh.new()
-	patch_mesh.size = Vector3(0.17, 0.15, 0.018)
-	_add_part(_cape, "CapePatchA", patch_mesh, Vector3(-0.14, -0.48, 0.025),
-		Color(0.48, 0.31, 0.15), Vector3.ONE, Vector3(0.0, 0.0, -0.13))
-	_add_part(_cape, "CapePatchB", patch_mesh, Vector3(0.17, -0.70, 0.03),
-		Color(0.16, 0.28, 0.20), Vector3(0.72, 0.75, 1.0), Vector3(0.0, 0.0, 0.18))
+func _orbit_shards(delta: float) -> void:
+	_shard_t += delta
+	var show: float = smoothstep(0.25, 0.6, _awaken)  # shards appear only when charged
+	for i in _shards.size():
+		var shard: MeshInstance3D = _shards[i]
+		if show <= 0.001:
+			shard.visible = false
+			continue
+		shard.visible = true
+		var f: float = float(i) / float(SHARD_COUNT)
+		var ang: float = f * TAU + _shard_t * (0.8 + 0.5 * f)
+		var radius: float = 0.42 + 0.18 * sin(_shard_t * 0.7 + f * 6.0)
+		var height: float = 0.65 + 1.05 * f + 0.06 * sin(_shard_t * 2.0 + f * 10.0)
+		shard.position = Vector3(cos(ang) * radius, height, sin(ang) * radius)
+		shard.rotation = Vector3(_shard_t * 1.4 + f, _shard_t * 1.1, _shard_t * 0.9 + f)
+		var s: float = show * (0.6 + 0.4 * sin(_shard_t * 3.0 + f * 8.0))
+		shard.scale = Vector3(s, s, s)
 
 
-## Hand-authored cape: a narrow shoulder edge widening to a torn hem, built
-## from named corner points (top / mid / five ragged bottom vertices) whose
-## increasing Z gives the cloth a slight outward billow. Every triangle is
-## emitted twice with opposite winding and flipped normals so the cape is
-## lit correctly from both sides — it has no thickness to backface-cull.
-func _make_cape_mesh() -> ArrayMesh:
-	var st: SurfaceTool = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var tl: Vector3 = Vector3(-0.30, 0.0, 0.0)
-	var tr: Vector3 = Vector3(0.30, 0.0, 0.0)
-	var ml: Vector3 = Vector3(-0.40, -0.55, 0.035)
-	var mr: Vector3 = Vector3(0.40, -0.55, 0.035)
-	var b0: Vector3 = Vector3(-0.43, -0.98, 0.08)
-	var b1: Vector3 = Vector3(-0.21, -0.87, 0.095)
-	var b2: Vector3 = Vector3(0.0, -1.02, 0.10)
-	var b3: Vector3 = Vector3(0.22, -0.88, 0.095)
-	var b4: Vector3 = Vector3(0.43, -0.97, 0.08)
-	var tris: Array[Vector3] = [
-		tl, ml, tr, tr, ml, mr,
-		ml, b0, b1, ml, b1, mr,
-		mr, b1, b2, mr, b2, b3, mr, b3, b4,
-	]
-	for i in range(0, tris.size(), 3):
-		_add_cape_tri(st, tris[i], tris[i + 1], tris[i + 2], Vector3(0.0, 0.0, 1.0))
-		_add_cape_tri(st, tris[i + 2], tris[i + 1], tris[i], Vector3(0.0, 0.0, -1.0))
-	st.index()
-	return st.commit()
+# --- Locomotion -------------------------------------------------------------
+
+func _locomotion(pose: Dictionary, moving: float) -> void:
+	var s: float = sin(_phase)
+	var c: float = cos(_phase)
+	var leg_amp: float = 0.62 * moving
+	var arm_amp: float = 0.52 * moving
+
+	# Legs: thighs swing opposite; knees flex on the lifting (rear) swing.
+	pose["ThighL"] = Vector3(s * leg_amp, 0.0, 0.0)
+	pose["ThighR"] = Vector3(-s * leg_amp, 0.0, 0.0)
+	pose["ShinL"] = Vector3(maxf(0.0, -s) * 1.05 * moving + 0.05, 0.0, 0.0)
+	pose["ShinR"] = Vector3(maxf(0.0, s) * 1.05 * moving + 0.05, 0.0, 0.0)
+	# Ankles keep the feet roughly level through the stride.
+	pose["FootL"] = Vector3(-s * 0.28 * moving, 0.0, 0.0)
+	pose["FootR"] = Vector3(s * 0.28 * moving, 0.0, 0.0)
+
+	# Arms counter-swing to the legs (right arm yields to combat later).
+	pose["UpperArmL"] = _n("UpperArmL") + Vector3(-s * arm_amp, 0.0, 0.0)
+	pose["UpperArmR"] = _n("UpperArmR") + Vector3(s * arm_amp, 0.0, 0.0)
+	pose["ForearmL"] = _n("ForearmL") + Vector3(maxf(0.0, s) * 0.5 * moving, 0.0, 0.0)
+	pose["ForearmR"] = _n("ForearmR") + Vector3(maxf(0.0, -s) * 0.5 * moving, 0.0, 0.0)
+
+	# Torso counter-rotation + bob; hips lead, chest trails (spinal delay).
+	pose["Hips"] = Vector3(0.02 * moving, -s * 0.10 * moving, c * 0.05 * moving)
+	pose["Spine"] = Vector3(0.03 * moving, s * 0.05 * moving, 0.0)
+	pose["Chest"] = Vector3(0.02 * moving, s * 0.10 * moving, 0.0)
+	# Head stays level against the shoulder counter-rotation.
+	pose["Neck"] = Vector3(-0.02 * moving, -s * 0.06 * moving, 0.0)
+
+	# Airborne: tuck the legs a touch and lift the arms for balance.
+	if _body != null and not _body.is_on_floor():
+		var air: float = clampf(-_body.velocity.y * 0.02 + 0.3, 0.0, 1.0)
+		pose["ThighL"] = Vector3(0.5 * air, 0.0, 0.05)
+		pose["ThighR"] = Vector3(0.35 * air, 0.0, -0.05)
+		pose["ShinL"] = Vector3(0.8 * air, 0.0, 0.0)
+		pose["ShinR"] = Vector3(0.6 * air, 0.0, 0.0)
+		pose["UpperArmL"] = _n("UpperArmL") + Vector3(-0.4 * air, 0.0, 0.15)
+		pose["UpperArmR"] = _n("UpperArmR") + Vector3(-0.4 * air, 0.0, -0.15)
 
 
-## SurfaceTool helper: one flat-shaded triangle with an explicit normal
-## (winding order is the caller's responsibility).
-func _add_cape_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, normal: Vector3) -> void:
-	st.set_normal(normal)
-	st.add_vertex(a)
-	st.set_normal(normal)
-	st.add_vertex(b)
-	st.set_normal(normal)
-	st.add_vertex(c)
+func _n(bone_name: String) -> Vector3:
+	return NEUTRAL.get(bone_name, Vector3.ZERO)
 
 
-## The traveler's sword: blade, guard, and grip stacked along local Y, held
-## in a pivot at the rest pose so combat poses can rotate and translate the
-## whole weapon as one node.
-func _build_sword() -> void:
-	var sword: Node3D = Node3D.new()
-	sword.name = "TravelerSword"
-	sword.position = SWORD_REST_POS
-	sword.rotation = SWORD_REST_ROT
-	add_child(sword)
-	_sword = sword
-	var blade: BoxMesh = BoxMesh.new()
-	blade.size = Vector3(0.055, 0.76, 0.028)
-	_add_part(sword, "Blade", blade, Vector3(0.0, 0.12, 0.0),
-		Color(0.42, 0.52, 0.55), Vector3.ONE)
-	var guard: BoxMesh = BoxMesh.new()
-	guard.size = Vector3(0.25, 0.055, 0.07)
-	_add_part(sword, "Guard", guard, Vector3(0.0, -0.27, 0.0),
-		Color(0.68, 0.45, 0.14), Vector3.ONE)
-	var grip: CylinderMesh = CylinderMesh.new()
-	grip.top_radius = 0.045
-	grip.bottom_radius = 0.045
-	grip.height = 0.24
-	grip.radial_segments = 8
-	_add_part(sword, "Grip", grip, Vector3(0.0, -0.41, 0.0),
-		Color(0.18, 0.09, 0.045), Vector3.ONE)
+# --- Idle life --------------------------------------------------------------
+
+func _idle_life(pose: Dictionary, _delta: float, moving: float) -> void:
+	var calm: float = 1.0 - moving
+	# Breathing: chest rises/opens on a slow cycle when standing.
+	var breath: float = sin(_idle_t * 1.5)
+	var chest: Vector3 = pose.get("Chest", Vector3.ZERO)
+	pose["Chest"] = chest + Vector3(-breath * 0.02 * calm, 0.0, 0.0)
+	var spine: Vector3 = pose.get("Spine", Vector3.ZERO)
+	pose["Spine"] = spine + Vector3(breath * 0.012 * calm, 0.0, 0.0)
+	# Slow weight-shift from foot to foot while idle.
+	var shift: float = sin(_idle_t * 0.55)
+	var hips: Vector3 = pose.get("Hips", Vector3.ZERO)
+	pose["Hips"] = hips + Vector3(0.0, 0.0, shift * 0.05 * calm)
+	# Gentle idle sway of the arms so they never freeze solid.
+	var la: Vector3 = pose.get("UpperArmL", _n("UpperArmL"))
+	var ra: Vector3 = pose.get("UpperArmR", _n("UpperArmR"))
+	pose["UpperArmL"] = la + Vector3(sin(_idle_t * 1.1) * 0.02 * calm, 0.0, 0.0)
+	pose["UpperArmR"] = ra + Vector3(sin(_idle_t * 1.1 + 0.5) * 0.02 * calm, 0.0, 0.0)
+	# Head carriage: a slow living drift plus a look toward travel.
+	var neck: Vector3 = pose.get("Neck", Vector3.ZERO)
+	pose["Neck"] = neck + Vector3(
+		_head_look.y + sin(_idle_t * 0.7) * 0.03 * calm,
+		_head_look.x + sin(_idle_t * 0.43) * 0.05 * calm, 0.0)
 
 
-## Attach one toon-shaded MeshInstance3D under `parent`. `part_scale`
-## squashes primitives into non-uniform shapes (a sphere into a face, for
-## instance) and `rot` is in radians. Returns the node so callers can keep
-## a reference; most don't need one.
-func _add_part(parent: Node3D, part_name: String, mesh: Mesh, pos: Vector3,
-		color: Color, part_scale: Vector3, rot: Vector3 = Vector3.ZERO) -> MeshInstance3D:
-	var part: MeshInstance3D = MeshInstance3D.new()
-	part.name = part_name
-	part.mesh = mesh
-	part.position = pos
-	part.rotation = rot
-	part.scale = part_scale
-	part.material_override = _make_toon_material(color, 0.34)
-	parent.add_child(part)
-	return part
+# --- Combat overlay ---------------------------------------------------------
 
-
-## Per-part toon material. `use_srgb_vertex` is off because these parts
-## carry no vertex colors — the tint comes from `albedo_tint`. The cool blue
-## rim and shadow fill are shared across every part so Kern reads as one
-## character under any of SkyCycle's palettes; `rim` varies per part (the
-## cape takes a stronger rim than the body).
-func _make_toon_material(color: Color, rim: float) -> ShaderMaterial:
-	var mat: ShaderMaterial = ShaderMaterial.new()
-	mat.shader = load(TOON_SHADER) as Shader
-	mat.set_shader_parameter("use_srgb_vertex", false)
-	mat.set_shader_parameter("albedo_tint", color)
-	mat.set_shader_parameter("rim_color", Color(0.72, 0.86, 1.0))
-	mat.set_shader_parameter("rim_amount", rim)
-	mat.set_shader_parameter("rim_width", 0.66)
-	mat.set_shader_parameter("shadow_fill", Color(0.34, 0.45, 0.68))
-	mat.set_shader_parameter("fill_amount", 0.08)
-	return mat
-
-
-# --- Combat poses (driven by PlayerCombat) -----------------------------------
-
-## phase 0..1 across one swing: raise-back → sweep down-across → settle.
-func pose_attack(phase: float) -> void:
-	if _sword == null:
-		return
-	_combat_arm_override = true
-	if phase < 0.3:
-		var t: float = phase / 0.3
-		_right_arm.rotation.x = lerpf(0.0, -1.5, t)
-		_sword.rotation = Vector3(0.1, 0.0, lerpf(-0.62, -1.9, t))
-		_sword.position = Vector3(0.30, lerpf(1.0, 1.35, t), lerpf(0.30, 0.1, t))
-	elif phase < 0.62:
-		var e: float = smoothstep(0.0, 1.0, (phase - 0.3) / 0.32)
-		_right_arm.rotation.x = lerpf(-1.5, 1.4, e)
-		_sword.rotation = Vector3(lerpf(0.1, 0.5, e), lerpf(0.0, -0.6, e), lerpf(-1.9, 0.7, e))
-		_sword.position = Vector3(lerpf(0.30, 0.05, e), lerpf(1.35, 0.8, e), lerpf(0.1, 0.55, e))
+func _apply_combat(pose: Dictionary) -> void:
+	var arm: Vector3
+	var fore: Vector3
+	var clav: Vector3 = _n("ClavicleR")
+	if _combat == Combat.GUARD:
+		# Sword raised across the body, elbow tucked, shoulder squared.
+		arm = Vector3(-0.55, 0.35, -0.35)
+		fore = Vector3(1.15, -0.55, 0.0)
+		clav = Vector3(0.0, -0.10, -0.12)
 	else:
-		var e2: float = smoothstep(0.0, 1.0, (phase - 0.62) / 0.38)
-		_right_arm.rotation.x = lerpf(1.4, 0.0, e2)
-		_sword.rotation = Vector3(
-			lerpf(0.5, 0.1, e2), lerpf(-0.6, 0.0, e2), lerpf(0.7, -0.62, e2))
-		_sword.position = Vector3(lerpf(0.05, 0.30, e2), lerpf(0.8, 1.0, e2), lerpf(0.55, 0.30, e2))
+		var p: float = _attack_phase
+		if p < 0.30:
+			# Wind-up: sword rises up and back over the shoulder.
+			var t: float = p / 0.30
+			arm = Vector3(-1.7, -0.35, -0.30).lerp(Vector3(-2.15, -0.55, -0.15), t)
+			fore = Vector3(1.4, -0.2, 0.0).lerp(Vector3(1.9, -0.1, 0.0), t)
+		elif p < 0.62:
+			# Strike: a diagonal downward sweep across the front.
+			var e: float = smoothstep(0.0, 1.0, (p - 0.30) / 0.32)
+			arm = Vector3(-2.15, -0.55, -0.15).lerp(Vector3(0.55, 0.55, 0.30), e)
+			fore = Vector3(1.9, -0.1, 0.0).lerp(Vector3(0.25, 0.1, 0.0), e)
+			clav = _n("ClavicleR").lerp(Vector3(0.05, 0.18, -0.05), e)
+		else:
+			# Recover back toward the ready carry.
+			var e2: float = smoothstep(0.0, 1.0, (p - 0.62) / 0.38)
+			arm = Vector3(0.55, 0.55, 0.30).lerp(_n("UpperArmR"), e2)
+			fore = Vector3(0.25, 0.1, 0.0).lerp(_n("ForearmR"), e2)
+	# Blend from whatever locomotion had the arm doing into the combat pose.
+	var b: float = _combat_blend
+	pose["UpperArmR"] = (pose.get("UpperArmR", _n("UpperArmR")) as Vector3).lerp(arm, b)
+	pose["ForearmR"] = (pose.get("ForearmR", _n("ForearmR")) as Vector3).lerp(fore, b)
+	pose["ClavicleR"] = (pose.get("ClavicleR", _n("ClavicleR")) as Vector3).lerp(clav, b)
+	# A little whole-body commitment: torso twists into the swing.
+	if _combat == Combat.ATTACK:
+		var twist: float = sin(clampf(_attack_phase / 0.62, 0.0, 1.0) * PI) * 0.18 * b
+		var chest: Vector3 = pose.get("Chest", Vector3.ZERO)
+		pose["Chest"] = chest + Vector3(0.0, twist, 0.0)
 
 
-## Enter or leave the guard stance. While `active`, the sword is held flat
-## across the body (rotation.x ≈ 1.45 rad lays the blade horizontal) and the
-## arm override is held so the walk cycle can't drag it back. Passing false
-## only clears the override — `combat_release()` restores the rest pose.
+# --- Commit -----------------------------------------------------------------
+
+func _commit(pose: Dictionary) -> void:
+	# Ensure every neutral-offset bone is written even if animation skipped it.
+	for bone_name in NEUTRAL:
+		if not pose.has(bone_name):
+			pose[bone_name] = _n(bone_name)
+	for bone_name in pose:
+		var idx: int = _bones.get(bone_name, -1)
+		if idx >= 0:
+			_skeleton.set_bone_pose_rotation(idx,
+				Quaternion.from_euler(pose[bone_name]))
+		# Same pose onto the imported skeleton, re-expressed per bone frame.
+		# The rest fix (T-pose -> hanging arms) applies first, then the frame's
+		# animation delta on top, both in model space.
+		var rt: Dictionary = _base_retarget.get(bone_name, {})
+		if not rt.is_empty():
+			var delta: Basis = Basis.from_euler(pose[bone_name]) \
+				* (rt["fix"] as Basis)
+			var local_delta: Basis = (rt["g_inv"] as Basis) * delta \
+				* (rt["g"] as Basis)
+			_base_skeleton.set_bone_pose_rotation(rt["idx"],
+				(rt["rest"] as Quaternion) * local_delta.get_rotation_quaternion())
+
+
+## Static model-space pre-rotations composed UNDER the animation deltas.
+## Our pose eulers are authored against the procedural rig, whose REST already
+## hangs the arms at Kern's sides; the imported rig rests in a T-pose, so its
+## upper arms first need rotating from "straight out" down to the hanging
+## stance the animation assumes. (Model space: +Z rotation drops the left arm,
+## -Z the right.)
+const BASE_REST_FIX: Dictionary = {
+	# z: drop from T to hanging; x: pitch the hang slightly FORWARD (the MPFB
+	# shoulder joint sits back at the scapula, so a straight drop reads as
+	# hands-clasped-behind); forearms take a small natural elbow bend.
+	"UpperArmL": Vector3(0.06, 0.0, 1.30),
+	"UpperArmR": Vector3(0.06, 0.0, -1.30),
+	"ForearmL": Vector3(0.10, 0.0, 0.10),
+	"ForearmR": Vector3(0.10, 0.0, -0.10),
+}
+
+
+## Build the per-bone conversion table between our model-space pose deltas and
+## the imported rig's bone frames (see `_base_retarget` above).
+func _cache_retarget() -> void:
+	_base_retarget.clear()
+	# The .glb root is turned PI to face -Z, so a bone's frame in MODEL space
+	# is root_basis * its skeleton-space global rest.
+	var root_basis: Basis = _base_root.transform.basis
+	for bone_name in _base_bones:
+		var idx: int = _base_bones[bone_name]
+		var g: Basis = root_basis * _base_skeleton.get_bone_global_rest(idx).basis
+		_base_retarget[bone_name] = {
+			"idx": idx,
+			"rest": _base_skeleton.get_bone_rest(idx).basis.get_rotation_quaternion(),
+			"g": g,
+			"g_inv": g.inverse(),
+			"fix": Basis.from_euler(BASE_REST_FIX.get(bone_name, Vector3.ZERO)),
+		}
+	_relax_fingers()
+
+
+## The animation layer never drives finger bones, so without this the imported
+## hands hold the exported T-pose splay forever. A soft static curl reads as a
+## relaxed hand at rest AND around the sword grip. Set once; nothing else
+## writes these bones.
+func _relax_fingers() -> void:
+	for idx in _base_skeleton.get_bone_count():
+		var lower: String = String(_base_skeleton.get_bone_name(idx)).to_lower()
+		var curl: float = 0.0
+		if lower.contains("thumb"):
+			curl = 0.10
+		elif lower.contains("index") or lower.contains("middle") \
+				or lower.contains("ring") or lower.contains("pinky"):
+			curl = 0.28
+		if curl <= 0.0:
+			continue
+		var rest: Quaternion = \
+			_base_skeleton.get_bone_rest(idx).basis.get_rotation_quaternion()
+		# MPFB finger bones flex around their local X (verified on renders).
+		_base_skeleton.set_bone_pose_rotation(idx,
+			rest * Quaternion(Vector3.RIGHT, curl))
+
+
+## Garment meshes that move from the procedural skeleton onto the imported
+## one. The cloak family stays: its bones (CloakA/B/C) exist only on the
+## procedural rig, and it renders correctly there.
+## Garment meshes that move from the procedural skeleton onto the imported
+## rig. The cloak family stays: its bones (CloakA/B/C) exist only on the
+## procedural rig, and it renders correctly there.
+## Each garment mounts RIGID on a BoneAttachment3D of the imported skeleton.
+## Skinned meshes on this project's dual-skeleton setup render with broken
+## depth (fragments lose the depth test everywhere; a no-depth-test override
+## shows them at the correct positions) while rigid geometry provably renders
+## true, so rigid mounting is the working path. Cost: garments follow one
+## joint each instead of blending - fine at idle/walk torso lean, stiff on
+## big limb swings. Proper skinning is a follow-up (isolate the engine bug).
+const RESKIN_GARMENTS: Dictionary = {
+	"Tunic": "Chest", "Belt": "Hips", "Scarf": "Neck", "ScarfTail": "Neck",
+	"Pouch": "Hips", "SleeveL": "UpperArmL", "SleeveR": "UpperArmR",
+	"TrouserL": "Hips", "TrouserR": "Hips",
+}
+
+
+## Rigid-mounting garments to the imported rig was a WORKAROUND for the
+## dual-skeleton depth bug: garments enclosed by the bare imported body lost the
+## depth test against it. `strip_covered_geometry` now deletes that body
+## geometry outright, so the contested surface no longer exists — and rigid
+## mounting costs real quality (a rigid cloak reads as a flat slab and sleeves
+## as boards, because `skin = null` stops them deforming with the pose).
+## So: strip only, and leave the garments skinned to the procedural skeleton
+## that authored them, which the animation already drives.
+const RIGID_MOUNT_GARMENTS: bool = false
+
+
+func _reskin_garments_to_base() -> void:
+	if not RIGID_MOUNT_GARMENTS:
+		var stripped_only: int = BaseModel.strip_covered_geometry(_base_root)
+		print("KernVisual: garments left skinned (deforming); %d covered body tris stripped" % stripped_only)
+		return
+	# Pose the imported skeleton in the neutral stance FIRST: the mount solve
+	# below uses the bone pose the garment was authored around (arms hanging),
+	# not the T-pose rest — otherwise the runtime pose carries each garment
+	# through the T-to-hang delta a second time (sleeves stick out sideways).
+	var neutral: Dictionary = {}
+	_locomotion(neutral, 0.0)
+	_commit(neutral)
+	var moved: int = 0
+	for garment_name in RESKIN_GARMENTS:
+		var mi: MeshInstance3D = _skeleton.get_node_or_null(garment_name)
+		if mi == null:
+			continue
+		var bone_name: String = RESKIN_GARMENTS[garment_name]
+		var bone_idx: int = _base_bones.get(bone_name, -1)
+		if bone_idx < 0:
+			continue
+		var attach: BoneAttachment3D = BoneAttachment3D.new()
+		attach.name = garment_name + "Mount"
+		_base_skeleton.add_child(attach)
+		attach.bone_name = _base_skeleton.get_bone_name(bone_idx)
+		# The mesh is authored in this node's (model) space; the attachment ends
+		# up at (skeleton-in-model) * bone_pose. Derive the skeleton's transform
+		# relative to us from the real node chain — a glTF nests the Skeleton3D
+		# under intermediate scene/armature nodes that each carry a transform,
+		# so `_base_root.transform` alone is NOT that chain and leaves every
+		# garment offset. Going through global_transform captures the whole
+		# chain, and dividing by our own cancels any world/studio rotation.
+		var bone_pose: Transform3D = _base_skeleton.get_bone_global_pose(bone_idx)
+		var skel_in_model: Transform3D = global_transform.affine_inverse() \
+			* _base_skeleton.global_transform
+		var mount_in_model: Transform3D = skel_in_model * bone_pose
+		mi.get_parent().remove_child(mi)
+		attach.add_child(mi)
+		mi.skin = null
+		mi.transform = mount_in_model.affine_inverse()
+		moved += 1
+	# Delete the bare body under the clothing. Without this the nude body draws
+	# over the garments enclosing it; with it there is simply no hidden surface
+	# to contest, which is how clothed characters are normally built.
+	var stripped: int = BaseModel.strip_covered_geometry(_base_root)
+	print("KernVisual: %d garments mounted, %d covered body tris stripped" % [
+		moved, stripped])
+
+
+
+## Hide the procedural skin that the imported body replaces. The garments,
+## boots, cloak, scarf, sword, hair, brows and hand-mark all stay — they are
+## the code-built layer the GDD amendment kept.
+func _retire_procedural_skin(body_data: Dictionary) -> void:
+	var neck: Node3D = _skeleton.get_node_or_null("NeckSkin")
+	if neck != null:
+		neck.visible = false
+	for attach_key in ["hand_l_attach", "hand_r_attach"]:
+		var attach: BoneAttachment3D = body_data[attach_key]
+		for hand_root in attach.get_children():
+			for part in (hand_root as Node3D).get_children():
+				# Keep the arcane layer: HandMark, HandThread%d, SigilRing.
+				var keep: bool = part.name == "HandMark" \
+					or String(part.name).begins_with("HandThread") \
+					or part.name == "SigilRing"
+				if not keep and part is Node3D:
+					(part as Node3D).visible = false
+	if _head != null:
+		_head.retire_skin_for_import()
+
+
+# --- Cloak ------------------------------------------------------------------
+
+func _animate_cloak(delta: float, moving: float) -> void:
+	if _body == null:
+		return
+	# Local forward speed drives a lagged swing (spring toward a rest angle).
+	var vel: Vector3 = (_body.global_position - _prev_pos) / maxf(delta, 0.0001)
+	_prev_pos = _body.global_position
+	var local_fwd: Vector3 = global_transform.basis.inverse() * vel
+	var target: float = clampf(-local_fwd.z * 0.06, -0.6, 0.6) + 0.12
+	# Critically-damped-ish spring.
+	var stiffness: float = 90.0
+	var damping: float = 14.0
+	var accel: float = (target - _cloak_swing) * stiffness - _cloak_vel * damping
+	_cloak_vel += accel * delta
+	_cloak_swing += _cloak_vel * delta
+	var flutter: float = sin(_idle_t * 6.0) * (0.02 + moving * 0.05)
+	# Distribute the swing down the chain, each bone trailing a bit more.
+	_set_cloak_bone("CloakA", _cloak_swing * 0.6 + flutter * 0.4)
+	_set_cloak_bone("CloakB", _cloak_swing * 1.0 + flutter * 0.7)
+	_set_cloak_bone("CloakC", _cloak_swing * 1.35 + flutter)
+
+
+func _set_cloak_bone(bone_name: String, pitch: float) -> void:
+	var idx: int = _bones.get(bone_name, -1)
+	if idx < 0:
+		return
+	var sway: float = sin(_idle_t * 1.7 + idx) * 0.03
+	_skeleton.set_bone_pose_rotation(idx, Quaternion.from_euler(Vector3(pitch, sway, 0.0)))
+
+
+# --- Head extras: blink, saccades, look-ahead -------------------------------
+
+func _animate_head_extras(delta: float, moving: float) -> void:
+	if _head == null:
+		return
+	# Blink scheduler.
+	if _blinking:
+		_blink_t += delta
+		var half: float = 0.06
+		if _blink_t < half:
+			_blink = _blink_t / half
+		elif _blink_t < half * 2.0:
+			_blink = 1.0 - (_blink_t - half) / half
+		else:
+			_blink = 0.0
+			_blinking = false
+			_blink_cd = randf_range(2.2, 5.5)
+	else:
+		_blink_cd -= delta
+		if _blink_cd <= 0.0:
+			_blinking = true
+			_blink_t = 0.0
+	# Rest with the lids relaxed (covering the top sliver of the iris) rather
+	# than wide-eyed; a blink still closes them fully.
+	_head.set_blink(0.06 + _blink * 0.94)
+
+	# Saccades: dart the eyes to a new small target now and then; between darts
+	# the gaze eases and micro-jitters (fixational drift).
+	_saccade_cd -= delta
+	if _saccade_cd <= 0.0:
+		_gaze_target = Vector2(randf_range(-0.28, 0.28), randf_range(-0.14, 0.14))
+		_saccade_cd = randf_range(0.7, 2.4)
+	_gaze = _gaze.lerp(_gaze_target, 1.0 - exp(-22.0 * delta))
+	var jitter: Vector2 = Vector2(sin(_idle_t * 31.0), cos(_idle_t * 27.0)) * 0.006
+	_head.set_gaze(_gaze.x + jitter.x, _gaze.y + jitter.y)
+
+	# Look slightly toward travel direction (anticipation).
+	var look_target: Vector2 = Vector2.ZERO
+	if moving > 0.1 and _body != null:
+		var lf: Vector3 = global_transform.basis.inverse() * Vector3(
+			_body.velocity.x, 0.0, _body.velocity.z)
+		look_target = Vector2(clampf(-lf.x * 0.03, -0.18, 0.18), 0.0)
+	_head_look = _head_look.lerp(look_target, 1.0 - exp(-6.0 * delta))
+
+
+# --- Combat pose API (unchanged signatures; PlayerCombat drives these) -------
+
+func pose_attack(phase: float) -> void:
+	_combat = Combat.ATTACK
+	_attack_phase = clampf(phase, 0.0, 1.0)
+
+
 func pose_guard(active: bool) -> void:
-	if _sword == null:
-		return
-	_combat_arm_override = active
-	if active:
-		_right_arm.rotation.x = -0.55
-		_sword.rotation = Vector3(1.45, 0.0, -0.1)
-		_sword.position = Vector3(0.08, 1.12, -0.18)
+	_combat = Combat.GUARD if active else Combat.NONE
 
 
-## Hand the right arm and sword back to the idle/walk cycle and snap the
-## sword to its rest pose. Safe to call when no override is held.
 func combat_release() -> void:
-	if not _combat_arm_override:
-		return
-	_combat_arm_override = false
-	if _sword != null:
-		_sword.rotation = SWORD_REST_ROT
-		_sword.position = SWORD_REST_POS
+	_combat = Combat.NONE

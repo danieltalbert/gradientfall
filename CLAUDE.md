@@ -15,6 +15,28 @@ session to "keep pace"; the pace is whatever quality allows. When a session must
 choose between shipping more and shipping better, it ships better, and says so
 in the devlog.
 
+## The one canonical workspace (check this before touching anything)
+- **Work here and nowhere else:** `C:\Users\danny\danieltalbert\gradientfall`.
+  This folder is its own Git checkout of
+  `https://github.com/danieltalbert/gradientfall.git`; verify that exact
+  top-level path and remote before editing. `main == origin/main` is the
+  canonical playable state after a change is reviewed and merged.
+- **Other clones are review or recovery workspaces, not the live game.**
+  In particular, paths under `C:\Users\danny\Documents\Codex\...` may be
+  temporary clean checkouts. They are useful for integration and CI
+  reproduction, but never judge current visuals from one without fetching
+  `origin` and comparing its commit to the live workspace.
+- **Confirm before building or judging visuals:**
+  ```
+  git rev-parse --show-toplevel
+  git remote get-url origin
+  git branch --show-current
+  git log --oneline -1
+  ```
+  Expect the canonical path and Gradientfall remote above. Normally expect
+  `main`; a short-lived review/recovery branch is acceptable only when it has
+  an upstream and a visible pull request.
+
 ## Read first, every session
 1. `docs/DEVLOG.md` — last entry says exactly where things stand and what's next
 2. `docs/ROADMAP.md` — current phase + checkboxes
@@ -25,10 +47,22 @@ in the devlog.
    who does what.)
 
 ## The iron rules
-1. **Never commit a half-wired state.** Every session ends with: game runs clean
-   from the editor, docs updated to match reality, work committed. If a feature is
-   mid-flight at session end, it gets stashed behind a flag or reverted — the main
-   line always runs.
+1. **Never commit a half-wired state — but never LEAVE work uncommitted either.**
+   Every session ends with: game runs clean from the editor, docs updated to
+   match reality, and **all work committed, pushed to an upstream branch, and
+   represented by a pull request (or merged into `origin/main`)**. If a
+   feature is mid-flight at session end, it gets stashed behind a flag or
+   reverted — the main line always runs.
+   - "Other lanes are mid-flight, I'll let a later sweep commit it" is **not**
+     an acceptable ending. That reasoning stranded a full day of finished
+     photoreal-grass work outside version control and sent later sessions to
+     stale copies. If lanes are interleaved, commit the whole tree as one
+     verified snapshot (parse-check, then `git add -A`) and say so in the message.
+   - **Commit whole, consistent snapshots, not single files.** Committing one
+     file of a two-file change has already landed a caller on `main` without
+     its definition. Parse-check first, then commit everything together.
+   - Uncommitted work is invisible to every future session. Treat "it's on my
+     disk" as "it does not exist."
 2. **Docs are updated in the same commit as the work.** Checkboxes in ROADMAP.md,
    a dated entry in DEVLOG.md ("done / half-formed / next up").
 3. **Code is documented as it is written — undocumented code does not land.**

@@ -22,13 +22,24 @@ uniform float rim_width : hint_range(0.0, 1.0) = 0.72;
 group_uniforms fill;
 uniform vec4 shadow_fill : source_color = vec4(0.55, 0.68, 0.92, 1.0);
 uniform float fill_amount : hint_range(0.0, 0.6) = 0.14;
+// Ambient floor: a small albedo-tinted glow so surfaces never crush to black
+// where no direct light reaches. The scene runs almost entirely on direct sun
+// (ambient is albedo-multiplied to near nothing), so without this, shadowed
+// ground reads as a gray-black void. Warm-tinted for terrain = "damp dirt in
+// shade," not "hole in the world." Tiny in sunlight, dominant in shadow.
+uniform float ambient_floor : hint_range(0.0, 2.0) = 0.0;
+uniform vec4 ambient_floor_tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 
 group_uniforms detail;
 // World-space value noise multiplied into albedo. Zero for props; the
 // terrain sets ~0.1 so big smooth surfaces stop reading as flat putty and
 // pick up the mottled, hand-painted ground variation BOTW fields have.
-uniform float noise_amount : hint_range(0.0, 0.3) = 0.0;
+uniform float noise_amount : hint_range(0.0, 0.5) = 0.0;
 uniform float noise_scale : hint_range(0.05, 4.0) = 0.8;
+// Earth grain: where the noise dips (crevices between clods) the ground goes
+// darker AND warmer, so bare soil under the grass reads as damp dirt with
+// grain instead of a flat tinted plane. Terrain sets ~0.6.
+uniform float earth_grain : hint_range(0.0, 1.0) = 0.0;
 
 varying vec3 v_col;
 varying vec3 v_wpos;
@@ -57,10 +68,14 @@ void vertex() {
 
 void fragment() {
 	ALBEDO = v_col * albedo_tint.rgb * albedo_boost;
-	if (noise_amount > 0.001) {
-		float n = vnoise(v_wpos.xz * noise_scale) * 0.6
-				+ vnoise(v_wpos.xz * noise_scale * 4.7) * 0.4;
+	if (noise_amount > 0.001 || earth_grain > 0.001) {
+		float n = vnoise(v_wpos.xz * noise_scale) * 0.55
+				+ vnoise(v_wpos.xz * noise_scale * 4.3) * 0.30
+				+ vnoise(v_wpos.xz * noise_scale * 13.0) * 0.15;
 		ALBEDO *= 1.0 + (n - 0.5) * 2.0 * noise_amount;
+		// Crevice darkening + warming: soil clods with damp gaps between them.
+		float crev = smoothstep(0.55, 0.12, n) * earth_grain;
+		ALBEDO = mix(ALBEDO, ALBEDO * vec3(0.72, 0.60, 0.44), crev);
 	}
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.15;
@@ -68,6 +83,8 @@ void fragment() {
 	// ambient hue — the trick that makes toon shadows look painted, not dead.
 	// A small ambient floor keeps deep meadow colors chromatic in long shadows.
 	EMISSION += shadow_fill.rgb * fill_amount * (ALBEDO * 0.78 + vec3(0.055));
+	// Ambient floor keeps shade earthy instead of black (see uniform above).
+	EMISSION += ALBEDO * ambient_floor_tint.rgb * ambient_floor;
 	// Fresnel rim: bright where the surface turns away from the camera.
 	float fres = 1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	float rim = smoothstep(rim_width, 1.0, fres) * rim_amount;
