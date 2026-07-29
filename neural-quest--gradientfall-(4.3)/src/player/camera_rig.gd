@@ -1,0 +1,107 @@
+class_name CameraRig
+extends Node3D
+## Third-person orbit camera: yaw on this node, pitch on the SpringArm3D.
+##
+## The rig is top_level — it follows the player by position (smoothed) and
+## never inherits the body's rotation, so the camera stays put while Kern
+## turns. The spring arm shortens through geometry (never clips walls),
+## excluding the player's own collider. Subtle FOV widening while sprinting.
+
+const MOUSE_SENSITIVITY: float = 0.003
+const STICK_SENSITIVITY: float = 2.6  # radians/second at full deflection
+const PITCH_MIN: float = -1.1
+const PITCH_MAX: float = 0.5
+const FOLLOW_HEIGHT: float = 1.65
+const FOLLOW_SPEED: float = 14.0
+const FOV_BASE: float = 64.0
+const FOV_SPRINT: float = 72.0
+const FOV_LERP: float = 5.0
+const SPRINT_FOV_THRESHOLD: float = 5.5  # between walk and run top speed
+const SHAKE_DECAY: float = 1.9           # trauma units/second
+const SHAKE_MAX_POS: float = 0.28        # metres of camera kick at full trauma
+const SHAKE_MAX_ROLL: float = 0.06       # radians of roll at full trauma
+
+var _target: CharacterBody3D
+var _pitch: float = -0.20
+var _trauma: float = 0.0
+
+@onready var _arm: SpringArm3D = $SpringArm3D
+@onready var _camera: Camera3D = $SpringArm3D/Camera3D
+
+
+func _ready() -> void:
+	_arm.rotation.x = _pitch
+	EventBus.combat_shake.connect(_on_combat_shake)
+
+
+func setup(target: CharacterBody3D) -> void:
+	_target = target
+	_arm.add_excluded_object(target.get_rid())
+	global_position = target.global_position + Vector3(0.0, FOLLOW_HEIGHT, 0.0)
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event is InputEventMouseMotion:
+		if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			var motion: InputEventMouseMotion = event
+			_apply_look(
+				-motion.relative.x * MOUSE_SENSITIVITY,
+				-motion.relative.y * MOUSE_SENSITIVITY
+			)
+	elif event.is_action_pressed(&"ui_cancel"):
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	elif event is InputEventMouseButton:
+		var click: InputEventMouseButton = event
+		if click.pressed and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
+			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _process(delta: float) -> void:
+	var stick: Vector2 = Input.get_vector(
+		&"cam_left", &"cam_right", &"cam_up", &"cam_down"
+	)
+	if stick.length_squared() > 0.0:
+		_apply_look(
+			-stick.x * STICK_SENSITIVITY * delta,
+			-stick.y * STICK_SENSITIVITY * delta
+		)
+	if _target == null:
+		return
+	global_position = global_position.lerp(
+		_target.global_position + Vector3(0.0, FOLLOW_HEIGHT, 0.0),
+		minf(1.0, FOLLOW_SPEED * delta)
+	)
+	var ground_speed: float = Vector2(_target.velocity.x, _target.velocity.z).length()
+	var fov_target: float = FOV_SPRINT if ground_speed > SPRINT_FOV_THRESHOLD else FOV_BASE
+	_camera.fov = lerpf(_camera.fov, fov_target, minf(1.0, FOV_LERP * delta))
+	_apply_shake(delta)
+
+
+func _on_combat_shake(amount: float) -> void:
+	_trauma = clampf(_trauma + amount, 0.0, 1.0)
+
+
+## Shake moves the camera with h_offset/v_offset, NEVER with `position`.
+## SpringArm3D positions its children itself every frame (that is how the camera
+## ends up `spring_length` behind Kern); writing `_camera.position` fights it and
+## wins, which snapped the view back to the arm's origin — i.e. inside Kern's
+## head — on every frame, not just while shaking. h_offset/v_offset exist for
+## exactly this and leave the arm's transform alone.
+func _apply_shake(delta: float) -> void:
+	if _trauma <= 0.0:
+		_camera.h_offset = 0.0
+		_camera.v_offset = 0.0
+		_camera.rotation.z = 0.0
+		return
+	_trauma = maxf(0.0, _trauma - SHAKE_DECAY * delta)
+	var s: float = _trauma * _trauma  # perceptually nicer falloff
+	_camera.h_offset = randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s
+	_camera.v_offset = randf_range(-1.0, 1.0) * SHAKE_MAX_POS * s
+	_camera.rotation.z = randf_range(-1.0, 1.0) * SHAKE_MAX_ROLL * s
+
+
+func _apply_look(yaw_delta: float, pitch_delta: float) -> void:
+	rotation.y += yaw_delta
+	_pitch = clampf(_pitch + pitch_delta, PITCH_MIN, PITCH_MAX)
+	_arm.rotation.x = _pitch

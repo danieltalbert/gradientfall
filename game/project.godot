@@ -1,15 +1,23 @@
 ; Engine configuration file.
 ; It's best edited using the editor UI and not directly,
 ; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
 config/name="Neural Quest: Gradientfall"
 config/description="A 3D open-world adventure where machine learning is the magic system. Sequel to Neural Quest."
 run/main_scene="res://scenes/main/main.tscn"
-config/features=PackedStringArray("4.3", "Forward Plus")
+config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
 [autoload]
@@ -27,18 +35,15 @@ gdscript/warnings/untyped_declaration=1
 window/size/viewport_width=1280
 window/size/viewport_height=720
 
+[rendering]
+
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=4
+textures/default_filters/anisotropic_filtering_level=4
+anti_aliasing/quality/use_taa=true
+
 [shader_globals]
 
 gf_player_pos={
 "type": "vec3",
 "value": Vector3(9999, 0, 9999)
 }
-
-[rendering]
-
-renderer/rendering_method="forward_plus"
-anti_aliasing/quality/use_taa=true
-lights_and_shadows/directional_shadow/size=4096
-lights_and_shadows/directional_shadow/soft_shadow_filter_quality=4
-lights_and_shadows/positional_shadow/atlas_size=4096
-textures/default_filters/anisotropic_filtering_level=4
