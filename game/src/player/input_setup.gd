@@ -34,6 +34,13 @@ static func ensure() -> void:
 	_pad_button(&"jump", JOY_BUTTON_A)
 	_key(&"sprint", KEY_SHIFT)
 	_pad_button(&"sprint", JOY_BUTTON_LEFT_STICK)
+	# Crouch is a HOLD (milestone 2 movement pass). C on keyboard; the pad uses
+	# the left shoulder, leaving the right one on block.
+	_key(&"crouch", KEY_C)
+	_pad_button(&"crouch", JOY_BUTTON_LEFT_SHOULDER)
+	# Walk modifier: forces the slow gait regardless of stick deflection, so a
+	# keyboard player can still walk rather than only jog or sprint.
+	_key(&"walk", KEY_ALT)
 	# Combat (milestone 6).
 	_mouse(&"attack", MOUSE_BUTTON_LEFT)
 	_pad_button(&"attack", JOY_BUTTON_X)
@@ -66,6 +73,11 @@ static func ensure() -> void:
 	# Back/Select already opens the pack, so sharing it would toggle both UIs.
 	_key(&"compendium", KEY_J)
 	_pad_button(&"compendium", JOY_BUTTON_START)
+	# Emotes (movement pass): hold to open the wheel and pick with the stick.
+	# B on keyboard; the right stick click on a pad — the d-pad is already the
+	# quiz answer keys and Back/Start are the pack and the compendium.
+	_key(&"emote_wheel", KEY_B)
+	_pad_button(&"emote_wheel", JOY_BUTTON_RIGHT_STICK)
 
 
 static func _action(action: StringName) -> void:

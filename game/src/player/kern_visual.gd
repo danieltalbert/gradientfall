@@ -13,15 +13,29 @@ extends Node3D
 ##     hooks PlayerCombat drives; they now choreograph the arm+sword on the
 ##     skeleton instead of a floating primitive.
 ##
-## Animation is layered: a locomotion base (gait, torso counter-rotation, head
-## carriage) is computed every frame, then combat can override the sword arm,
-## and idle life (breathing, weight-shift, blinks, saccades) plays on top.
+## **Animation.** Since the movement pass, the general work is done by
+## `CreatureAnimator` (see `src/anim/`): a distance-phased gait, foot IK planted
+## on the real collision world, terrain-adaptive pelvis, momentum lean, air and
+## landing behaviour, idle fidgets and emotes. What stays here is what is
+## genuinely Kern's own — the cloak spring, the sculpted head's blinks and
+## saccades, the arcane awaken glow and the sword-arm combat overlay — plus the
+## commit step, which is Kern-specific because he is the only character in the
+## game driving TWO skeletons (his procedural rig and, when enabled, the
+## imported base-mesh rig) from one pose.
+##
+## Layer order per frame: animator (locomotion + idle + emote) -> combat
+## override on the sword arm -> commit to both skeletons -> cloak, head and
+## glow, which read the committed pose rather than contributing to it.
 
 const BodyBuilder: GDScript = preload("res://src/player/kern/kern_body_builder.gd")
 const GearBuilder: GDScript = preload("res://src/player/kern/kern_gear_builder.gd")
 const HeadScene: GDScript = preload("res://src/player/kern/kern_head.gd")
 const KM: GDScript = preload("res://src/player/kern/kern_materials.gd")
 const BaseModel: GDScript = preload("res://src/player/kern/kern_base_model.gd")
+
+## Kern's height in metres — the animator measures everything else off the rig,
+## but scale-relative tuning needs the one number the body was authored to.
+const BODY_HEIGHT: float = 1.78
 
 ## The First Model showing through: 0 = ordinary disguised traveller, 1 = fully
 ## lit. A faint rest ember, rising with the knowledge-charge meter (and, later,
@@ -68,9 +82,14 @@ var _base_retarget: Dictionary = {}
 var _head: KernHead
 var _sword: Node3D
 
-var _phase: float = 0.0          # gait cycle
+## The shared procedural-animation driver. Public so the dev locomotion lab can
+## read its per-frame foot/gait state without a back-channel.
+var animator: CreatureAnimator = CreatureAnimator.new()
+
 var _idle_t: float = 0.0
-var _speed_smooth: float = 0.0
+var _hips_rest: Vector3 = Vector3.ZERO
+## Tween for the cartoon squash/stretch accent on jumps and heavy landings.
+var _scale_tween: Tween
 
 # Combat overlay.
 var _combat: int = Combat.NONE
@@ -85,7 +104,6 @@ var _blink_t: float = 0.0
 var _gaze: Vector2 = Vector2.ZERO
 var _gaze_target: Vector2 = Vector2.ZERO
 var _saccade_cd: float = 1.2
-var _head_look: Vector2 = Vector2.ZERO
 
 # Cloak spring (lags Kern's motion so it swings and settles).
 var _cloak_swing: float = 0.0
@@ -153,6 +171,12 @@ func _ready() -> void:
 	if _body != null:
 		_prev_pos = _body.global_position
 
+	# Hand the rig to the shared animator. Ground probes look at layer 1 (the
+	# world) and must skip Kern's own capsule, or every step lands on himself.
+	_hips_rest = _skeleton.get_bone_rest(_bones["Hips"]).origin
+	if _body != null:
+		animator.bind(self, _body, _skeleton, _bones, BODY_HEIGHT, 1,
+			[_body.get_rid()] as Array[RID])
 
 	# The magic answers to the knowledge-charge meter (Combat v1 owns it).
 	if EventBus.knowledge_charge_changed and not \
@@ -172,20 +196,26 @@ func _head_pivot() -> Vector3:
 	return _skeleton.get_bone_global_rest(idx).origin
 
 
-func _process(delta: float) -> void:
+## Animation runs on the PHYSICS tick, not the render tick.
+##
+## Everything the locomotion reads is physics state: the body's velocity, its
+## floor contact, the distance it actually moved, and the raycasts the feet are
+## planted with. On the render tick those are stale by up to a frame, and — far
+## worse — `_measure_travel()` sees zero displacement on render frames where
+## physics did not tick, so on any machine rendering faster than 60 Hz the gait
+## advanced in bursts and the legs stuttered. Driving it here keeps the gait,
+## the ground probes and the body in exact lockstep.
+func _physics_process(delta: float) -> void:
 	if _body == null or _skeleton == null:
 		return
-	var speed: float = Vector2(_body.velocity.x, _body.velocity.z).length()
-	_speed_smooth = lerpf(_speed_smooth, speed, 1.0 - exp(-8.0 * delta))
-	var moving: float = smoothstep(0.12, 2.2, _speed_smooth)
-	_phase += delta * lerpf(2.6, 9.0, clampf(_speed_smooth / 7.5, 0.0, 1.0))
 	_idle_t += delta
 
-	var pose: Dictionary = {}
-	_locomotion(pose, moving)
-	_idle_life(pose, delta, moving)
+	# The shared animator owns locomotion, foot planting, idle life and emotes.
+	var pose: PoseStack = animator.tick(delta, _body.velocity,
+		_body.is_on_floor(), _crouch_amount())
+	var moving: float = clampf(animator.speed_smooth / 2.2, 0.0, 1.0)
 
-	# Combat overlay on the right arm + sword.
+	# Combat overlay on the right arm + sword, on top of everything else.
 	var want_combat: float = 1.0 if _combat != Combat.NONE else 0.0
 	_combat_blend = lerpf(_combat_blend, want_combat, 1.0 - exp(-16.0 * delta))
 	if _combat_blend > 0.001:
@@ -195,6 +225,68 @@ func _process(delta: float) -> void:
 	_animate_cloak(delta, moving)
 	_animate_head_extras(delta, moving)
 	_drive_awaken(delta)
+
+
+## How crouched the body is. Read from the controller when there is one so the
+## capsule and the pose can never disagree; the character studio has no
+## controller, hence the fallback.
+func _crouch_amount() -> float:
+	if _body != null and _body.has_method("crouch_amount"):
+		return float(_body.call("crouch_amount"))
+	return 0.0
+
+
+# --- Public hooks the controller and dev tools drive ------------------------
+
+## Absorb a landing of `impact_speed` m/s with the knees and pelvis.
+func notify_landing(impact_speed: float) -> void:
+	animator.notify_landing(impact_speed)
+	# Keep the old visual squash as a light accent on top of the real absorption.
+	if impact_speed > 4.0:
+		_play_scale(Vector3(1.08, 0.90, 1.08))
+
+
+## Cartoon stretch accent on the take-off frame of a jump.
+func notify_jump() -> void:
+	_play_scale(Vector3(0.94, 1.08, 0.94))
+
+
+## Start an emote by id (see `emote_library.gd`). Returns false if unknown.
+func play_emote(id: String) -> bool:
+	return animator.emotes.play(id)
+
+
+## Begin blending the current emote out.
+func stop_emote() -> void:
+	animator.emotes.stop()
+
+
+## True while an emote is pinning the player in place.
+func emote_locks_movement() -> bool:
+	return animator.emotes.locks_movement()
+
+
+## True while any emote owns part of the body.
+func emote_active() -> bool:
+	return animator.emotes.is_active()
+
+
+## Reset every continuous animation state after a teleport or respawn.
+func teleported() -> void:
+	animator.teleported()
+
+
+## Visual-only squash/stretch accent, retained from the original feel pass for
+## jumps and heavy landings. The real weight now comes from the animator's
+## pelvis absorption; this is the cartoon garnish on top.
+func _play_scale(from_scale: Vector3) -> void:
+	if _scale_tween and _scale_tween.is_valid():
+		_scale_tween.kill()
+	scale = from_scale
+	_scale_tween = create_tween()
+	_scale_tween.set_trans(Tween.TRANS_BACK)
+	_scale_tween.set_ease(Tween.EASE_OUT)
+	_scale_tween.tween_property(self, "scale", Vector3.ONE, 0.18)
 
 
 ## Ease the arcane glow toward its target and push it to every magical material.
@@ -247,80 +339,18 @@ func _orbit_shards(delta: float) -> void:
 		shard.scale = Vector3(s, s, s)
 
 
-# --- Locomotion -------------------------------------------------------------
-
-func _locomotion(pose: Dictionary, moving: float) -> void:
-	var s: float = sin(_phase)
-	var c: float = cos(_phase)
-	var leg_amp: float = 0.62 * moving
-	var arm_amp: float = 0.52 * moving
-
-	# Legs: thighs swing opposite; knees flex on the lifting (rear) swing.
-	pose["ThighL"] = Vector3(s * leg_amp, 0.0, 0.0)
-	pose["ThighR"] = Vector3(-s * leg_amp, 0.0, 0.0)
-	pose["ShinL"] = Vector3(maxf(0.0, -s) * 1.05 * moving + 0.05, 0.0, 0.0)
-	pose["ShinR"] = Vector3(maxf(0.0, s) * 1.05 * moving + 0.05, 0.0, 0.0)
-	# Ankles keep the feet roughly level through the stride.
-	pose["FootL"] = Vector3(-s * 0.28 * moving, 0.0, 0.0)
-	pose["FootR"] = Vector3(s * 0.28 * moving, 0.0, 0.0)
-
-	# Arms counter-swing to the legs (right arm yields to combat later).
-	pose["UpperArmL"] = _n("UpperArmL") + Vector3(-s * arm_amp, 0.0, 0.0)
-	pose["UpperArmR"] = _n("UpperArmR") + Vector3(s * arm_amp, 0.0, 0.0)
-	pose["ForearmL"] = _n("ForearmL") + Vector3(maxf(0.0, s) * 0.5 * moving, 0.0, 0.0)
-	pose["ForearmR"] = _n("ForearmR") + Vector3(maxf(0.0, -s) * 0.5 * moving, 0.0, 0.0)
-
-	# Torso counter-rotation + bob; hips lead, chest trails (spinal delay).
-	pose["Hips"] = Vector3(0.02 * moving, -s * 0.10 * moving, c * 0.05 * moving)
-	pose["Spine"] = Vector3(0.03 * moving, s * 0.05 * moving, 0.0)
-	pose["Chest"] = Vector3(0.02 * moving, s * 0.10 * moving, 0.0)
-	# Head stays level against the shoulder counter-rotation.
-	pose["Neck"] = Vector3(-0.02 * moving, -s * 0.06 * moving, 0.0)
-
-	# Airborne: tuck the legs a touch and lift the arms for balance.
-	if _body != null and not _body.is_on_floor():
-		var air: float = clampf(-_body.velocity.y * 0.02 + 0.3, 0.0, 1.0)
-		pose["ThighL"] = Vector3(0.5 * air, 0.0, 0.05)
-		pose["ThighR"] = Vector3(0.35 * air, 0.0, -0.05)
-		pose["ShinL"] = Vector3(0.8 * air, 0.0, 0.0)
-		pose["ShinR"] = Vector3(0.6 * air, 0.0, 0.0)
-		pose["UpperArmL"] = _n("UpperArmL") + Vector3(-0.4 * air, 0.0, 0.15)
-		pose["UpperArmR"] = _n("UpperArmR") + Vector3(-0.4 * air, 0.0, -0.15)
-
-
 func _n(bone_name: String) -> Vector3:
 	return NEUTRAL.get(bone_name, Vector3.ZERO)
 
 
-# --- Idle life --------------------------------------------------------------
-
-func _idle_life(pose: Dictionary, _delta: float, moving: float) -> void:
-	var calm: float = 1.0 - moving
-	# Breathing: chest rises/opens on a slow cycle when standing.
-	var breath: float = sin(_idle_t * 1.5)
-	var chest: Vector3 = pose.get("Chest", Vector3.ZERO)
-	pose["Chest"] = chest + Vector3(-breath * 0.02 * calm, 0.0, 0.0)
-	var spine: Vector3 = pose.get("Spine", Vector3.ZERO)
-	pose["Spine"] = spine + Vector3(breath * 0.012 * calm, 0.0, 0.0)
-	# Slow weight-shift from foot to foot while idle.
-	var shift: float = sin(_idle_t * 0.55)
-	var hips: Vector3 = pose.get("Hips", Vector3.ZERO)
-	pose["Hips"] = hips + Vector3(0.0, 0.0, shift * 0.05 * calm)
-	# Gentle idle sway of the arms so they never freeze solid.
-	var la: Vector3 = pose.get("UpperArmL", _n("UpperArmL"))
-	var ra: Vector3 = pose.get("UpperArmR", _n("UpperArmR"))
-	pose["UpperArmL"] = la + Vector3(sin(_idle_t * 1.1) * 0.02 * calm, 0.0, 0.0)
-	pose["UpperArmR"] = ra + Vector3(sin(_idle_t * 1.1 + 0.5) * 0.02 * calm, 0.0, 0.0)
-	# Head carriage: a slow living drift plus a look toward travel.
-	var neck: Vector3 = pose.get("Neck", Vector3.ZERO)
-	pose["Neck"] = neck + Vector3(
-		_head_look.y + sin(_idle_t * 0.7) * 0.03 * calm,
-		_head_look.x + sin(_idle_t * 0.43) * 0.05 * calm, 0.0)
-
-
 # --- Combat overlay ---------------------------------------------------------
 
-func _apply_combat(pose: Dictionary) -> void:
+## Choreograph the sword arm over whatever the animator produced.
+##
+## Still hand-authored rather than moved into the framework: a sword combo is
+## Kern's, not every creature's, and it is the one layer that has to stay in
+## exact sync with `player_combat.gd`'s hit windows.
+func _apply_combat(pose: PoseStack) -> void:
 	var arm: Vector3
 	var fore: Vector3
 	var clav: Vector3 = _n("ClavicleR")
@@ -349,35 +379,52 @@ func _apply_combat(pose: Dictionary) -> void:
 			fore = Vector3(0.25, 0.1, 0.0).lerp(_n("ForearmR"), e2)
 	# Blend from whatever locomotion had the arm doing into the combat pose.
 	var b: float = _combat_blend
-	pose["UpperArmR"] = (pose.get("UpperArmR", _n("UpperArmR")) as Vector3).lerp(arm, b)
-	pose["ForearmR"] = (pose.get("ForearmR", _n("ForearmR")) as Vector3).lerp(fore, b)
-	pose["ClavicleR"] = (pose.get("ClavicleR", _n("ClavicleR")) as Vector3).lerp(clav, b)
+	pose.blend_euler("UpperArmR", arm, b)
+	pose.blend_euler("ForearmR", fore, b)
+	pose.blend_euler("ClavicleR", clav, b)
 	# A little whole-body commitment: torso twists into the swing.
 	if _combat == Combat.ATTACK:
 		var twist: float = sin(clampf(_attack_phase / 0.62, 0.0, 1.0) * PI) * 0.18 * b
-		var chest: Vector3 = pose.get("Chest", Vector3.ZERO)
-		pose["Chest"] = chest + Vector3(0.0, twist, 0.0)
+		pose.add_euler("Chest", Vector3(0.0, twist, 0.0))
 
 
 # --- Commit -----------------------------------------------------------------
 
-func _commit(pose: Dictionary) -> void:
+## Write the frame's pose onto both skeletons.
+##
+## Kern is the only character driving two rigs from one animation (his
+## code-built skeleton, plus the imported base-mesh rig when `--kern-base` is
+## on), which is why the commit lives here and not in the shared framework.
+func _commit(pose: PoseStack) -> void:
 	# Ensure every neutral-offset bone is written even if animation skipped it.
 	for bone_name in NEUTRAL:
-		if not pose.has(bone_name):
-			pose[bone_name] = _n(bone_name)
-	for bone_name in pose:
+		if not pose.rotations.has(bone_name):
+			pose.set_euler(String(bone_name), _n(bone_name))
+
+	# The pelvis translation carries the whole body: terrain drop, crouch
+	# depth, gait bob and sway, landing absorption and emote hops all arrive as
+	# this one offset. It must be applied as a bone POSITION — the leg IK has
+	# already solved against it, so rotating instead would leave the feet
+	# solving for a pelvis the mesh is not at.
+	var hips_idx: int = _bones.get("Hips", -1)
+	if hips_idx >= 0:
+		_skeleton.set_bone_pose_position(hips_idx, _hips_rest + pose.root_offset)
+
+	# Emote spins turn the rig itself rather than the controller's facing, so a
+	# dance can rotate without the character-controller fighting it back.
+	_skeleton.rotation.y = pose.root_spin
+
+	for bone_name in pose.rotations:
+		var rotation: Quaternion = pose.rotations[bone_name]
 		var idx: int = _bones.get(bone_name, -1)
 		if idx >= 0:
-			_skeleton.set_bone_pose_rotation(idx,
-				Quaternion.from_euler(pose[bone_name]))
+			_skeleton.set_bone_pose_rotation(idx, rotation)
 		# Same pose onto the imported skeleton, re-expressed per bone frame.
 		# The rest fix (T-pose -> hanging arms) applies first, then the frame's
 		# animation delta on top, both in model space.
 		var rt: Dictionary = _base_retarget.get(bone_name, {})
 		if not rt.is_empty():
-			var delta: Basis = Basis.from_euler(pose[bone_name]) \
-				* (rt["fix"] as Basis)
+			var delta: Basis = Basis(rotation) * (rt["fix"] as Basis)
 			var local_delta: Basis = (rt["g_inv"] as Basis) * delta \
 				* (rt["g"] as Basis)
 			_base_skeleton.set_bone_pose_rotation(rt["idx"],
@@ -483,8 +530,9 @@ func _reskin_garments_to_base() -> void:
 	# below uses the bone pose the garment was authored around (arms hanging),
 	# not the T-pose rest — otherwise the runtime pose carries each garment
 	# through the T-to-hang delta a second time (sleeves stick out sideways).
-	var neutral: Dictionary = {}
-	_locomotion(neutral, 0.0)
+	var neutral: PoseStack = PoseStack.new()
+	for bone_name in NEUTRAL:
+		neutral.set_euler(String(bone_name), _n(bone_name))
 	_commit(neutral)
 	var moved: int = 0
 	for garment_name in RESKIN_GARMENTS:
@@ -611,14 +659,9 @@ func _animate_head_extras(delta: float, moving: float) -> void:
 	_gaze = _gaze.lerp(_gaze_target, 1.0 - exp(-22.0 * delta))
 	var jitter: Vector2 = Vector2(sin(_idle_t * 31.0), cos(_idle_t * 27.0)) * 0.006
 	_head.set_gaze(_gaze.x + jitter.x, _gaze.y + jitter.y)
-
-	# Look slightly toward travel direction (anticipation).
-	var look_target: Vector2 = Vector2.ZERO
-	if moving > 0.1 and _body != null:
-		var lf: Vector3 = global_transform.basis.inverse() * Vector3(
-			_body.velocity.x, 0.0, _body.velocity.z)
-		look_target = Vector2(clampf(-lf.x * 0.03, -0.18, 0.18), 0.0)
-	_head_look = _head_look.lerp(look_target, 1.0 - exp(-6.0 * delta))
+	# The neck's own turn toward travel now comes from the animator's
+	# anticipation term, so nothing more is needed here — the eyes lead, the
+	# neck follows, which is the order a real head does it in.
 
 
 # --- Combat pose API (unchanged signatures; PlayerCombat drives these) -------

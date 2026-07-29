@@ -4,6 +4,97 @@
 
 ---
 
+## 2026-07-29 (live session, movement lane) — PROCEDURAL ANIMATION FRAMEWORK; KERN REBUILT ON IT
+
+*Danny asked for Kern's mechanics to be drastically improved and made
+lifelike, for idle life and on-command emotes, and for the work to be shaped so
+every future creature benefits. Godot 4.7.1 available locally, so everything
+below is verified by running the game, not by inspection.*
+
+**DONE — the framework (`game/src/anim/`, 9 new modules, creature-agnostic)**
+- `gait_engine.gd` — the load-bearing idea: the gait cycle is phased by
+  **distance travelled**, not by time. A planted foot's body-relative position
+  then retreats at exactly the speed the body advances, so it holds still in
+  world space by algebraic identity rather than by tuning. The old code did
+  `phase += delta * rate` while the body moved at whatever speed it liked,
+  which is precisely why Kern's feet skated.
+- `gait_profile.gd` — a gait as biomechanics (stride, duty factor, pelvic
+  oscillation, foot levers) with human presets from gait-lab figures. Gaits
+  blend CONTINUOUSLY by speed, so there is no walk/run threshold to pop at, and
+  the walk/run pelvis inversion (highest at midstance vaulting vs lowest
+  compressing) is preserved.
+- `two_bone_ik.gd` — closed-form law-of-cosines leg solve. Analytic rather than
+  `SkeletonIK3D` because it is exact, allocation-free and blendable per-frame
+  against the procedural pose, which is what lets feet be planted without the
+  animation losing control of the leg.
+- `foot_planter.gd` — raycasts the real collision world under each foot, locks
+  the plant in world space (leashed, so pivoting scuffs rather than sticking),
+  aligns ankles to the surface normal, and drops the pelvis to keep a downhill
+  foot reachable.
+- `locomotion_profile.gd` — measures limb lengths and joint rests off the
+  creature's own skeleton and rescales the presets by leg length (dynamic
+  similarity). No per-creature constants.
+- `anim_math.gd`, `pose_stack.gd`, `emote_library.gd`, `emote_player.gd`,
+  `creature_animator.gd` — half-life damping and exact critically-damped
+  springs; layered QUATERNION pose (euler layers do not compose, which is why
+  an emote over a gait used to skew); 16 emotes; and the coordinator.
+
+**DONE — Kern rebuilt on it**
+- Controller: analog speed with walk/jog/run/sprint blended continuously (stick
+  deflection IS the speed), crouch with capsule resize and ceiling check,
+  slope-aware pace from the floor normal, step-up, turn-costs-momentum,
+  speed-dependent turn rate, landing impact reported to the animator.
+- Visual: distance-phased gait, foot IK on terrain, terrain-adaptive pelvis,
+  spinal-delay counter-rotation, arm swing with elbow flexion, blended airborne
+  pose with landing reach, momentum lean, breathing plus a fidget scheduler so
+  idle keeps producing new motion, head look-at with travel anticipation.
+- Emotes: 16 in the world's own voice — Gradient Descent, The Backprop,
+  Overfit, Dropout, Convergence, Weight Shuffle, Epoch Step, Softmax, plus
+  wave/cheer/bow/point/salute/ponder/stretch/sit. Radial wheel on B (right
+  stick click on a pad); partial-body emotes layer over locomotion, full-body
+  ones take over; any movement input cancels out.
+
+**VERIFIED — measured, not asserted (`scenes/dev/locomotion_lab.tscn`)**
+- New instrumented bench: four-zone obstacle course (flat, ramps, stairs,
+  bumps), 20 scripted segments driven through the real `Input` singleton.
+- Foot slip **147 -> 47 mm/m** overall; **19-23 mm/m at a walk**, 25 on stairs,
+  31 on broken ground; idle, hard-stop and turn-in-place measure ~0.2 mm.
+- Ground error **60 -> 7.4 mm**. Backward-knee frames **8182 -> 0**. IK
+  shortfall 5 mm, clamped on 11% of frames. Worst pose jerk 58 -> 47 rad/s.
+- Eyes on rendered frames against ground stripes for walk, run and dance.
+
+**FIXED IN PASSING (both pre-existing, both found by looking)**
+- The placeholder gait bent Kern's knees **backwards** at every speed:
+  `ShinL/R` took POSITIVE X, which on this rig is hyperextension. The IK now
+  derives knee direction from a pole vector so it cannot recur, and the bench
+  fails the run if it does.
+- The boot shaft stopped 65 mm below the trouser cuff, leaving a visible ring
+  of nothing between boot and trouser whenever the knee bent.
+
+**HALF-FORMED**
+- Remaining measured slip is concentrated in the heel and toe rocker phases at
+  jog and above (flat-sole slip is near zero, so the plant lock itself is
+  sound). The rigid-foot rocker is exact on paper and verified frame-by-frame;
+  the residual is most likely gait-profile blending shifting stride mid-stance.
+- Kern's rig gives him a 0.81 m leg on a 1.78 m body (a real adult is ~0.87 m)
+  because his ankle joint sits ~4 cm high. That shortfall is what forces the
+  stride cap in `LocomotionProfile.max_reachable_stride()` and a slightly brisk
+  cadence. Lowering the ankle in `kern_body_builder.gd` would buy it back, but
+  it moves the boot/foot meshes and the imported-rig retarget, so it is its own
+  change.
+- `jump_flat` still measures ~108 mm/m — landing transients, the least-tuned
+  part of the pass.
+
+**NEXT UP**
+- Rig the Bootstrap villagers and the monster roster so they can adopt
+  `CreatureAnimator` (they are currently un-skeletoned meshes). The framework
+  is ready; the creatures are not yet.
+- Footstep audio and dust/grass-trample hooks off `GaitEngine.just_planted()`,
+  which already fires on the exact touchdown frame.
+- Hands-on pad feel-tune with Danny at the phase gate.
+
+---
+
 ## 2026-07-27 (repository recovery) — Vault and Iris branches integrated
 
 **DONE**

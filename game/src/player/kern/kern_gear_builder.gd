@@ -385,7 +385,14 @@ static func _build_boot(foot_attach: BoneAttachment3D, right: bool) -> void:
 	# Ankle cuff + shaft going up.
 	var shaft: Array = []
 	var shaft_rows: Array = [
-		[0.145, 0.052, 0.052],   # cuff top (folded over)
+		# The cuff tops out just ABOVE the trouser cuff (which ends at model
+		# y 0.325, i.e. 0.210 above the ankle joint) so the two overlap. These
+		# rows used to stop at 0.145, leaving a ~65 mm ring of nothing between
+		# boot and trouser: invisible on a still figure, obvious the moment the
+		# knee bends in a stride.
+		[0.228, 0.050, 0.050],   # cuff top (folded over)
+		[0.195, 0.051, 0.051],
+		[0.150, 0.050, 0.051],
 		[0.120, 0.048, 0.048],
 		[0.090, 0.050, 0.055],
 		[0.045, 0.055, 0.070],   # around the ankle
