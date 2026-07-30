@@ -54,13 +54,15 @@ example, exact output path) — executable cold, with no other context.
 
 **Surface:** agentic ChatGPT with repo access (Codex, or ChatGPT wired to the
 repo via a connector) — Danny's chosen setup. It clones the repo, writes files,
-and surfaces the result as a branch/PR.
+and surfaces the result as files under `content/inbox/`. (Codex must not commit
+or push at all — see the write-scope rule below. Only Claude sessions write to
+`main`.)
 
 **Hard prerequisites (or an agentic run does nothing useful):**
 1. **The `gradientfall/` tree must be on the branch Codex clones.** Codex bases
-   off the repo's default branch (`main`) unless configured otherwise. Keep
-   `main` current — merge the open PR before relying on scheduled agentic runs,
-   or point Codex's environment explicitly at the active branch.
+   off the repo's default branch (`main`) unless configured otherwise. This is
+   automatic now that Claude sessions push straight to `main` — there is no
+   branch or PR for `main` to lag behind.
 2. **Write scope is `content/inbox/` ONLY.** The prompt below forbids commit/push
    and touches no other file. Codex must never write to `content/approved/`,
    engine code, canon docs, or the roadmap — review + merge is Claude's job.
@@ -224,8 +226,10 @@ by replying to any scheduled run or editing ROADMAP.md priorities.
 4. Never: commit, push, touch code, touch `approved/`, touch docs, invent
    canon (new named locations/characters beyond the brief's scope).
 
-**Danny's tasks:** keep the two schedules running · merge PRs · playtest at
-phase gates (recommended, not required — gates don't block) · final review.
+**Danny's tasks:** keep the two schedules running · playtest at phase gates
+(recommended, not required — gates don't block) · steer direction. He does not
+merge anything: Claude sessions push straight to `origin/main` (CLAUDE.md iron
+rule 1).
 
 ## 5. How Danny finds out about phase gates
 
@@ -249,5 +253,5 @@ Expected gate cadence (rough): Phase 1 ≈ 2–3 weeks in; later phases every
 |---|---|---|
 | Claude | Engine, campaign canon, briefs, review/merge, docs, verification | Ships unreviewed inbox content |
 | ChatGPT / Codex | Brief execution + quiz bank → `content/inbox/` ONLY | Commit/push, code, canon, `approved/`, docs |
-| Danny | Schedules, PR merges, phase-gate playtests, final review | Anything he doesn't feel like doing |
+| Danny | Schedules, phase-gate playtests, direction | Merge gates — sessions land their own work on `main` |
 | Local 14B model | Retired (validator tax exceeds savings) | — |

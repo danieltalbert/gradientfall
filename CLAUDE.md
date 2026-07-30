@@ -15,27 +15,32 @@ session to "keep pace"; the pace is whatever quality allows. When a session must
 choose between shipping more and shipping better, it ships better, and says so
 in the devlog.
 
-## The one canonical workspace (check this before touching anything)
-- **Work here and nowhere else:** `C:\Users\danny\danieltalbert\gradientfall`.
-  This folder is its own Git checkout of
-  `https://github.com/danieltalbert/gradientfall.git`; verify that exact
-  top-level path and remote before editing. `main == origin/main` is the
-  canonical playable state after a change is reviewed and merged.
-- **Other clones are review or recovery workspaces, not the live game.**
-  In particular, paths under `C:\Users\danny\Documents\Codex\...` may be
-  temporary clean checkouts. They are useful for integration and CI
-  reproduction, but never judge current visuals from one without fetching
-  `origin` and comparing its commit to the live workspace.
-- **Confirm before building or judging visuals:**
+## The workspace (check this before touching anything)
+
+**`origin/main` is the single source of truth — not any one folder on disk.**
+Several clones of this repo exist locally and sessions run in more than one of
+them at once, so "the canonical directory" is the wrong thing to anchor on.
+Known clones, both real checkouts of
+`https://github.com/danieltalbert/gradientfall.git`:
+`C:\Users\danny\coding\gradientfall` and
+`C:\Users\danny\danieltalbert\gradientfall`. Paths under
+`C:\Users\danny\Documents\Codex\...` may be throwaway clean checkouts.
+
+- **Work in whichever clone the session opened in** — but confirm it is a real
+  checkout of the Gradientfall remote first, and **sync it before you start**,
+  because a clone that has sat idle is behind whatever other sessions pushed:
   ```
   git rev-parse --show-toplevel
   git remote get-url origin
-  git branch --show-current
+  git checkout main
+  git pull --rebase origin main
   git log --oneline -1
   ```
-  Expect the canonical path and Gradientfall remote above. Normally expect
-  `main`; a short-lived review/recovery branch is acceptable only when it has
-  an upstream and a visible pull request.
+- **Expect to be on `main`.** If a session finds itself on a leftover branch,
+  get back onto `main` and land the work there (iron rule 1).
+- **Never judge current visuals or "what's built" from a stale clone.** Pull
+  first. A clone that is three sessions behind will show you a game that no
+  longer exists, and the devlog will disagree with the code.
 
 ## Read first, every session
 1. `docs/DEVLOG.md` — last entry says exactly where things stand and what's next
@@ -49,10 +54,26 @@ in the devlog.
 ## The iron rules
 1. **Never commit a half-wired state — but never LEAVE work uncommitted either.**
    Every session ends with: game runs clean from the editor, docs updated to
-   match reality, and **all work committed, pushed to an upstream branch, and
-   represented by a pull request (or merged into `origin/main`)**. If a
-   feature is mid-flight at session end, it gets stashed behind a flag or
-   reverted — the main line always runs.
+   match reality, and **all work committed and pushed straight to
+   `origin/main`**. If a feature is mid-flight at session end, it gets stashed
+   behind a flag or reverted — the main line always runs.
+   - **No branches, no pull requests, no review gates.** This is Danny's
+     passion project and he is the only reviewer; a PR queue just parks
+     finished work where the next session can't see it. Commit on `main` and
+     push. Do not open a PR, do not ask permission to push, do not leave work
+     on a side branch "for review".
+   - **Several sessions run at once, so `main` moves under you.** That is
+     expected and fine — just never clobber it. Before pushing:
+     ```
+     git pull --rebase origin main
+     ```
+     then re-run the parse check and push. If the rebase conflicts, resolve it
+     in favour of keeping BOTH sessions' work (they are usually in different
+     lanes); never `--force` and never discard the other session's commits.
+     If a push is rejected, pull-rebase again and retry — do not work around it.
+   - Push **as you finish coherent pieces**, not only at session end. A session
+     that pushes four times leaves three useful states for a parallel session
+     to build on; one that pushes once at the end hides its work for hours.
    - "Other lanes are mid-flight, I'll let a later sweep commit it" is **not**
      an acceptable ending. That reasoning stranded a full day of finished
      photoreal-grass work outside version control and sent later sessions to
@@ -106,4 +127,7 @@ in the devlog.
   documentation truth (code comments, devlog, roadmap ticks).
 - **ChatGPT (Danny's schedule):** bulk content generation from briefs in
   `docs/briefs/queue/`, output dropped in `content/inbox/`.
-- **Danny:** schedules, PR merges, phase-gate playtests, final review.
+- **Danny:** schedules, phase-gate playtests, direction. He does NOT gate
+  landing work — sessions push to `main` themselves (iron rule 1). Anything
+  that genuinely needs his call (GDD pillar changes, save-format breaks) gets
+  raised in the devlog and the session builds around it meanwhile.
