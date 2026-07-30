@@ -189,6 +189,30 @@ rushed, trimmed, or marked done at 'good enough for programmer art').
     element in later realism passes; a temporary stylized/real mismatch
     (toon mountains behind photoreal grass) is accepted cost. The 2026-07-17
     "painterly" phrasing above is superseded where the two conflict.
+  - **Amendment (Danny, 2026-07-29, explicit sign-off in chat):** the
+    **code-only asset rule is lifted for surface detail.** Two rules were in
+    direct contradiction — this section demands photorealism, while the
+    conventions demanded every asset be generated in code, and this section
+    itself concedes "code-only assets fail hardest at it". A `for` loop cannot
+    author a skin pore, a thread of linen or a strand of hair; those live in
+    texture maps. So:
+    - **Still generated in code:** all world geometry, terrain, flora,
+      buildings, dungeons, characters' clothing and gear silhouettes, all
+      shaders, and all animation. The *shapes* stay ours.
+    - **Now permitted:** albedo / normal / roughness / metallic / AO / height
+      maps, HDRI environment probes, and hair cards — either **CC0-licensed**
+      (Poly Haven, ambientCG, and similar) or **baked locally in Blender** from
+      high-poly sculpts. Provenance and licence get recorded the same way
+      `game/assets/models/README.md` records the base mesh's.
+    - **Still forbidden:** purchased or non-CC0 asset packs, and any
+      downloaded *model* other than the hero base mesh already permitted.
+  - **Target, restated (Danny, 2026-07-29):** **stylized-real** — photoreal
+    *materials and light*, hand-authored *forms*. Chasing literal
+    photorealism on figures lands in the uncanny valley; chasing real light
+    on readable, deliberately-shaped forms is what makes a world that both
+    convinces and stays recognisably Gradientfall's. Where this conflicts
+    with the "cel/toon shading on characters" non-negotiable below, this
+    wins: rim light stays, hard cel banding goes.
 - **The governing principle (Danny, 2026-07-17):** the player's *feeling* is
   the metric — it must feel as close to real life / BOTW as possible at all
   times. Raw counts don't matter; the illusion does. Spend cleverness on

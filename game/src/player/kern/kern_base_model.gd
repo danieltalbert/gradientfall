@@ -366,11 +366,26 @@ const COVERED_ZONES: Array[Dictionary] = [
 	# Upper arms + forearms under the sleeves. In the T-pose these run out
 	# along X, so they're selected by radius, not height; the hands sit beyond
 	# r_max and survive.
-	{"y_min": 1.28, "y_max": 1.60, "r_min": 0.12, "r_max": 0.70},
+	#
+	# y_max is 1.50, NOT 1.60. `r` is the distance from the body's vertical
+	# CENTRELINE, so it counts forward protrusion as well as sideways: on a
+	# 1.75 m figure the nose and lips stick out to r ~0.13, which sits inside
+	# this zone's r_min of 0.12. At 1.60 the band therefore reached mouth
+	# height (~1.56) and cut the jaw and lips clean off, leaving the teeth mesh
+	# showing through the hole. The T-pose arms only span y 1.36-1.50, so
+	# stopping at 1.50 loses nothing they need.
+	{"y_min": 1.28, "y_max": 1.50, "r_min": 0.12, "r_max": 0.70},
 	# Shoulder caps and upper chest under the tunic's yoke. Without this the
 	# bare shoulders poke through the garment in-game. In the T-pose the hands
 	# hang far out along X (r ~0.7), so this tight radius cannot reach them.
-	{"y_min": 1.34, "y_max": 1.62, "r_min": 0.0, "r_max": 0.33},
+	#
+	# y_max is 1.47, NOT 1.62. On a 1.75 m figure the shoulder caps top out
+	# near 1.44; 1.62 is eye level, and a 0.33 m radius there swallows the
+	# entire head from chin to eyes. That is what made the imported hero render
+	# as a bald dome with a hole where his face should be — and it is why the
+	# base mesh looked broken enough to be gated off, quite separately from the
+	# depth bug it was gated off FOR.
+	{"y_min": 1.34, "y_max": 1.47, "r_min": 0.0, "r_max": 0.33},
 ]
 
 

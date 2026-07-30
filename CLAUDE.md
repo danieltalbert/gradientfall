@@ -106,7 +106,15 @@ Known clones, both real checkouts of
 
 ## Conventions
 - **Engine:** Godot 4.x, GDScript, statically typed everywhere (`var x: int`,
-  typed funcs). All assets generated in code — no downloaded/purchased assets.
+  typed funcs).
+- **Assets — shapes in code, surfaces from maps** (GDD §10 amendment,
+  2026-07-29). Geometry, terrain, flora, buildings, clothing, shaders and
+  animation are all still generated in code. **Texture maps** (albedo, normal,
+  roughness, metallic, AO, height), **HDRI probes** and **hair cards** may now
+  be CC0-licensed or baked locally in Blender — photorealism was never
+  reachable without them. Purchased/non-CC0 packs and downloaded models stay
+  forbidden (the hero base mesh is the one standing exception). Record
+  provenance + licence for anything brought in.
 - **Game project root:** `game/`.
 - **Documentation:** GDScript doc comments (`##`) for script headers and
   members; `//` headers in shaders; docstrings in Python tools. See
