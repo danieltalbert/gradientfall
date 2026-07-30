@@ -50,11 +50,20 @@ func retire_skin_for_import() -> void:
 	# scalp shows between the clumps and the imported forehead.
 	var hair: Node3D = get_node_or_null("HairMesh")
 	if hair != null:
-		# Sit the cap on the imported skull: a little wider, barely lowered, and
-		# pushed BACK (+Z). The old -Z nudge drove the fringe forward until a
-		# clump draped across the imported face's mouth.
-		hair.scale = Vector3(1.10, 1.06, 1.10)
-		hair.position += Vector3(0.0, -0.018, 0.016)
+		# Sit the cap on the imported skull: wider, TALLER, and pushed BACK (+Z).
+		# The old -Z nudge drove the fringe forward until a clump draped across
+		# the imported face's mouth, so the push back stays.
+		#
+		# The Y was previously *lowered* by 18 mm, which was backwards: the
+		# imported skull's crown is higher and rounder than the sculpted head
+		# the cap was built against, so dropping the cap left the entire top of
+		# the head bare and the hero rendered bald from every angle above eye
+		# line. Raise it and stretch it vertically instead.
+		# Tuned by render, not by guess: -0.018 left the crown bald, +0.020 lifted
+		# the whole cap off the skull so it read as a hovering hat. This sits it
+		# on the bone.
+		hair.scale = Vector3(1.12, 1.09, 1.12)
+		hair.position += Vector3(0.0, 0.001, 0.016)
 	# Brows: the imported head carries its own, and the procedural pair was
 	# built against the sculpted skull's curvature — on the imported face it
 	# lands down by the mouth. Retire it with the rest of the sculpted face.

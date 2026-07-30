@@ -4,6 +4,78 @@
 
 ---
 
+## 2026-07-29 (art lane, same session) — THE CODE-ONLY RULE LIFTED; KERN HAS A FACE
+
+*Danny: "I have blender, what resources do you need to make sure the art and
+visual of this game is built as beautifully as possible? unlimited resources."
+The honest answer was that Godot was never the constraint — the project's own
+rule was.*
+
+**DONE — the law (GDD §10, Danny's explicit sign-off)**
+- Two project rules were in direct contradiction: §10 demanded photorealism
+  while the conventions demanded every asset be generated in code — and §10
+  itself conceded "code-only assets fail hardest at it". A `for` loop cannot
+  author a skin pore, a linen thread or a strand of hair.
+- Resolved: **shapes stay in code, surfaces may come from maps.** Geometry,
+  terrain, flora, buildings, clothing silhouettes, shaders and animation all
+  still generated. Albedo/normal/roughness/metallic/AO/height maps, HDRI
+  probes and hair cards now permitted — CC0 or baked locally in Blender.
+  Purchased/non-CC0 packs and downloaded models still forbidden.
+- Target restated as **stylized-real**: photoreal materials and light on
+  hand-authored forms. Rim light stays; hard cel banding goes.
+
+**DONE — the hero's face, which was broken for a reason nobody had looked for**
+- The imported base mesh had been gated off since 2026-07-24 and blamed
+  entirely on the dual-skeleton depth bug. Actually rendering it found a
+  second, unrelated defect: `strip_covered_geometry` was eating the head.
+- Its zones are metres against a 1.75 m figure and two badly overshot their
+  names. The "shoulder caps" zone ran to y 1.62 — shoulder caps top out near
+  1.44, and 1.62 is eye level — so it swallowed the head from chin to eyes.
+  The "upper arms" zone ran to 1.60 with `r_min` 0.12, and since `r` is
+  distance from the vertical centreline it counts forward protrusion: the nose
+  and lips reach r ≈ 0.13, so it cut the jaw and lips off and left the teeth
+  mesh showing through the hole.
+- Corrected to 1.47 and 1.50. **Kern now has a complete face** — eyes, nose,
+  lips, ears, jaw — plus real hands and real anatomy.
+
+**DONE — surfaces**
+- `kern_skin.gdshader` had an excellent lighting model (wrapped diffuse,
+  red-shifted subsurface, dual-lobe specular, derivative bump) driving a
+  CONSTANT roughness and a flat albedo. That constant pair is what reads as
+  plastic no matter how good the lighting is. Added object-space roughness
+  breakup (oily forehead vs matte cheek) and capillary mottling weighted so
+  red moves most and blue least; raised pore relief from an invisible 0.09 mm
+  to 0.16 mm, which is the range that reads at portrait framing.
+- Hair cap refitted to the imported skull. It had been nudged 18 mm DOWN,
+  which was backwards — the imported crown is higher and rounder, so the cap
+  sat below it and the hero rendered bald from any angle above eye line.
+  Tuned by render over three passes (-0.018 bald, +0.020 hovering hat,
+  +0.001 correct).
+
+**VERIFIED**
+- Character studio at portrait and full-body framing, before/after each change.
+- Game boots clean headless; `validate_content.py` passes 111 entries.
+
+**HALF-FORMED**
+- **The imported body is still gated behind `--kern-base`, and honestly so.**
+  The tunic, trousers, sleeves and boots now render correctly (the stripper
+  removes the body geometry they were contesting), but the **cloak still
+  renders semi-transparent** — the arm shows through it. That is the original
+  depth bug, now isolated to a single garment instead of all of them.
+- The hairline still sits high; the face reads slightly receded.
+- Every garment is still flat untextured colour. The law now permits maps but
+  none have been authored yet — that is the next lane, not a finished one.
+
+**NEXT UP (art lane)**
+1. Kill the cloak depth case — it is the last thing gating the base mesh, and
+   with it gated the good face never reaches a player.
+2. Build the Blender bake pipeline (`tools/bake_material_maps.py`): high-poly
+   detail → normal/roughness/AO PNGs for skin, linen, leather, metal.
+3. HDRI environment probe for real image-based lighting.
+4. Then re-cut the hairline and eyebrows against the imported skull.
+
+---
+
 ## 2026-07-29 (live session, movement lane) — PROCEDURAL ANIMATION FRAMEWORK; KERN REBUILT ON IT
 
 *Danny asked for Kern's mechanics to be drastically improved and made

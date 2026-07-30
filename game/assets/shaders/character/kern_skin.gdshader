@@ -28,11 +28,31 @@ group_uniforms micro;
 // bump_strength is metres of virtual relief. Real pore depth is ~0.05 mm, so
 // this stays tiny — the derivative bump amplifies it plenty. (0.0 disabled the
 // whole system; 0.0006 read as wet stucco at portrait range.)
-uniform float bump_strength : hint_range(0.0, 0.002) = 0.00009;
+// 0.00016: 0.0006 read as wet stucco and 0.00009 was invisible at portrait
+// range, which is the framing that actually matters for a hero's face.
+uniform float bump_strength : hint_range(0.0, 0.002) = 0.00016;
 uniform float pore_scale : hint_range(20.0, 600.0) = 380.0;
 uniform float pore_depth : hint_range(0.0, 2.0) = 0.5;
 uniform float wrinkle_scale : hint_range(4.0, 120.0) = 110.0;
 uniform float wrinkle_depth : hint_range(0.0, 2.0) = 0.25;
+
+group_uniforms variation;
+// Skin is never one flat colour at one flat roughness, and a constant of each
+// is exactly what reads as plastic — which is what this shader did before,
+// however good its lighting model was. Two cheap breakups fix most of it:
+//
+//  * roughness varies over a few centimetres. Real faces are oily across the
+//    forehead and nose and matte over the cheeks, so a single specular
+//    roughness makes every highlight the same size and the face read as vinyl.
+//  * albedo mottles at a similar scale, warmer where capillaries sit close to
+//    the surface and paler over bone.
+//
+// Both ride the same object-space noise as the pores, so they stay locked to
+// the skin as it deforms rather than swimming across it.
+uniform float rough_variation : hint_range(0.0, 0.4) = 0.15;
+uniform float rough_scale : hint_range(2.0, 80.0) = 24.0;
+uniform float mottle_amount : hint_range(0.0, 0.3) = 0.055;
+uniform float mottle_scale : hint_range(2.0, 60.0) = 13.0;
 
 group_uniforms spec;
 uniform float spec_broad : hint_range(0.0, 1.0) = 0.035;
@@ -96,7 +116,17 @@ void vertex() {
 
 void fragment() {
 	ALBEDO = v_col * albedo_tint.rgb * albedo_boost;
-	ROUGHNESS = roughness_base;
+
+	// Capillary/melanin mottling: warm the patches, cool-pale the rest. The
+	// weighting keeps red moving most and blue least, which is how blood under
+	// skin actually shifts the hue — a neutral brightness wobble reads as dirt.
+	float mottle = (vnoise3(v_opos * mottle_scale) - 0.5) * 2.0;
+	ALBEDO *= vec3(1.0) + mottle * mottle_amount * vec3(1.0, 0.55, 0.42);
+
+	// Oily/matte breakup, so highlights differ in size across the face.
+	ROUGHNESS = clamp(roughness_base
+			+ (vnoise3(v_opos * rough_scale) - 0.5) * 2.0 * rough_variation,
+			0.18, 0.95);
 	SPECULAR = 0.20;
 
 	// Mikkelsen derivative bump: perturb the shading normal from the
