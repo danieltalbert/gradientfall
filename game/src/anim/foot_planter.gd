@@ -46,6 +46,14 @@ const PELVIS_HALF_LIFE: float = 0.085
 ## from snapping when it swings out over a cliff edge.
 const AIR_HALF_LIFE: float = 0.06
 
+## Floor on that half-life, applied even to a fully planted foot, so crossing a
+## seam between two surfaces eases instead of snapping. Small enough that a
+## planted foot still tracks the ground it is standing on.
+## Tuned, not guessed. Halving it to 0.012 s tracked a continuous slope ~5 mm
+## more closely but pushed downhill pose jerk from 28 back to 40 rad/s, and a
+## visible pop costs more than a couple of centimetres of float does.
+const GROUND_MIN_HALF_LIFE: float = 0.025
+
 ## Steepest surface (radians from horizontal) the ankle will still align to.
 ## Beyond this the foot keeps a level-ish pose rather than standing on edge.
 const MAX_ALIGN_ANGLE: float = 0.72
@@ -148,10 +156,16 @@ func resolve(index: int, ideal_world: Vector3, contact: float, delta: float,
 		out.found = true
 		_ground_valid[index] = true
 		var hit_y: float = (hit["position"] as Vector3).y
-		# Ease the sampled height while the foot is in the air so swinging out
-		# over a step change does not snap the ankle.
-		_ground_y[index] = AM.damp(_ground_y[index], hit_y,
-			AIR_HALF_LIFE * (1.0 - contact), delta) if contact < 0.999 else hit_y
+		# Always eased, never snapped. A fully-planted foot used to take the
+		# raw hit height, which is an instant jump whenever the ray crosses a
+		# seam between two surfaces — the lip where a flat platform meets a
+		# ramp, or one stair tread to the next. The plant lock already pins the
+		# horizontal position, so easing the height costs nothing and removes a
+		# whole class of single-frame ankle pops.
+		var height_half_life: float = maxf(GROUND_MIN_HALF_LIFE,
+			AIR_HALF_LIFE * (1.0 - contact))
+		_ground_y[index] = AM.damp(_ground_y[index], hit_y, height_half_life,
+			delta)
 		_normal[index] = AM.damp_vec3(_normal[index],
 			(hit["normal"] as Vector3).normalized(), 0.06, delta).normalized()
 		out.ground_y = _ground_y[index]

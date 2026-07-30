@@ -187,6 +187,8 @@ var _solver_shortfall_mm: float = 0.0
 var _solver_clamped_frames: int = 0
 var _solver_samples: int = 0
 var _total_frames: int = 0
+## Emote queued by `_enter_segment`, fired once the settle window closes.
+var _pending_emote: String = ""
 ## `--trace` prints the raw target-versus-result numbers for one foot. Summary
 ## statistics can only tell you a discrepancy exists; this tells you its shape.
 var _tracing: bool = false
@@ -242,14 +244,21 @@ func _build_stage() -> void:
 	# Zone A: flat. Long enough for a 4-second sprint with room to spare.
 	_add_box(Vector3(0.0, -0.5, 0.0), Vector3(30.0, 1.0, 120.0))
 
-	# Zone B: ramps. A gentle 12 degrees up and a steeper 22 down, each with a
-	# flat run-up so the character arrives at speed rather than from standstill.
-	_add_box(Vector3(60.0, -0.5, 20.0), Vector3(30.0, 1.0, 40.0))
-	_add_ramp(Vector3(60.0, 0.52, -6.0), Vector3(16.0, 1.0, 26.0),
-		deg_to_rad(12.0))
-	_add_box(Vector3(60.0, 2.14, -28.0), Vector3(30.0, 1.0, 20.0))
-	_add_ramp(Vector3(60.0, 1.42, -46.0), Vector3(16.0, 1.0, 20.0),
-		-deg_to_rad(22.0))
+	# Zone B: ramps — a 15 degree climb to a landing, then an 18 degree descent.
+	#
+	# The centres and lengths below are SOLVED so each ramp's top surface meets
+	# the platforms exactly at their edges, rather than eyeballed. Eyeballing
+	# them the first time left the descent's upper lip three metres above the
+	# landing it was supposed to join, so the segment measured a character
+	# walking into a wall at 0.6 m/s and reported it as downhill gait quality.
+	# Rise 2.64 m over a 10 m run climbing, and back down over 8 m.
+	_add_box(Vector3(60.0, -0.5, 16.0), Vector3(30.0, 1.0, 48.0))    # z -8..40
+	_add_ramp(Vector3(60.0, 0.8366, -13.128), Vector3(16.0, 1.0, 10.34),
+		0.2583)                                                       # z -18..-8
+	_add_box(Vector3(60.0, 2.14, -28.0), Vector3(30.0, 1.0, 20.0))   # z -38..-18
+	_add_ramp(Vector3(60.0, 0.845, -41.84), Vector3(16.0, 1.0, 8.42),
+		-0.3187)                                                      # z -46..-38
+	_add_box(Vector3(60.0, -0.5, -56.0), Vector3(30.0, 1.0, 20.0))   # z -66..-46
 
 	# Zone C: an eight-step flight of 0.16 m risers — the foot-IK torture test.
 	_add_box(Vector3(120.0, -0.5, 20.0), Vector3(30.0, 1.0, 40.0))
@@ -414,10 +423,17 @@ func _build_program() -> void:
 	# Start heights sit just clear of each surface. Dropping the character in
 	# from height makes every segment begin with a landing, which is its own
 	# transient and not what most of these segments are testing.
+	#
+	# Start positions sit a SHORT run-up from the feature under test, not at the
+	# far end of the zone. An earlier layout put the slope and stair segments
+	# 30+ m from their ramps; at walking pace over a five-second segment the
+	# character never reached them, so three of these twenty rows were quietly
+	# re-measuring flat ground and reporting it as slope and stair performance.
 	var flat: Vector3 = Vector3(0.0, 0.06, 45.0)
-	var ramps: Vector3 = Vector3(60.0, 0.06, 34.0)
-	var stairs: Vector3 = Vector3(120.0, 0.06, 32.0)
+	var stairs: Vector3 = Vector3(120.0, 0.06, 5.0)
 	var bumps: Vector3 = Vector3(180.0, 0.28, 34.0)
+	var up_ramp: Vector3 = Vector3(60.0, 0.06, -2.0)
+	var down_ramp: Vector3 = Vector3(60.0, 2.70, -30.0)
 
 	var all: Array = []
 	all.append(_seg("idle", 2.5, {}, flat))
@@ -434,10 +450,9 @@ func _build_program() -> void:
 	hop.jump_period = 1.3
 	all.append(hop)
 	all.append(_seg("bumpy", 5.0, {"move_forward": 0.6}, bumps))
-	all.append(_seg("stairs_up", 5.0, {"move_forward": 0.5}, stairs))
-	all.append(_seg("slope_up", 5.0, {"move_forward": 0.7}, ramps))
-	all.append(_seg("slope_down", 5.0, {"move_forward": 0.7},
-		Vector3(60.0, 2.70, -22.0)))
+	all.append(_seg("stairs_up", 6.0, {"move_forward": 0.5}, stairs))
+	all.append(_seg("slope_up", 6.0, {"move_forward": 0.7}, up_ramp))
+	all.append(_seg("slope_down", 6.0, {"move_forward": 0.7}, down_ramp))
 	all.append(_seg("crouch_walk", 4.0, {"move_forward": 0.6, "crouch": 1.0},
 		flat))
 	all.append(_seg("crouch_idle", 2.5, {"crouch": 1.0}, flat))
@@ -450,6 +465,17 @@ func _build_program() -> void:
 	dance.emote = "weight_shuffle"
 	all.append(dance)
 	all.append(_seg("idle_settle", 4.0, {}, flat))
+
+	# `--emotes` swaps the program for a pass over every entry in the library,
+	# which is how the whole set gets eyes on it in one run rather than one
+	# emote per invocation.
+	if OS.get_cmdline_user_args().has("--emotes"):
+		all.clear()
+		for entry in EmoteLibrary.defs():
+			var def: EmoteLibrary.EmoteDef = entry
+			var segment: Segment = _seg("emote_" + def.id, 3.0, {}, flat)
+			segment.emote = def.id
+			all.append(segment)
 
 	for entry in all:
 		var s: Segment = entry
@@ -505,6 +531,10 @@ func _physics_process(delta: float) -> void:
 		_settle -= 1
 		_prev_position = _player.global_position
 		return
+	if _pending_emote != "":
+		if _visual != null and _visual.has_method("play_emote"):
+			_visual.call("play_emote", _pending_emote)
+		_pending_emote = ""
 	_sample(_stats[_index], delta)
 
 	_elapsed += delta
@@ -567,8 +597,11 @@ func _enter_segment(segment: Segment) -> void:
 	_prev_accel = Vector3.ZERO
 	_prev_position = segment.start
 	_settle = SETTLE_FRAMES
-	if segment.emote != "" and _visual != null and _visual.has_method("play_emote"):
-		_visual.call("play_emote", segment.emote)
+	# Deferred until the settle window ends. Started here, a one-shot emote
+	# spends its whole two seconds inside the settle and is already blending
+	# out before the first sample or screenshot — which made working emotes
+	# like `cheer` and `salute` look like they were doing nothing at all.
+	_pending_emote = segment.emote
 
 
 ## Hold the segment's actions through the `Input` singleton — the same path a

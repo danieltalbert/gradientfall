@@ -49,6 +49,18 @@ const MAX_LANDING_DIP: float = 0.30
 ## Deepest the pelvis will drop to keep a downhill foot reachable, metres.
 const MAX_TERRAIN_DROP: float = 0.42
 
+## Steepest walkable slope, radians — the reference the stride shortening is
+## scaled against. Matches `player.gd`'s `MAX_CLIMB_ANGLE`.
+const MAX_SLOPE_ANGLE: float = 0.87
+
+## Fraction of stride length given up at the steepest walkable slope.
+const SLOPE_STRIDE_LOSS: float = 0.40
+
+## Half-life for easing onto a slope's shortened stride, seconds. Long enough
+## to cross the flat-to-ramp boundary without a lurch, short enough that the
+## shorter stride is in place by the second step of the climb.
+const SLOPE_HALF_LIFE: float = 0.22
+
 ## Distance below the feet at which a falling creature starts reaching for the
 ## ground, metres. Landing anticipation is a large part of why a real jump
 ## reads as controlled rather than as a dropped puppet.
@@ -120,6 +132,10 @@ var _head_look: AnimMath.Spring3 = AnimMath.Spring3.new(Vector3.ZERO, 0.16)
 var _look_target: Vector3 = Vector3.ZERO
 var _prev_velocity: Vector3 = Vector3.ZERO
 var _prev_yaw: float = 0.0
+## Smoothed ground gradient under the feet, 0 flat to 1 at the steepest
+## walkable slope, and the frame time the smoothing integrates over.
+var _slope_gradient: float = 0.0
+var _last_delta: float = 0.016
 
 # Idle life.
 var _idle_time: float = 0.0
@@ -178,6 +194,7 @@ func tick(delta: float, velocity: Vector3, on_floor: bool,
 		crouch: float) -> PoseStack:
 	if _visual == null or _skeleton == null:
 		return pose
+	_last_delta = delta
 	_update_transforms()
 	var travelled: float = _measure_travel()
 
@@ -186,6 +203,7 @@ func tick(delta: float, velocity: Vector3, on_floor: bool,
 	var crouch_amount: float = _crouch_smooth.step(clampf(crouch, 0.0, 1.0), delta)
 
 	profile.blend_for_speed(active_gait, speed_smooth, crouch_amount)
+	_shorten_stride_on_slopes()
 	# Only ground contact advances the cycle: a creature in mid-air is not
 	# taking steps, and letting flight advance the phase makes the legs windmill.
 	gait.advance(travelled * (1.0 - air_blend), active_gait, delta)
@@ -217,7 +235,11 @@ func tick(delta: float, velocity: Vector3, on_floor: bool,
 		# longer gait-planted: clear the stance flags. Everything downstream
 		# keys off them — footstep audio, dust, grass trample, the locomotion
 		# bench — and none of it should fire walking cues out of a dance.
-		if emotes.overrides_legs() and emotes.weight() > 0.5:
+		# Cleared as soon as the emote has ANY hold on the legs, not at half
+		# weight: the legs start leaving the gait on the first blend-in frame,
+		# so a 0.5 threshold still let footstep cues fire out of the run-up
+		# into a dance.
+		if emotes.overrides_legs() and emotes.weight() > 0.05:
 			for entry in feet:
 				(entry as FootPlanter.FootGround).stance = false
 	return pose
@@ -323,6 +345,42 @@ func _place_pelvis(delta: float, body_phase: GaitEngine.BodyPhase,
 	return offset
 
 
+## Shorten the stride on sloping ground, in proportion to the gradient.
+##
+## Real people take visibly shorter steps up and down a hill, so this is
+## correct on its own terms — but it also fixes a geometry problem. On a slope
+## the leading foot's ground is much lower (or higher) than the trailing
+## foot's, which lengthens the reach the leg has to make at exactly the moment
+## it is already most extended. Descending a 22 degree ramp was the worst
+## IK-clamping case in the whole test course before this.
+##
+## The gradient is read from the foot probes rather than from the physics
+## body's floor normal, so it costs no extra raycasts and reflects the surface
+## the feet are actually on.
+func _shorten_stride_on_slopes() -> void:
+	if feet.size() < 2:
+		return
+	var normal: Vector3 = Vector3.ZERO
+	for entry in feet:
+		var ground: FootPlanter.FootGround = entry
+		if ground.found:
+			normal += ground.normal
+	if normal.length_squared() < 0.0001:
+		return
+	normal = normal.normalized()
+	# 0 on the flat, 1 at the steepest walkable slope.
+	var gradient: float = clampf(
+		acos(clampf(normal.y, -1.0, 1.0)) / MAX_SLOPE_ANGLE, 0.0, 1.0)
+	# Smoothed, because the raw value is a step function: it jumps the instant
+	# one foot crosses from flat ground onto a ramp while the other is still
+	# behind. Feeding that straight into stride length changes the gait's
+	# geometry mid-stance, which shows up as a lurch — slope pose jerk was
+	# running 2.5x the flat-ground figure before this was damped.
+	_slope_gradient = AM.damp(_slope_gradient, gradient, SLOPE_HALF_LIFE,
+		_last_delta)
+	active_gait.stride *= 1.0 - SLOPE_STRIDE_LOSS * _slope_gradient
+
+
 ## Baseline knee flex while standing still, as a pelvis drop in metres
 ## (negative).
 ##
@@ -414,7 +472,13 @@ func _solve_legs(delta: float, pelvis_offset: Vector3,
 		var rocker: Vector3 = Vector3(0.0, foot.lift,
 			-(foot.along - foot.anchor_along)) * stride_weight
 		ground.world_position += _model_to_world.basis * rocker
-		ground.stance = foot.stance and air_blend < 0.5
+		# A foot only counts as planted when the body is genuinely on the
+		# ground. The threshold is tight (0.15, not 0.5) because the airborne
+		# cross-fade is already pulling the legs off the IK solution well before
+		# it reaches halfway, so anything downstream keyed on stance — footstep
+		# audio, dust, the locomotion bench — would fire against a leg that the
+		# air pose is driving.
+		ground.stance = foot.stance and air_blend < 0.15
 		resolved.append(ground)
 		targets.append(foot)
 	feet = resolved

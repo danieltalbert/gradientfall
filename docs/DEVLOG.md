@@ -57,10 +57,32 @@ below is verified by running the game, not by inspection.*
 **VERIFIED — measured, not asserted (`scenes/dev/locomotion_lab.tscn`)**
 - New instrumented bench: four-zone obstacle course (flat, ramps, stairs,
   bumps), 20 scripted segments driven through the real `Input` singleton.
-- Foot slip **147 -> 47 mm/m** overall; **19-23 mm/m at a walk**, 25 on stairs,
-  31 on broken ground; idle, hard-stop and turn-in-place measure ~0.2 mm.
+- Foot slip **147 -> 44 mm/m** overall; **19-23 mm/m at a walk**, **1.6 on
+  stairs**, 31 on broken ground; idle, hard-stop and turn-in-place ~0.2 mm.
 - Ground error **60 -> 7.4 mm**. Backward-knee frames **8182 -> 0**. IK
-  shortfall 5 mm, clamped on 11% of frames. Worst pose jerk 58 -> 47 rad/s.
+  shortfall 5 mm, clamped on 12% of frames. Worst pose jerk 58 -> 47 rad/s.
+- All 16 emotes rendered and inspected, not just asserted.
+
+**THE HARNESS WAS WRONG THREE TIMES, AND EACH TIME IT SENT THE TUNING ASTRAY**
+Recording these because a measuring instrument that lies is worse than none,
+and every one of them looked like an animation defect first:
+- Slip was measured on a FIXED point of the foot, so honest heel-and-toe rocker
+  read as sliding. It must be measured at the instantaneous contact point —
+  heel while the toes are up, toe once the heel has lifted, ankle while flat.
+- Slip was gated on the IK's `contact` weight, which deliberately ramps up
+  BEFORE touchdown so the IK eases in. That counted the last frames of every
+  swing, at full travelling speed, as slip — inflating every figure ~3x. It
+  must be gated on `stance`.
+- The settle window after each teleport was 20 frames, but the airborne
+  cross-fade has a 0.07 s half-life, so `_air_pose` was still pulling the legs
+  off the IK solution throughout the sampled window. At 60 frames, walk slip
+  fell from 148 to 22 mm/m with no change to the animation at all.
+- And the course itself: `slope_up`, `slope_down` and `stairs_up` started 30+ m
+  from their features and never reached them, so three rows were re-measuring
+  flat ground under a slope label. The descent ramp's geometry was also wrong
+  by three metres, so once the start was fixed Kern walked into a wall at
+  0.6 m/s. Ramp centres are now solved to meet the platform edges, not
+  eyeballed.
 - Eyes on rendered frames against ground stripes for walk, run and dance.
 
 **FIXED IN PASSING (both pre-existing, both found by looking)**
@@ -73,9 +95,14 @@ below is verified by running the game, not by inspection.*
 
 **HALF-FORMED**
 - Remaining measured slip is concentrated in the heel and toe rocker phases at
-  jog and above (flat-sole slip is near zero, so the plant lock itself is
-  sound). The rigid-foot rocker is exact on paper and verified frame-by-frame;
-  the residual is most likely gait-profile blending shifting stride mid-stance.
+  jog and above (flat-sole slip is 0.58 m across the entire run, so the plant
+  lock itself is sound). The rigid-foot rocker is exact on paper and verified
+  frame-by-frame; the residual is most likely gait-profile blending shifting
+  stride mid-stance.
+- Slopes are the weakest terrain: 53 mm/m up and 64 down, against 1.6 on
+  stairs. Damping the ground-height probe took slope pose jerk from 43 to 28
+  rad/s at the cost of ~5 mm of ground error, which is the right trade but not
+  a fix. Halving the damping was tried and reverted — it put the jerk back.
 - Kern's rig gives him a 0.81 m leg on a 1.78 m body (a real adult is ~0.87 m)
   because his ankle joint sits ~4 cm high. That shortfall is what forces the
   stride cap in `LocomotionProfile.max_reachable_stride()` and a slightly brisk
