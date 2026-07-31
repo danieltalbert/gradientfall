@@ -34,16 +34,29 @@ const TEETH_HINTS: Array[String] = ["teeth", "tooth", "tongue"]
 const BROW_HINTS: Array[String] = ["brow", "eyelash", "lash"]
 
 
-## GATE (2026-07-24): the imported body loads, retargets and paints correctly,
-## but skinned meshes render with broken depth in the dual-skeleton setup —
-## garment fragments lose the depth test against a body they geometrically
-## enclose (a no-depth-test override shows them at the correct positions;
-## rigid geometry at identical coordinates renders fine). Until that engine
-## interaction is cracked in the editor's frame debugger, the imported body
-## is opt-in: add `--kern-base` after the `--` separator on any run (studio
-## included) — by default the game ships the fully-working procedural path.
+## GATE LIFTED (2026-07-29): the imported body is now the DEFAULT.
+##
+## It was gated off on 2026-07-24 because garments skinned to the procedural
+## skeleton lost their depth test against the imported body they enclose. That
+## symptom is gone, and `strip_covered_geometry()` is why — as the note in
+## `kern_visual._reskin_garments_to_base()` predicted, geometry that no longer
+## exists cannot contest a depth test. Re-verified across the character studio
+## (front, three-quarter, side, back, cloak-back, portrait) and a walk through
+## the locomotion lab: every garment renders, and foot slip on the imported
+## body measures 19 mm/m against the procedural path's 23.
+##
+## Two things that looked like this bug and were NOT:
+##   * the hero rendering bald with a hole in his face — that was
+##     `COVERED_ZONES` overshooting into the head, fixed in the same session;
+##   * the cloak looking semi-transparent at three-quarter view — that is the
+##     sleeve loft interpenetrating the cloak sheet, and it renders identically
+##     on the procedural body. A fitting problem, not a rendering one.
+##
+## `--no-kern-base` forces the fully procedural body back on. Kept as an escape
+## hatch: this flips the look of the hero, so a session that hits trouble can
+## fall back in one flag rather than reverting a commit.
 static func enabled() -> bool:
-	return OS.get_cmdline_user_args().has("--kern-base")
+	return not OS.get_cmdline_user_args().has("--no-kern-base")
 
 
 ## Returns:

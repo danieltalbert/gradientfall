@@ -56,23 +56,45 @@ rule was.*
 - Character studio at portrait and full-body framing, before/after each change.
 - Game boots clean headless; `validate_content.py` passes 111 entries.
 
+**DONE — THE GATE IS LIFTED. THE IMPORTED BODY IS NOW THE DEFAULT.**
+- Mid-session I wrote that the cloak still rendered semi-transparent and that
+  the base mesh should stay gated for it. Then I did the control I should have
+  done first: rendered the same shot on the **procedural** body. It is
+  identically translucent there. It was never the depth bug — it is the sleeve
+  loft interpenetrating the cloak sheet, a fitting problem present in both
+  paths. I had been about to hunt an engine bug that does not exist.
+- With that cleared, nothing reproduced the depth symptom at all.
+  `strip_covered_geometry()` had already killed it, exactly as the note in
+  `_reskin_garments_to_base()` predicted: geometry that no longer exists cannot
+  contest a depth test.
+- Verified before flipping: studio at six framings (no garment vanishes, no
+  z-fighting); a walk on the imported body measures **19 mm/m** slip against
+  the procedural 23; the full course scores 44.9 vs 43.6 with identical ground
+  error and zero backward knees; the real game boots clean.
+- `--no-kern-base` is the escape hatch.
+
 **HALF-FORMED**
-- **The imported body is still gated behind `--kern-base`, and honestly so.**
-  The tunic, trousers, sleeves and boots now render correctly (the stripper
-  removes the body geometry they were contesting), but the **cloak still
-  renders semi-transparent** — the arm shows through it. That is the original
-  depth bug, now isolated to a single garment instead of all of them.
+- The **cloak/sleeve interpenetration** above is real and now the most visible
+  garment defect, in both paths. The cloak sheet needs to sit further off the
+  shoulder, or the sleeve loft needs narrowing at the deltoid.
 - The hairline still sits high; the face reads slightly receded.
 - Every garment is still flat untextured colour. The law now permits maps but
   none have been authored yet — that is the next lane, not a finished one.
 
 **NEXT UP (art lane)**
-1. Kill the cloak depth case — it is the last thing gating the base mesh, and
-   with it gated the good face never reaches a player.
+1. Fix the cloak/sleeve interpenetration — now the loudest garment defect.
 2. Build the Blender bake pipeline (`tools/bake_material_maps.py`): high-poly
-   detail → normal/roughness/AO PNGs for skin, linen, leather, metal.
+   detail → normal/roughness/AO PNGs for skin, linen, leather, metal. The law
+   permits maps now; none are authored yet, so the door is open and unused.
 3. HDRI environment probe for real image-based lighting.
-4. Then re-cut the hairline and eyebrows against the imported skull.
+4. Re-cut the hairline and eyebrows against the imported skull.
+
+**LESSON WORTH KEEPING**
+Twice this session I nearly tuned against a defect that was not there — once
+when the harness measured flat ground and called it a slope, and once when I
+attributed a translucent cloak to a known engine bug without checking whether
+the *other* code path did it too. Both were caught by running the control.
+Render the comparison before believing the diagnosis.
 
 ---
 

@@ -137,12 +137,11 @@ straightens the splayed leg stance, scales to exactly 1.75 m, and CENTRES THE
 TORSO over the origin (the engine renders skinned geometry at the glb's own
 coordinates, so centring must be baked into the file).
 
-**The imported body is GATED OFF by default** (`kern_base_model.enabled()`,
-opt in with `-- --kern-base`). Reason: an unsolved engine-level rendering
-issue — with the imported body loaded, meshes SKINNED to the procedural
-skeleton render with broken depth: their fragments lose the depth test
-against a body they geometrically enclose. Evidence gathered (all verified
-by render + numeric probes):
+**The imported body was GATED OFF by default** for five days. Reason: an
+engine-level rendering issue — with the imported body loaded, meshes SKINNED
+to the procedural skeleton rendered with broken depth: their fragments lost
+the depth test against a body they geometrically enclose. Evidence gathered
+at the time (all verified by render + numeric probes):
 
 - garment geometry, skinning matrices and transforms are all correct
   (CPU-recomputed skinned positions match the mesh data exactly);
@@ -153,8 +152,33 @@ by render + numeric probes):
   not skeleton creation order, not vertex data (three different bakes
   rendered identically).
 
-Next session: reproduce in the editor with the frame debugger (Danny's
-machine has the full editor), or build a minimal two-skeleton repro for a
-Godot bug report. Until then the procedural body ships and the whole fitting
-stack (bone retarget, rest-pose fix, finger relax, skin zone painting,
-procedural-skin retirement, garment mounts) waits behind the flag.
+## Status (2026-07-29) — GATE LIFTED, THE IMPORTED BODY IS NOW DEFAULT
+
+The depth symptom is gone, and `strip_covered_geometry()` is why. The note in
+`kern_visual._reskin_garments_to_base()` predicted exactly this: geometry that
+no longer exists cannot contest a depth test. Deleting the body under the
+clothes — which is how clothed characters are normally built anyway — removed
+the contested surface, and with it the bug.
+
+Re-verified before flipping the default:
+
+- character studio at front, three-quarter, side, back, cloak-back and
+  portrait framing: every garment renders, none vanish, none z-fight;
+- a walk through the locomotion lab on the imported body measures **19 mm/m**
+  foot slip against the procedural path's 23, with the same ground error;
+- the full 20-segment course scores 44.9 mm/m against 43.6 procedural, with
+  identical ground error and zero backward-knee frames;
+- the real game boots clean headless.
+
+Two defects that looked like this bug and were not, both found by rendering it
+rather than reasoning about it:
+
+- **The hero rendered bald with a hole where his face should be.** That was
+  `COVERED_ZONES` overshooting — the "shoulder caps" zone reached y 1.62 (eye
+  level) and the "upper arms" zone reached the nose and lips, because `r` is
+  measured from the vertical centreline and counts forward protrusion. Fixed.
+- **The cloak looked semi-transparent at three-quarter view.** That is the
+  sleeve loft interpenetrating the cloak sheet, and it renders identically on
+  the fully procedural body. A fitting problem, not a rendering one.
+
+`--no-kern-base` forces the procedural body back on, as an escape hatch.
