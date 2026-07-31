@@ -177,8 +177,11 @@ rather than reasoning about it:
   `COVERED_ZONES` overshooting — the "shoulder caps" zone reached y 1.62 (eye
   level) and the "upper arms" zone reached the nose and lips, because `r` is
   measured from the vertical centreline and counts forward protrusion. Fixed.
-- **The cloak looked semi-transparent at three-quarter view.** That is the
-  sleeve loft interpenetrating the cloak sheet, and it renders identically on
-  the fully procedural body. A fitting problem, not a rendering one.
+- **Brown bands across the sleeves, first read as a see-through cloak.** The
+  cloak is opaque and `kern_cloth.gdshader` declares no transparency at all.
+  The bands render identically on the fully procedural body, which has no arm
+  geometry beneath the sleeve, so they are not the imported body showing
+  through anything — they come from the sleeve's own shading. Cause still
+  open; it is not a base-mesh issue.
 
 `--no-kern-base` forces the procedural body back on, as an escape hatch.

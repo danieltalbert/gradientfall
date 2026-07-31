@@ -74,27 +74,48 @@ rule was.*
 - `--no-kern-base` is the escape hatch.
 
 **HALF-FORMED**
-- The **cloak/sleeve interpenetration** above is real and now the most visible
-  garment defect, in both paths. The cloak sheet needs to sit further off the
-  shoulder, or the sleeve loft needs narrowing at the deltoid.
+- **Brown bands across the sleeves — cause still unknown, and I was wrong
+  about it twice.** First I called it a see-through cloak (it is not; the
+  cloak is opaque and the cloth shader has no transparency at all). Then I
+  called it bare arm pushing through the sleeve, and widened the sleeve radii
+  to fix it. That changed nothing — and rendering the same shot on the
+  PROCEDURAL body, which has no arm geometry under the sleeve whatsoever,
+  shows the identical bands. So they originate in the sleeve's own shading:
+  most likely a trim or wear term in `kern_cloth.gdshader` keyed on the ring
+  `v` coordinate, which the sleeve sets to `t * 1.4`. The radius change has
+  been reverted rather than left in with a false rationale attached.
 - The hairline still sits high; the face reads slightly receded.
+- The tunic's shoulder yoke reads as two flat angular planes, like shoulder
+  pads, in both paths.
 - Every garment is still flat untextured colour. The law now permits maps but
   none have been authored yet — that is the next lane, not a finished one.
 
 **NEXT UP (art lane)**
-1. Fix the cloak/sleeve interpenetration — now the loudest garment defect.
+1. Find where the sleeve bands come from — read `kern_cloth.gdshader`'s use of
+   UV/`v` and `MAT.add_trim`, rather than guessing at the geometry again.
 2. Build the Blender bake pipeline (`tools/bake_material_maps.py`): high-poly
    detail → normal/roughness/AO PNGs for skin, linen, leather, metal. The law
    permits maps now; none are authored yet, so the door is open and unused.
 3. HDRI environment probe for real image-based lighting.
 4. Re-cut the hairline and eyebrows against the imported skull.
 
-**LESSON WORTH KEEPING**
-Twice this session I nearly tuned against a defect that was not there — once
-when the harness measured flat ground and called it a slope, and once when I
-attributed a translucent cloak to a known engine bug without checking whether
-the *other* code path did it too. Both were caught by running the control.
-Render the comparison before believing the diagnosis.
+**LESSON WORTH KEEPING — THE CONTROL RENDER**
+Three times this session I chased a defect whose cause I had guessed wrong,
+and every one was settled in minutes by rendering the OTHER configuration:
+
+1. The harness measured flat ground and reported it as slope performance.
+   Caught by checking where the character actually was.
+2. A "see-through cloak" blamed on the known dual-skeleton depth bug. The
+   procedural body showed it identically — so it was never that bug, and the
+   gate that had held the hero's real face back for five days came off.
+3. Those same marks then blamed on bare arm poking through the sleeve, and
+   the sleeve was widened to fix it. The procedural body has no arm under the
+   sleeve at all and shows the same bands.
+
+The habit that works: before believing a diagnosis, render the configuration
+where the suspected cause is absent. If the symptom survives, the diagnosis is
+wrong. It costs one render and it has now saved three wrong fixes — one of
+which was already committed as a false claim in this very devlog.
 
 ---
 

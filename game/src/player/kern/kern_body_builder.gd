@@ -382,6 +382,13 @@ static func _sleeve_radius(t: float) -> float:
 	# Shoulder cap -> deltoid -> biceps -> elbow -> forearm swell -> cuff.
 	# Slimmer and more tapered than before for a lean, athletic arm.
 	# Bumped ~12% for the imported MPFB arm (muscle 0.6 build).
+	#
+	# NOT the cause of the brown bands across the sleeve. Those were assumed to
+	# be bare arm pushing through the cloth and these radii were widened to fix
+	# it; the widening changed nothing, and rendering the same shot on the
+	# PROCEDURAL body — which has no arm geometry under the sleeve at all —
+	# showed the identical bands. They come from the sleeve's own shading, not
+	# from anything underneath it. Left at the measured values.
 	var keys: Array = [
 		[0.00, 0.0630], [0.08, 0.0590], [0.20, 0.0510], [0.34, 0.0450],
 		[0.50, 0.0410], [0.60, 0.0430], [0.72, 0.0400], [0.86, 0.0360],
