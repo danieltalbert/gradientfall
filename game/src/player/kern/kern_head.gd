@@ -59,11 +59,17 @@ func retire_skin_for_import() -> void:
 		# the cap was built against, so dropping the cap left the entire top of
 		# the head bare and the hero rendered bald from every angle above eye
 		# line. Raise it and stretch it vertically instead.
-		# Tuned by render, not by guess: -0.018 left the crown bald, +0.020 lifted
-		# the whole cap off the skull so it read as a hovering hat. This sits it
-		# on the bone.
-		hair.scale = Vector3(1.12, 1.09, 1.12)
-		hair.position += Vector3(0.0, 0.001, 0.016)
+		# Tuned by render, not by guess. -0.018 left the crown bald; +0.020 with
+		# a 1.09 stretch lifted the whole cap off the bone into a hovering hat.
+		# The cap needs to grow UPWARD from a slightly lower anchor instead:
+		# a taller stretch fills the crown, and dropping the origin keeps the
+		# hairline down on the forehead rather than riding up with it.
+		# Scale is the wrong lever for a receding hairline — growing the cap
+		# pushes its lower edge UP and OUT around the skull, so 1.24/1.32
+		# exposed more forehead than 1.16/1.22 did. The hairline is lowered in
+		# `_hairline_t()` instead; scale only fills the crown.
+		hair.scale = Vector3(1.16, 1.22, 1.16)
+		hair.position += Vector3(0.0, -0.014, 0.016)
 	# Brows: the imported head carries its own, and the procedural pair was
 	# built against the sculpted skull's curvature — on the imported face it
 	# lands down by the mouth. Retire it with the rest of the sculpted face.
@@ -783,9 +789,21 @@ func _lash_surface(side: float) -> Dictionary:
 
 func _hairline_t(psi: float) -> float:
 	var ap: float = absf(psi)
-	# Forehead hairline high; drops past the temples and low around the back so
-	# the cap of hair fully covers the skull between clumps.
-	return 0.235 + 0.14 * smoothstep(0.35, 1.0, ap) + 0.34 * smoothstep(1.1, 2.9, ap)
+	# Forehead hairline, dropping past the temples and lower still around the
+	# back so the cap fully covers the skull between clumps.
+	#
+	# The front value is 0.325, not 0.235: authored against the smaller sculpted
+	# skull, the old fraction lands high on the imported forehead.
+	#
+	# HONEST NOTE: this did not visibly close the bare patch at the front crown,
+	# so it is not the whole story. What remains is a SHAPE mismatch — the
+	# imported skull is a different curve from the one this shell was built
+	# around, and it pushes through the shell near the crown regardless of
+	# where the hairline sits. Growing the cap makes it worse, not better,
+	# because scaling drives the lower edge up and out around the skull. The
+	# real fix is to rebuild `_scalp_shell()` by sampling the imported skull's
+	# own surface instead of the sculpted one; that is a job, not a constant.
+	return 0.325 + 0.14 * smoothstep(0.35, 1.0, ap) + 0.34 * smoothstep(1.1, 2.9, ap)
 
 
 func _hair_surface() -> Dictionary:

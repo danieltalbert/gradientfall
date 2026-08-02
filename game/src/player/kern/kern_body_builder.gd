@@ -380,19 +380,20 @@ static func _build_sleeve(skeleton: Skeleton3D, bones: Dictionary, right: bool) 
 
 static func _sleeve_radius(t: float) -> float:
 	# Shoulder cap -> deltoid -> biceps -> elbow -> forearm swell -> cuff.
-	# Slimmer and more tapered than before for a lean, athletic arm.
-	# Bumped ~12% for the imported MPFB arm (muscle 0.6 build).
 	#
-	# NOT the cause of the brown bands across the sleeve. Those were assumed to
-	# be bare arm pushing through the cloth and these radii were widened to fix
-	# it; the widening changed nothing, and rendering the same shot on the
-	# PROCEDURAL body — which has no arm geometry under the sleeve at all —
-	# showed the identical bands. They come from the sleeve's own shading, not
-	# from anything underneath it. Left at the measured values.
+	# Sized to CLEAR the imported MPFB arm with cloth slack, not to trace it.
+	# The previous values sat within a millimetre of the imported arm's own
+	# radius (bicep ~0.048 against a 0.049 sleeve), so the arm won nearly
+	# everywhere below the deltoid and Kern rendered in a short-sleeved shirt
+	# he was never given. Roughly 8-10 mm of clearance along the whole run.
+	#
+	# NB these are NOT the cause of the brown bands across the sleeve. Those
+	# render identically on the procedural body, which carries no arm geometry
+	# under the sleeve at all, so they come from the sleeve's own shading.
 	var keys: Array = [
-		[0.00, 0.0630], [0.08, 0.0590], [0.20, 0.0510], [0.34, 0.0450],
-		[0.50, 0.0410], [0.60, 0.0430], [0.72, 0.0400], [0.86, 0.0360],
-		[1.00, 0.0320],
+		[0.00, 0.0690], [0.08, 0.0650], [0.20, 0.0570], [0.34, 0.0510],
+		[0.50, 0.0470], [0.60, 0.0490], [0.72, 0.0455], [0.86, 0.0410],
+		[1.00, 0.0360],
 	]
 	for i in keys.size() - 1:
 		var a: Array = keys[i]

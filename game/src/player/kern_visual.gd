@@ -441,8 +441,21 @@ const BASE_REST_FIX: Dictionary = {
 	# z: drop from T to hanging; x: pitch the hang slightly FORWARD (the MPFB
 	# shoulder joint sits back at the scapula, so a straight drop reads as
 	# hands-clasped-behind); forearms take a small natural elbow bend.
-	"UpperArmL": Vector3(0.06, 0.0, 1.30),
-	"UpperArmR": Vector3(0.06, 0.0, -1.30),
+	#
+	# z is 1.51 rad, NOT 1.30. A full T-to-vertical drop is PI/2 = 1.571, and
+	# the procedural rig this must line up with hangs its arms 3 degrees off
+	# vertical (shoulder x 0.185 -> wrist x 0.215 over a 0.55 m drop), so the
+	# match is 1.51. At 1.30 the imported arm hung nearly 16 degrees out from
+	# vertical and its wrist landed ~11 cm outboard of the sleeve's — so the
+	# arm crossed straight out through the sleeve wall partway down, and bare
+	# skin rendered over the cloth from the bicep to the cuff.
+	#
+	# That looked exactly like a sleeve that was too tight, and it was tuned as
+	# one twice. It is not: inflating the sleeve to a 95 mm billowing tube
+	# still let the arm break through the middle, which is what finally proved
+	# the two limbs were not concentric at all.
+	"UpperArmL": Vector3(0.06, 0.0, 1.51),
+	"UpperArmR": Vector3(0.06, 0.0, -1.51),
 	"ForearmL": Vector3(0.10, 0.0, 0.10),
 	"ForearmR": Vector3(0.10, 0.0, -0.10),
 }

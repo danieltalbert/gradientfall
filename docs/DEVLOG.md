@@ -73,7 +73,34 @@ rule was.*
   error and zero backward knees; the real game boots clean.
 - `--no-kern-base` is the escape hatch.
 
+**DONE (later in the same session) — "he doesn't look connected, it's freaky"**
+- **Floating hands.** `COVERED_ZONES`' arm band ran to r 0.70. On a 1.75 m
+  figure the shoulder is at r ~0.18, the elbow ~0.45 and the wrist ~0.70 — so
+  it deleted the ENTIRE arm from shoulder to wrist, and the imported hands hung
+  in space with a gap at the cuff. Narrowed to 0.28, which strips only the
+  deltoid under the tunic yoke. Arms are attached to hands again.
+- **Bare arm rendering over the sleeve** — the actual, verifiable version of
+  the symptom that the brown bands were mistaken for. It was NOT sleeve width:
+  inflating the sleeve to a 95 mm billowing tube still let the arm break
+  through the middle, which proved the two limbs were not concentric at all.
+  `BASE_REST_FIX` dropped the imported T-pose arm by 1.30 rad when a full drop
+  is PI/2 = 1.571 and the procedural arm it must match hangs 3° off vertical.
+  The imported arm therefore hung ~16° out and its wrist landed ~11 cm outboard
+  of the sleeve's. Corrected to 1.51; sleeve radii given a real ~8 mm of cloth
+  clearance while there.
+- Hair: crown filled by stretching the cap (1.16/1.22) and the front hairline
+  lowered. Partial — see below.
+
 **HALF-FORMED**
+- **The hair still shows a bare patch at the front crown, and scale cannot fix
+  it.** Four render passes established the shape of the problem: growing the
+  cap makes it WORSE, because scaling drives the cap's lower edge up and out
+  around the skull and exposes more forehead. Lowering `_hairline_t` did not
+  close it either. What is left is a SHAPE mismatch — `_scalp_shell()` is built
+  around the sculpted skull's curve and the imported skull pushes through it
+  near the crown. The real fix is to rebuild the shell by sampling the imported
+  skull's own surface. That is a job, not a constant, and it is the top of the
+  art queue.
 - **Brown bands across the sleeves — cause still unknown, and I was wrong
   about it twice.** First I called it a see-through cloak (it is not; the
   cloak is opaque and the cloth shader has no transparency at all). Then I

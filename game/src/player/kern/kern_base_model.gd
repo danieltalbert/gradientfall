@@ -376,18 +376,23 @@ const COVERED_ZONES: Array[Dictionary] = [
 	# sit just above it, and cutting into them opens the face and exposes the
 	# teeth. Everything above this is visible neck and head.
 	{"y_min": 0.0, "y_max": 1.44, "r_min": 0.0, "r_max": 0.22},
-	# Upper arms + forearms under the sleeves. In the T-pose these run out
-	# along X, so they're selected by radius, not height; the hands sit beyond
-	# r_max and survive.
+	# Deltoid and upper arm only, where the tunic's yoke sits over it.
+	#
+	# r_max is 0.28, NOT 0.70. On a 1.75 m figure the shoulder sits at r ~0.18,
+	# the elbow at ~0.45 and the wrist at ~0.70, so a 0.70 limit deleted the
+	# ENTIRE arm from shoulder to wrist. The imported hands then hung in space
+	# with a visible gap between the sleeve cuff and the wrist — the single
+	# most unsettling thing about the figure, and the reason he read as "not
+	# connected". The sleeve is what covers the arm; the body under it only
+	# needs removing where the tunic's thicker yoke would otherwise fight it.
 	#
 	# y_max is 1.50, NOT 1.60. `r` is the distance from the body's vertical
 	# CENTRELINE, so it counts forward protrusion as well as sideways: on a
 	# 1.75 m figure the nose and lips stick out to r ~0.13, which sits inside
-	# this zone's r_min of 0.12. At 1.60 the band therefore reached mouth
-	# height (~1.56) and cut the jaw and lips clean off, leaving the teeth mesh
-	# showing through the hole. The T-pose arms only span y 1.36-1.50, so
-	# stopping at 1.50 loses nothing they need.
-	{"y_min": 1.28, "y_max": 1.50, "r_min": 0.12, "r_max": 0.70},
+	# this zone's r_min. At 1.60 the band therefore reached mouth height
+	# (~1.56) and cut the jaw and lips clean off, leaving the teeth mesh
+	# showing through the hole.
+	{"y_min": 1.28, "y_max": 1.50, "r_min": 0.12, "r_max": 0.28},
 	# Shoulder caps and upper chest under the tunic's yoke. Without this the
 	# bare shoulders poke through the garment in-game. In the T-pose the hands
 	# hang far out along X (r ~0.7), so this tight radius cannot reach them.
