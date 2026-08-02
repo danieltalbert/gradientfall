@@ -299,6 +299,77 @@ static func _torso_weights(ring: ML.Ring, y: float, bones: Dictionary) -> void:
 
 # --- Sleeves ----------------------------------------------------------------
 
+## Build a sleeve along an ARBITRARY arm path, skinned to that rig's bones.
+##
+## Exists because the code-built arm and the imported MPFB arm are genuinely
+## different limbs: measured after a frame of animation they diverge by 47 mm at
+## the shoulder and 133 mm at the hand. A sleeve authored around the procedural
+## arm therefore cannot enclose the imported one at ANY radius — inflating it to
+## a 95 mm tube still let bare skin through the middle, which is what finally
+## ruled width out. The fix is to build the cloth around the arm that is
+## actually visible.
+##
+## `bone_ids` is `{upper, lower, hand}` for the target skeleton.
+static func build_sleeve_on(skeleton: Skeleton3D, bone_ids: Dictionary,
+		shoulder: Vector3, elbow: Vector3, wrist: Vector3,
+		right: bool, radius_scale: float = 1.0) -> MeshInstance3D:
+	var rows: int = 18
+	var path: Array[Vector3] = []
+	for i in rows:
+		var t: float = float(i) / float(rows - 1)
+		var p: Vector3 = shoulder.lerp(elbow, t * 2.0) if t < 0.5 \
+			else elbow.lerp(wrist, (t - 0.5) * 2.0)
+		# Slight forward elbow set so the arm never reads hyper-extended.
+		p.z -= sin(t * PI) * 0.008
+		path.append(p)
+	var radii: PackedFloat32Array = PackedFloat32Array()
+	for i in rows:
+		var t: float = float(i) / float(rows - 1)
+		var r: float = _sleeve_radius(t) * radius_scale
+		if t > 0.38 and t < 0.62:
+			r += sin(t * 130.0) * 0.0022
+		radii.append(r)
+
+	var rings: Array = ML.tube_rings(path, radii, RING_N)
+	for i in rings.size():
+		var ring: ML.Ring = rings[i]
+		var t: float = float(i) / float(rings.size() - 1)
+		ring.v = t * 1.4
+		var c: Color = KM.TUNIC_SLEEVE
+		if t > 0.94:
+			c = KM.TUNIC_SLEEVE.darkened(0.22)
+		c.a = 0.0
+		ring.color = c
+		# Weights follow the PATH, and the path is shoulder->elbow over t 0..0.5
+		# then elbow->wrist over 0.5..1. So the upper arm bone must own
+		# everything up to the elbow; handing the forearm bone cloth at t 0.40
+		# (still 20% above the elbow) tears the sleeve off the arm as soon as
+		# the elbow bends.
+		if t < 0.42:
+			ring.bone_a = int(bone_ids["upper"])
+			ring.bone_b = int(bone_ids["lower"])
+			ring.blend = 0.0
+		elif t < 0.58:
+			ring.bone_a = int(bone_ids["upper"])
+			ring.bone_b = int(bone_ids["lower"])
+			ring.blend = clampf((t - 0.42) / 0.16, 0.0, 1.0)
+		elif t < 0.90:
+			ring.bone_a = int(bone_ids["lower"])
+			ring.bone_b = int(bone_ids["hand"])
+			ring.blend = 0.0
+		else:
+			ring.bone_a = int(bone_ids["lower"])
+			ring.bone_b = int(bone_ids["hand"])
+			ring.blend = clampf((t - 0.90) / 0.10, 0.0, 1.0) * 0.35
+
+	var surface: Dictionary = ML.loft(rings, true, false, false, true)
+	var mi: MeshInstance3D = ML.make_instance(surface, KM.cloth(190.0, 0.012),
+		"SleeveR" if right else "SleeveL")
+	skeleton.add_child(mi)
+	mi.skin = skeleton.create_skin_from_rest_transforms()
+	return mi
+
+
 static func _build_sleeve(skeleton: Skeleton3D, bones: Dictionary, right: bool) -> void:
 	var sx: float = 1.0 if right else -1.0
 	var shoulder: Vector3 = Vector3(SHOULDER_X * sx, SHOULDER_Y + 0.018, -0.01)

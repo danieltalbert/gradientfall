@@ -37,6 +37,15 @@ const BaseModel: GDScript = preload("res://src/player/kern/kern_base_model.gd")
 ## but scale-relative tuning needs the one number the body was authored to.
 const BODY_HEIGHT: float = 1.78
 
+## Cloth clearance for sleeves built on the imported arm.
+##
+## The radius profile in `kern_body_builder.gd` was measured against the
+## procedural arm, which is slimmer than the MPFB one; at 1.0 the imported
+## forearm pushes straight through the cloth. This is the only knob that
+## legitimately fixes that, and only NOW that the sleeve is finally built
+## around the same limb — while the two were 133 mm apart, no radius could.
+const IMPORTED_SLEEVE_SCALE: float = 1.32
+
 ## The First Model showing through: 0 = ordinary disguised traveller, 1 = fully
 ## lit. A faint rest ember, rising with the knowledge-charge meter (and, later,
 ## machinery proximity / hallucination zones). Set >= 0 to force a level
@@ -88,6 +97,8 @@ var animator: CreatureAnimator = CreatureAnimator.new()
 
 var _idle_t: float = 0.0
 var _hips_rest: Vector3 = Vector3.ZERO
+## Frames left before `--armdump` reports; lets the pose settle first.
+var _armdump_countdown: int = 0
 ## Tween for the cartoon squash/stretch accent on jumps and heavy landings.
 var _scale_tween: Tween
 
@@ -212,6 +223,7 @@ func _ready() -> void:
 	# with the same animation. Runs after GearBuilder so belt/scarf move too.
 	if _base_skeleton != null:
 		_reskin_garments_to_base()
+		_rebuild_sleeves_on_import()
 
 	if _body != null:
 		_prev_pos = _body.global_position
@@ -223,6 +235,13 @@ func _ready() -> void:
 		animator.bind(self, _body, _skeleton, _bones, BODY_HEIGHT, 1,
 			[_body.get_rid()] as Array[RID])
 
+	# Arm alignment is dumped from `_physics_process`, not here: in `_ready` the
+	# imported skeleton is still in its exported T-pose and the numbers just
+	# report that, which is exactly how the first run of this diagnostic
+	# produced a "0.68 m gap" that meant nothing.
+	if OS.get_cmdline_user_args().has("--armdump"):
+		_armdump_countdown = 12
+
 	# The magic answers to the knowledge-charge meter (Combat v1 owns it).
 	if EventBus.knowledge_charge_changed and not \
 			EventBus.knowledge_charge_changed.is_connected(_on_charge_changed):
@@ -230,7 +249,71 @@ func _ready() -> void:
 	KM.set_awaken(_awaken)
 
 
+## Rebuild both sleeves around the IMPORTED arm and skin them to it.
+##
+## The procedural sleeves are hidden rather than deleted, so `--no-kern-base`
+## still ships the original garment untouched. See `build_sleeve_on()` for why
+## this is necessary: the two arms are 47-133 mm apart once posed, so a sleeve
+## built on one simply cannot clothe the other.
+func _rebuild_sleeves_on_import() -> void:
+	var needed: Array[String] = ["UpperArmL", "ForearmL", "HandL",
+		"UpperArmR", "ForearmR", "HandR"]
+	for bone_name in needed:
+		if not _base_bones.has(bone_name):
+			return
+	for right in [false, true]:
+		var suffix: String = "R" if right else "L"
+		var old: Node3D = _skeleton.get_node_or_null("Sleeve" + suffix)
+		if old != null:
+			old.visible = false
+		var upper: int = _base_bones["UpperArm" + suffix]
+		var lower: int = _base_bones["Forearm" + suffix]
+		var hand: int = _base_bones["Hand" + suffix]
+		# Authored in the skeleton's OWN space and in its REST (T) pose.
+		#
+		# Both matter. The mesh is parented to the Skeleton3D, so model-space
+		# coordinates put it metres away — the first attempt hung two green
+		# tubes out sideways at head height. And a skin from rest transforms
+		# binds the mesh as it is at REST, so pre-folding the arm down would
+		# have the animation fold it a second time.
+		BodyBuilder.build_sleeve_on(_base_skeleton,
+			{"upper": upper, "lower": lower, "hand": hand},
+			_base_skeleton.get_bone_global_rest(upper).origin,
+			_base_skeleton.get_bone_global_rest(lower).origin,
+			_base_skeleton.get_bone_global_rest(hand).origin,
+			right, IMPORTED_SLEEVE_SCALE)
+
+
+## Print where the procedural arm bones sit versus the imported ones, in model
+## space, after the rest fix.
+##
+## The sleeve is skinned to the PROCEDURAL arm while the visible flesh is the
+## IMPORTED one, so any divergence between them shows as bare skin rendering
+## over the cloth. That symptom has now been misattributed twice — once to
+## sleeve width, once to the covered-geometry stripper — so it gets measured
+## rather than guessed at. Run with `-- --armdump`.
+func _dump_arm_alignment() -> void:
+	if _base_skeleton == null:
+		print("KernVisual: --armdump needs the imported body")
+		return
+	var skel_in_model: Transform3D = global_transform.affine_inverse() \
+		* _base_skeleton.global_transform
+	print("--- arm alignment (model space) ---")
+	print("  bone          procedural            imported             gap")
+	for bone_name in ["UpperArmL", "ForearmL", "HandL"]:
+		var pi_idx: int = _bones.get(bone_name, -1)
+		var rt: Dictionary = _base_retarget.get(bone_name, {})
+		if pi_idx < 0 or rt.is_empty():
+			continue
+		var proc: Vector3 = _skeleton.get_bone_global_pose(pi_idx).origin
+		var imp: Vector3 = skel_in_model \
+			* _base_skeleton.get_bone_global_pose(rt["idx"]).origin
+		print("  %-12s %s  %s  %.4f" % [bone_name, str(proc), str(imp),
+			proc.distance_to(imp)])
+
+
 func _on_charge_changed(fraction: float) -> void:
+	_charge01 = clampf(fraction, 0.0, 1.0)
 	_charge01 = clampf(fraction, 0.0, 1.0)
 
 
@@ -267,6 +350,10 @@ func _physics_process(delta: float) -> void:
 		_apply_combat(pose)
 
 	_commit(pose)
+	if _armdump_countdown > 0:
+		_armdump_countdown -= 1
+		if _armdump_countdown == 0:
+			_dump_arm_alignment()
 	_animate_cloak(delta, moving)
 	_animate_head_extras(delta, moving)
 	_drive_awaken(delta)

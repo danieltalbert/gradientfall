@@ -835,7 +835,7 @@ func _hair_surface() -> Dictionary:
 		# skull the same 60-82 mm length with a -0.42 drop curtained straight
 		# over the eyes; the sweep is now almost entirely sideways so the
 		# fringe frames the brow instead of hiding it.
-		var fringe_len: float = 0.040 + 0.014 * ML.hash1(float(k) * 3.3)
+		var fringe_len: float = 0.052 + 0.018 * ML.hash1(float(k) * 3.3)
 		if OS.get_cmdline_user_args().has("--nofringe"):
 			fringe_len = 0.001
 		specs.append([0.205 + 0.03 * jt, psi, fringe_len, 0.019,
@@ -944,10 +944,18 @@ func _grid_normal(frac: float, psi: float) -> Vector3:
 ##   back  0.88 -> low over the occiput toward the nape
 func _grid_hairline(psi: float) -> float:
 	var ap: float = absf(psi)
-	# Front is 0.30, not 0.40: clump ROOTS sit on this line and their length
-	# then droops below it, so a hairline at the brow puts the fringe over the
-	# eyes. 0.30 is theta 0.60, about y 1.67 — upper forehead.
-	return 0.30 + 0.18 * smoothstep(0.5, 1.4, ap) + 0.40 * smoothstep(1.5, 2.9, ap)
+	# Clump ROOTS sit on this line and their length droops below it, so the
+	# line itself has to sit above where the hair should end. 0.38 is theta
+	# 0.76, upper forehead; the fringe then falls to just above the brow.
+	var line: float = 0.38 + 0.16 * smoothstep(0.5, 1.4, ap) \
+		+ 0.36 * smoothstep(1.5, 2.9, ap)
+	# Ragged, not ruled. A smooth curve here reads as the rim of a bowl-cut
+	# helmet, because it is one — a perfectly even edge is the single loudest
+	# tell that a haircut was generated. Two octaves of hash noise break the
+	# line up by a few millimetres without moving the hairline as a whole.
+	var jitter: float = (ML.hash1(psi * 7.3 + 11.0) - 0.5) * 0.055 \
+		+ (ML.hash1(psi * 19.7 + 3.0) - 0.5) * 0.025
+	return line + jitter
 
 
 ## Convert a clump's authored sculpted-`t` into the measured skull's `frac`.

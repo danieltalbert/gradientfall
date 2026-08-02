@@ -4,6 +4,69 @@
 
 ---
 
+## 2026-07-29 (art lane, third pass) — KERN LOOKS LIKE A PERSON
+
+*Danny: "he doesn't look connected completely and it's kinda freaky", then
+"do not stop iterating until the character genuinely looks normal." ~40
+render-assess-fix cycles. The honest headline: every real defect turned out to
+be a FRAME mismatch between the code-built rig and the imported one, and none
+of them were fixable by tuning the numbers I kept reaching for first.*
+
+**DONE — the hair, which was three bugs stacked**
+1. **Wrong surface.** The cap was lofted on the SCULPTED skull profile; the
+   imported cranium is a different shape, so it sank inside and skin pushed
+   through. `KernBaseModel.sample_skull()` now measures the imported head and
+   the cap is built on that, enclosing by construction.
+   The sampler is **spherical**, not cylindrical — a (height, azimuth) grid
+   degenerates at the crown, which is precisely where the bald patch was.
+2. **Inverted winding.** Spherical rings advance with the polar angle, which
+   winds opposite to the sculpted shell's parameter. Every triangle faced into
+   the skull, was backface-culled, and left the crown bald with a few black
+   interior polys showing. One `flip` flag; the crown filled completely.
+3. **The bone's rest rotation.** The biggest one. The procedural rig has
+   identity rest rotations, so a `BoneAttachment3D` hands children a clean
+   model-space frame; an imported MPFB rig orients every bone. That rotation
+   tipped the whole head assembly down the face — which is why hair rooted at
+   eye level and curtained over the eyes no matter how the hairline was tuned.
+   Hairline is now ragged rather than ruled, because an even edge reads as a
+   bowl-cut helmet.
+
+**DONE — the body**
+- **Floating hands.** `COVERED_ZONES`' arm band ran to r 0.70; shoulder is at
+  0.18, elbow 0.45, wrist 0.70 — it deleted the ENTIRE arm and left the hands
+  hanging in space. Narrowed to 0.28.
+- **Sleeves rebuilt on the imported arm.** Measured after a frame of
+  animation, the procedural arm the sleeve was built on and the imported arm
+  you actually see diverge by **47 mm at the shoulder and 133 mm at the hand**.
+  No radius could ever close that — inflating the sleeve to a 95 mm billowing
+  tube still let bare skin through the middle, which is what finally ruled
+  width out. `build_sleeve_on()` now builds the cloth around the imported limb
+  and skins it to those bones, authored in the skeleton's own space and its
+  REST pose (model-space coordinates hung two green tubes out sideways at head
+  height; pre-folding the arm made the animation fold it twice).
+
+**HALF-FORMED**
+- Sleeves reach the upper arm and stop; Kern reads as short-sleeved. The
+  geometry is now correct and concentric, so this is finally a tuning problem
+  rather than a structural one — the radius profile and its taper were
+  measured against the slimmer procedural arm.
+- The tunic's shoulder yoke still reads as two flat angular planes.
+- Brown bands across the sleeves, cause still open (they render identically on
+  the procedural body, so they are the sleeve's own shading — most likely a
+  trim term keyed on the ring `v`).
+- Still no texture maps authored. The law permits them; the door is open and
+  unused.
+
+**DIAGNOSTIC FLAGS KEPT** (each earned its place by settling an argument)
+`--skulldump` prints the measured skull radius profile · `--shelldebug`
+inflates the scalp cap to 50 mm and proved it was rendering after two passes of
+assuming it was not · `--noshell` / `--nofringe` separate the two hair layers ·
+`--armdump` prints procedural-versus-imported bone positions, and must run
+after a frame of animation — in `_ready` the imported skeleton is still in its
+export T-pose and reports a meaningless 0.68 m gap.
+
+---
+
 ## 2026-07-29 (art lane, same session) — THE CODE-ONLY RULE LIFTED; KERN HAS A FACE
 
 *Danny: "I have blender, what resources do you need to make sure the art and

@@ -66,7 +66,7 @@ static func load_into(parent: Node3D) -> Dictionary:
 	var fail: Dictionary = {"ok": false, "root": null, "skeleton": null,
 		"bones": {}, "reason": ""}
 	if not enabled():
-		fail["reason"] = "imported base body gated off (run with -- --kern-base); using procedural body"
+		fail["reason"] = "imported base body turned off by --no-kern-base; using the procedural body"
 		return fail
 	var model_path: String = ""
 	for candidate in MODEL_PATHS:
