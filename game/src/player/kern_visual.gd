@@ -139,8 +139,53 @@ func _ready() -> void:
 
 	_head = HeadScene.new()
 	_head.name = "Head"
-	(body_data["head_attach"] as BoneAttachment3D).add_child(_head)
-	_head.build(_head_pivot())
+	# Mount the head on whichever skeleton actually carries the skull.
+	#
+	# With the imported body active the visible cranium is driven by the
+	# IMPORTED head bone, while this node was always parented to the procedural
+	# one. Any divergence between them slides the hair off the head — the same
+	# failure that put Kern's arms outside his sleeves. Mounting on the bone
+	# that owns the geometry removes the possibility entirely.
+	var head_pivot: Vector3 = _head_pivot()
+	var imported_head: int = _base_bones.get("Head", -1) if _base_skeleton != null else -1
+	if imported_head >= 0:
+		var attach: BoneAttachment3D = BoneAttachment3D.new()
+		attach.name = "ImportedHeadAttach"
+		_base_skeleton.add_child(attach)
+		attach.bone_name = _base_skeleton.get_bone_name(imported_head)
+		attach.add_child(_head)
+		# The head's geometry is authored in MODEL space and shifted by its
+		# pivot, so the pivot has to be the imported bone's model-space rest.
+		var skel_in_model: Transform3D = global_transform.affine_inverse() \
+			* _base_skeleton.global_transform
+		var head_rest: Transform3D = skel_in_model \
+			* _base_skeleton.get_bone_global_rest(imported_head)
+		head_pivot = head_rest.origin
+		# Cancel the bone's rest ROTATION. The procedural rig is built with
+		# identity rest rotations, so a BoneAttachment on it hands children a
+		# clean model-space frame; an imported MPFB rig orients every bone, and
+		# that rotation was tipping the entire head assembly forward and down
+		# the face — which is why the hair rooted at eye level and curtained
+		# over the eyes no matter how the hairline was tuned.
+		_head.transform = Transform3D(head_rest.basis.orthonormalized().inverse(),
+			Vector3.ZERO)
+		print("KernVisual: head mounted on the imported skull bone at %s" % [
+			str(head_pivot)])
+	else:
+		(body_data["head_attach"] as BoneAttachment3D).add_child(_head)
+	# Measure the imported skull BEFORE building, so the hair cap is lofted on
+	# the real head's surface instead of the sculpted profile it was authored
+	# against. Without this the cap sinks inside the imported cranium and skin
+	# pushes through at the crown, which no amount of scaling fixes.
+	if _base_root != null:
+		var skull: Dictionary = BaseModel.sample_skull(_base_root)
+		if skull.get("ok", false):
+			_head.set_skull_sample(skull)
+			print("KernVisual: skull sampled for hair fit (centre %s)" % [
+				str(skull["centre"])])
+			if OS.get_cmdline_user_args().has("--skulldump"):
+				BaseModel.dump_skull(skull)
+	_head.build(head_pivot)
 
 	# With the imported body live, the procedural SKIN becomes a duplicate —
 	# hide it (face/eyes, neck, hands, nails). Garments, boots, cloak, sword,

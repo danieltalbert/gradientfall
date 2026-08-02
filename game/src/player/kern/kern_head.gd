@@ -64,12 +64,19 @@ func retire_skin_for_import() -> void:
 		# The cap needs to grow UPWARD from a slightly lower anchor instead:
 		# a taller stretch fills the crown, and dropping the origin keeps the
 		# hairline down on the forehead rather than riding up with it.
-		# Scale is the wrong lever for a receding hairline — growing the cap
-		# pushes its lower edge UP and OUT around the skull, so 1.24/1.32
-		# exposed more forehead than 1.16/1.22 did. The hairline is lowered in
-		# `_hairline_t()` instead; scale only fills the crown.
-		hair.scale = Vector3(1.16, 1.22, 1.16)
-		hair.position += Vector3(0.0, -0.014, 0.016)
+		# No scale fudge when the skull was measured: the cap is already lofted
+		# on the imported head's own surface, so stretching it here would only
+		# lift it back off the bone. The push BACK stays — it keeps the fringe
+		# from draping over the imported face.
+		#
+		# Scale was the wrong lever anyway. Four passes of it established that
+		# growing the cap drives its lower edge up and OUT around the skull and
+		# exposes more forehead, not less.
+		if _skull_grid.is_empty():
+			hair.scale = Vector3(1.16, 1.22, 1.16)
+			hair.position += Vector3(0.0, -0.014, 0.016)
+		else:
+			hair.position += Vector3(0.0, 0.0, 0.010)
 	# Brows: the imported head carries its own, and the procedural pair was
 	# built against the sculpted skull's curvature — on the imported face it
 	# lands down by the mouth. Retire it with the rest of the sculpted face.
@@ -808,7 +815,11 @@ func _hairline_t(psi: float) -> float:
 
 func _hair_surface() -> Dictionary:
 	var parts: Array[Dictionary] = []
-	parts.append(_scalp_shell())
+	# `--noshell` renders clumps only, which is how the scalp shell and the
+	# clump layer get told apart when something is covering the face and it is
+	# not obvious which of the two is responsible.
+	if not OS.get_cmdline_user_args().has("--noshell"):
+		parts.append(_scalp_shell())
 	# Clump layout: [t, psi, length, radius, flow] where flow steers the tip.
 	# Clumps are wide and overlapping so the cut reads as a full head of hair,
 	# not spikes — three staggered layers (under, mid, surface) per zone.
@@ -820,14 +831,20 @@ func _hair_surface() -> Dictionary:
 		var psi: float = lerpf(-0.72, 0.72, f)
 		var jt: float = ML.hash1(float(k) * 7.1)
 		# Strong sideways sweep, only a little drop — tips ride above the eyes.
-		specs.append([0.205 + 0.03 * jt, psi,
-			0.060 + 0.022 * ML.hash1(float(k) * 3.3), 0.019,
-			Vector3(-1.05 - 0.15 * f, -0.42, -0.30)])
+		# Shorter and flatter than the sculpted-head version. On the imported
+		# skull the same 60-82 mm length with a -0.42 drop curtained straight
+		# over the eyes; the sweep is now almost entirely sideways so the
+		# fringe frames the brow instead of hiding it.
+		var fringe_len: float = 0.040 + 0.014 * ML.hash1(float(k) * 3.3)
+		if OS.get_cmdline_user_args().has("--nofringe"):
+			fringe_len = 0.001
+		specs.append([0.205 + 0.03 * jt, psi, fringe_len, 0.019,
+			Vector3(-1.15 - 0.15 * f, -0.16, -0.26)])
 	# Upper-fringe underlayer, shorter, filling gaps at the part.
 	for k in 12:
 		var f: float = float(k) / 11.0
 		specs.append([0.155 + 0.02 * ML.hash1(float(k) * 9.9), lerpf(-0.62, 0.62, f),
-			0.045, 0.018, Vector3(-0.85 - 0.15 * f, -0.35, -0.28)])
+			0.032, 0.018, Vector3(-0.90 - 0.15 * f, -0.14, -0.26)])
 	# Temple + over-ear sweeps, both sides, layered.
 	for k in 5:
 		for side in [-1.0, 1.0]:
@@ -870,7 +887,183 @@ func _hair_surface() -> Dictionary:
 	return ML.merge(parts)
 
 
+# --- Skull sampling (imported head) -----------------------------------------
+
+## Measured surface of the imported skull, from `KernBaseModel.sample_skull()`.
+## Empty when running the fully procedural body, in which case the hair falls
+## back to the sculpted `_skull_point()` it was authored against.
+var _skull_grid: Dictionary = {}
+
+
+## Hand the head a measured skull to build hair on. Must be called BEFORE
+## `build()`, because the shell and every clump root are baked at build time.
+func set_skull_sample(sample: Dictionary) -> void:
+	if sample.get("ok", false):
+		_skull_grid = sample
+
+
+## A point on the MEASURED skull at `frac` down from the crown (0 = crown,
+## 1 = the bottom of the sampled band, just above the jaw) and azimuth `psi`.
+##
+## Hair on the imported head is placed with THIS, not with the sculpted `t`
+## parameter. The two heads do not share a vertical scale: feeding the sculpted
+## profile's y values into the measured grid put the cap's rows at heights that
+## belong to a different skull, which tore it into spikes and slabs. Working in
+## the measured skull's own normalised span removes the mismatch entirely.
+func _grid_point(frac: float, psi: float) -> Vector3:
+	var centre: Vector3 = _skull_grid["centre"]
+	var theta: float = clampf(frac, 0.0, 1.0) * KernBaseModel.SKULL_MAX_THETA
+	return centre + _grid_dir(theta, psi) * _sampled_radius(theta, psi)
+
+
+## Unit direction at polar angle `theta` (0 = straight up) and azimuth `psi`
+## (0 = the face midline, +X to the character's right).
+func _grid_dir(theta: float, psi: float) -> Vector3:
+	var s: float = sin(theta)
+	return Vector3(s * sin(psi), cos(theta), -s * cos(psi))
+
+
+## Outward normal on the measured skull — radial from the sphere origin, which
+## is what makes the crown behave. The old horizontal-only normal had nothing
+## to push along at the pole.
+func _grid_normal(frac: float, psi: float) -> Vector3:
+	var theta: float = clampf(frac, 0.0, 1.0) * KernBaseModel.SKULL_MAX_THETA
+	return _grid_dir(theta, psi)
+
+
+## How far down the measured skull the hair reaches, per azimuth.
+##
+## Front is highest (a hairline sits well above the brow), the sides come down
+## past the temples, and the back runs lowest to cover the occiput and nape.
+## How far down the skull the hair reaches, as a fraction of SKULL_MAX_THETA
+## (2.0 rad). Computed from the measured geometry rather than guessed: with the
+## sphere origin at ear height, the forehead sits ~0.81 rad off vertical, the
+## temple ~0.97 and the nape ~1.76.
+##   front 0.40 -> forehead, clear above the brow
+##   side  0.50 -> down past the temple
+##   back  0.88 -> low over the occiput toward the nape
+func _grid_hairline(psi: float) -> float:
+	var ap: float = absf(psi)
+	# Front is 0.30, not 0.40: clump ROOTS sit on this line and their length
+	# then droops below it, so a hairline at the brow puts the fringe over the
+	# eyes. 0.30 is theta 0.60, about y 1.67 — upper forehead.
+	return 0.30 + 0.18 * smoothstep(0.5, 1.4, ap) + 0.40 * smoothstep(1.5, 2.9, ap)
+
+
+## Convert a clump's authored sculpted-`t` into the measured skull's `frac`.
+##
+## Proportional, not absolute: a clump authored halfway between the crown and
+## the sculpted hairline lands halfway between the crown and the MEASURED
+## hairline. That keeps the whole authored haircut layout — fringe, crown
+## whorl, nape shorts — intact on a differently-shaped head.
+func _t_to_frac(t: float, psi: float) -> float:
+	var sculpted_line: float = maxf(_hairline_t(psi), 0.001)
+	return clampf(t / sculpted_line * _grid_hairline(psi), 0.0, 1.0)
+
+
+## Where hair sits at (t, psi). Measured skull when one was sampled, otherwise
+## the sculpted skull the haircut was authored against — still what runs under
+## `--no-kern-base`.
+func _hair_anchor(t: float, psi: float) -> Vector3:
+	if _skull_grid.is_empty():
+		return _skull_point(t, psi)
+	return _grid_point(_t_to_frac(t, psi), psi)
+
+
+## Outward horizontal normal at (t, psi), measured skull or sculpted.
+func _hair_normal_out(t: float, psi: float) -> Vector3:
+	if _skull_grid.is_empty():
+		return _skull_normal_out(t, psi)
+	return _grid_normal(_t_to_frac(t, psi), psi)
+
+
+## Bilinear lookup into the sampled radius grid, wrapping in psi.
+func _sampled_radius(theta: float, psi: float) -> float:
+	var radius: PackedFloat32Array = _skull_grid["radius"]
+	var rows: int = KernBaseModel.SKULL_ROWS
+	var cols: int = KernBaseModel.SKULL_COLS
+
+	var fy: float = clampf(theta / KernBaseModel.SKULL_MAX_THETA, 0.0, 1.0) \
+		* float(rows - 1)
+	var r0: int = clampi(int(floor(fy)), 0, rows - 1)
+	var r1: int = clampi(r0 + 1, 0, rows - 1)
+	var ty: float = fy - float(r0)
+
+	var fx: float = fposmod((psi + PI) / TAU, 1.0) * float(cols - 1)
+	var c0: int = clampi(int(floor(fx)), 0, cols - 1)
+	var c1: int = (c0 + 1) % cols
+	var tx: float = fx - float(c0)
+
+	var a: float = lerpf(radius[r0 * cols + c0], radius[r0 * cols + c1], tx)
+	var b: float = lerpf(radius[r1 * cols + c0], radius[r1 * cols + c1], tx)
+	return lerpf(a, b, ty)
+
+
+## Scalp shell lofted on the MEASURED skull: the sampled surface pushed outward
+## by a hair's thickness, from the crown down to a per-azimuth hairline.
+##
+## Encloses the head by construction, which is the whole point — the cap can no
+## longer sink inside the cranium and let skin through, at any scale, because
+## every ring is derived from the skull's own radius at that height.
+func _scalp_shell_sampled() -> Dictionary:
+	var rows: int = 16
+	var n: int = 48
+	var rings: Array = []
+	for i in rows:
+		var f: float = float(i) / float(rows - 1)
+		var ring: ML.Ring = ML.Ring.new()
+		ring.points.resize(n)
+		var pc: PackedColorArray = PackedColorArray()
+		for j in n:
+			var a: float = TAU * float(j) / float(n)
+			var psi: float = wrapf(a + PI * 0.5, -PI, PI)
+			# Start just off the pole, never ON it. A ring at theta 0 collapses
+			# all 48 points onto one vertex, and the loft's per-vertex normals
+			# there come out degenerate — which rendered the crown as black,
+			# unlit polygons and looked for all the world like a bald patch.
+			# `cap_start` closes the few-millimetre hole this leaves.
+			var frac: float = lerpf(0.05, 1.0, f) * _grid_hairline(psi)
+			var p: Vector3 = _grid_point(frac, psi)
+			# The normal is radial from the sphere origin, so it already points
+			# straight up at the crown — no blend toward UP is needed, and the
+			# cylindrical version's pole degeneracy is simply gone.
+			var out: Vector3 = _grid_normal(frac, psi)
+			# Hair thickness over the scalp. `--shelldebug` inflates it to 50 mm,
+			# which is how the shell was proved to be rendering at all after two
+			# passes of assuming it was not.
+			var puff: float = 0.013
+			if OS.get_cmdline_user_args().has("--shelldebug"):
+				puff = 0.050
+			ring.points[j] = p + out * puff
+			var mul: float = 0.80 + 0.28 * ML.hash1(float(j) * 1.7 + float(i) * 3.1)
+			if OS.get_cmdline_user_args().has("--shelldebug"):
+				pc.append(Color(1.0, 0.0, 0.0))
+			else:
+				pc.append(Color(mul, mul, mul))
+		ring.point_colors = pc
+		ring.v = f * 0.30
+		rings.append(ring)
+	# `flip` = true. Rings here advance with the POLAR ANGLE (crown downward)
+	# while the sculpted shell's advanced with its own `t`; the two orderings
+	# wind opposite ways, so without the flip every triangle faced into the
+	# skull, was backface-culled from outside, and left the crown looking bald
+	# with a few black interior polygons showing through the gaps.
+	var out: Dictionary = ML.loft(rings, true, true, false, false, true)
+	if OS.get_cmdline_user_args().has("--shelldebug"):
+		var vs: PackedVector3Array = out.get("verts", PackedVector3Array())
+		var lo: Vector3 = Vector3(INF, INF, INF)
+		var hi: Vector3 = -Vector3(INF, INF, INF)
+		for v in vs:
+			lo = lo.min(v)
+			hi = hi.max(v)
+		print("KernHead: sampled scalp shell %d verts, bounds %s .. %s" % [
+			vs.size(), str(lo), str(hi)])
+	return out
+
+
 func _scalp_shell() -> Dictionary:
+	if not _skull_grid.is_empty():
+		return _scalp_shell_sampled()
 	var rows: int = 10
 	var n: int = 40
 	var rings: Array = []
@@ -883,9 +1076,9 @@ func _scalp_shell() -> Dictionary:
 			var a: float = TAU * float(j) / float(n)
 			var psi: float = wrapf(a + PI * 0.5, -PI, PI)
 			var t: float = lerpf(0.015, _hairline_t(psi), f)
-			var p: Vector3 = _skull_point(t, psi)
+			var p: Vector3 = _hair_anchor(t, psi)
 			var up_mix: float = clampf(1.0 - t * 2.2, 0.0, 1.0)
-			var out: Vector3 = _skull_normal_out(t, psi)
+			var out: Vector3 = _hair_normal_out(t, psi)
 			out = (out * (1.0 - up_mix) + Vector3.UP * up_mix).normalized()
 			# Puff the cap outward for hair volume (thicker over the crown).
 			var puff: float = 0.010 + 0.006 * up_mix
@@ -900,8 +1093,8 @@ func _scalp_shell() -> Dictionary:
 
 func _hair_clump(t_root: float, psi_root: float, length: float, radius: float,
 		flow: Vector3, seed_i: int) -> Dictionary:
-	var root: Vector3 = _skull_point(t_root, psi_root)
-	var out: Vector3 = _skull_normal_out(t_root, psi_root)
+	var root: Vector3 = _hair_anchor(t_root, psi_root)
+	var out: Vector3 = _hair_normal_out(t_root, psi_root)
 	var up_mix: float = clampf(1.0 - t_root * 2.2, 0.0, 1.0)
 	out = (out * (1.0 - up_mix) + Vector3.UP * up_mix).normalized()
 	root += out * 0.003

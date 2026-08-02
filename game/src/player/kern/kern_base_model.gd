@@ -451,6 +451,188 @@ static func _covered(v: Vector3) -> bool:
 	return false
 
 
+## Rows and columns in the sampled skull grid.
+##
+## The grid is SPHERICAL: rows step the polar angle down from the crown, columns
+## sweep the azimuth. A cylindrical (height, azimuth) grid was tried first and
+## is the wrong shape for this job — it degenerates at the pole, exactly where
+## a bald patch shows, because every column collapses onto the same point and
+## the radius there carries no direction information at all. In spherical the
+## crown is just another row.
+const SKULL_ROWS: int = 28
+const SKULL_COLS: int = 48
+
+## Polar angle the grid covers, radians from straight up. 2.0 rad (~115 deg)
+## reaches from the crown down past the ears to the jawline.
+const SKULL_MAX_THETA: float = 2.0
+
+## Lowest point sampled as "skull", in metres.
+##
+## 1.52 is just above the jawline on a 1.75 m figure. At 1.44 the sample caught
+## the SHOULDERS, which sit at r ~0.25, and the cap dutifully flared out to
+## meet them — the hair rendered as a set of huge flat slabs around the head.
+const SKULL_MIN_Y: float = 1.52
+
+## Largest radius accepted as skull, in metres — an outlier reject, not a size
+## limit. Set generously: at 0.125 it was REJECTING the real back of the head
+## (which reaches ~0.12 from a slightly forward-set centre) and punching holes
+## straight through the grid, which then filled from neighbours and tore the
+## cap into spikes.
+const SKULL_MAX_RADIUS: float = 0.180
+
+
+## Measure the imported skull's actual surface and return a radius grid the
+## hair can be built on.
+##
+## **Why this exists.** Kern's hair is authored against `kern_head.gd`'s
+## SCULPTED skull — a parametric profile. The imported head is a different
+## shape, so a cap built on the sculpted curve sits inside the imported one
+## near the crown and the skin pushes through it. That is not fixable by
+## scaling the cap: growing it drives its lower edge up and out around the
+## head, exposing MORE forehead, which four tuning passes confirmed the hard
+## way. The cap has to be built on the real surface.
+##
+## Returns `{ ok, centre: Vector3, radius: PackedFloat32Array }` where `radius`
+## is a SKULL_ROWS x SKULL_COLS spherical grid indexed
+## `[row * SKULL_COLS + col]`. Rows step the polar angle from 0 (straight up
+## from `centre`) to `SKULL_MAX_THETA`; columns sweep azimuth `psi` from -PI to
+## PI, matching `kern_head.gd`'s convention — 0 is the face midline, +X is the
+## character's right, PI is the back.
+static func sample_skull(root: Node3D) -> Dictionary:
+	var fail: Dictionary = {"ok": false}
+	var points: PackedVector3Array = PackedVector3Array()
+	# Vertices must be carried into MODEL space through the real node chain:
+	# the mesh's transform relative to the root, then the root's own turn (the
+	# .glb is rotated PI about Y so the import faces -Z like everything else).
+	#
+	# Hand-negating x and z instead — on the assumption that raw vertices were
+	# already model-space — double-rotated the samples and built the entire cap
+	# on the BACK of the head. `strip_covered_geometry()` gets away with raw
+	# vertices only because it measures `length(x, z)`, which a Y-rotation
+	# leaves unchanged; azimuth is not so forgiving.
+	for mi in _all_mesh_instances(root):
+		if not String(mi.name).begins_with("KernBody"):
+			continue
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		var to_model: Transform3D = root.transform * _relative_transform(mi, root)
+		for s in mesh.get_surface_count():
+			var arrays: Array = mesh.surface_get_arrays(s)
+			var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			for v in verts:
+				var p: Vector3 = to_model * v
+				if p.y >= SKULL_MIN_Y:
+					points.append(p)
+	if points.size() < 64:
+		return fail
+
+	# Centre from the BOUNDING BOX, not the mean. The face carries far more
+	# vertices than the cranium, so a mean is dragged forward into the nose and
+	# the back of the head then measures nearly twice the front.
+	var lo: Vector3 = Vector3(INF, INF, INF)
+	var hi: Vector3 = -Vector3(INF, INF, INF)
+	for p in points:
+		lo = lo.min(p)
+		hi = hi.max(p)
+	if hi.y - lo.y < 0.02:
+		return fail
+	# Sphere origin sits low in the cranium — roughly ear height — so the whole
+	# dome lies within the polar band above it.
+	var centre: Vector3 = Vector3((lo.x + hi.x) * 0.5,
+		lo.y + (hi.y - lo.y) * 0.30, (lo.z + hi.z) * 0.5)
+
+	# Max radius per cell: the cap must enclose the skull, so the OUTERMOST
+	# sample in a direction is the one that matters. A mean would leave the
+	# bumps poking through, which is the exact defect being fixed.
+	var radius: PackedFloat32Array = PackedFloat32Array()
+	radius.resize(SKULL_ROWS * SKULL_COLS)
+	radius.fill(0.0)
+	for p in points:
+		var d: Vector3 = p - centre
+		var r: float = d.length()
+		if r < 0.001 or r > SKULL_MAX_RADIUS:
+			continue
+		var theta: float = acos(clampf(d.y / r, -1.0, 1.0))
+		if theta > SKULL_MAX_THETA:
+			continue
+		var psi: float = atan2(d.x, -d.z)
+		var row: int = clampi(int(theta / SKULL_MAX_THETA
+			* float(SKULL_ROWS - 1) + 0.5), 0, SKULL_ROWS - 1)
+		var col: int = clampi(int((psi + PI) / TAU * float(SKULL_COLS - 1)
+			+ 0.5), 0, SKULL_COLS - 1)
+		var at: int = row * SKULL_COLS + col
+		if r > radius[at]:
+			radius[at] = r
+	_fill_empty_cells(radius)
+
+	return {"ok": true, "centre": centre, "radius": radius}
+
+
+## Any cell no vertex landed in is filled from its neighbours, so the lookup
+## never returns a zero radius and collapses the cap to the centreline.
+static func _fill_empty_cells(radius: PackedFloat32Array) -> void:
+	for row in SKULL_ROWS:
+		# Walk the ring twice so a gap can be filled from either side.
+		for _pass in 2:
+			for col in SKULL_COLS:
+				var at: int = row * SKULL_COLS + col
+				if radius[at] > 0.0:
+					continue
+				var prev: float = radius[row * SKULL_COLS
+					+ ((col - 1 + SKULL_COLS) % SKULL_COLS)]
+				var next: float = radius[row * SKULL_COLS
+					+ ((col + 1) % SKULL_COLS)]
+				var best: float = maxf(prev, next)
+				if best > 0.0:
+					radius[at] = best
+	# Rows that are still entirely empty (above the crown, below the cut)
+	# inherit from the nearest populated row.
+	for row in SKULL_ROWS:
+		var any: bool = false
+		for col in SKULL_COLS:
+			if radius[row * SKULL_COLS + col] > 0.0:
+				any = true
+				break
+		if any:
+			continue
+		var donor: int = -1
+		for other in SKULL_ROWS:
+			var has: bool = false
+			for col in SKULL_COLS:
+				if radius[other * SKULL_COLS + col] > 0.0:
+					has = true
+					break
+			if has and (donor < 0 or absi(other - row) < absi(donor - row)):
+				donor = other
+		if donor < 0:
+			continue
+		for col in SKULL_COLS:
+			radius[row * SKULL_COLS + col] = \
+				radius[donor * SKULL_COLS + col] * 0.65
+
+
+## Print the sampled skull's radius profile down the front, side and back.
+##
+## Cylindrical (y, psi) sampling degenerates at the crown, where the true
+## radius goes to zero and there are few vertices to land in a cell — exactly
+## where a bald patch would show. Reading the numbers is faster than guessing
+## at renders. Run with `-- --skulldump`.
+static func dump_skull(sample: Dictionary) -> void:
+	var radius: PackedFloat32Array = sample["radius"]
+	print("--- skull radius profile (m), spherical ---")
+	print("  row  theta   front    side    back")
+	for row in SKULL_ROWS:
+		var theta: float = float(row) / float(SKULL_ROWS - 1) * SKULL_MAX_THETA
+		# psi 0 = front, PI/2 = right side, PI = back.
+		var front: int = int((0.0 + PI) / TAU * float(SKULL_COLS - 1) + 0.5)
+		var side: int = int((PI * 0.5 + PI) / TAU * float(SKULL_COLS - 1) + 0.5)
+		var back: int = SKULL_COLS - 1
+		print("  %3d  %.3f  %.4f  %.4f  %.4f" % [row, theta,
+			radius[row * SKULL_COLS + front], radius[row * SKULL_COLS + side],
+			radius[row * SKULL_COLS + back]])
+
+
 ## Measured height of the imported body, so the code-built gear can be scaled
 ## to it if the export isn't exactly the spec'd 1.75 m.
 static func measure_height(root: Node3D) -> float:
