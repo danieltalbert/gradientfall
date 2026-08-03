@@ -9,6 +9,18 @@ uniform vec4 bark_color : source_color = vec4(0.42, 0.3, 0.19, 1.0);
 uniform vec4 bark_light : source_color = vec4(0.57, 0.42, 0.25, 1.0);
 uniform vec4 groove_color : source_color = vec4(0.24, 0.15, 0.085, 1.0);
 uniform vec4 moss_color : source_color = vec4(0.2, 0.31, 0.11, 1.0);
+// A trunk stands under its OWN canopy, which is the densest shadow caster in
+// the meadow, so bark is almost never in direct sun. Godot multiplies ambient
+// by albedo down to nearly nothing, and the result rendered as a near-black
+// slab in daylight. Same defect the terrain had and the same cure: a warm
+// ambient floor, negligible in sun and dominant in shade, so bark in shadow
+// reads as brown wood rather than a hole in the world.
+// Tuned by render: 0.34 with a warm tint was an overcorrection — bark went from
+// near-black to glowing terracotta, which is worse, because at least a black
+// trunk does not look lit from inside. 0.15 with a barely-warm tint lifts shade
+// to brown wood and leaves sunlit bark alone.
+uniform float ambient_floor : hint_range(0.0, 2.0) = 0.15;
+uniform vec4 ambient_floor_tint : source_color = vec4(1.0, 0.90, 0.78, 1.0);
 uniform vec2 wind_dir = vec2(0.75, 0.55);
 uniform float wind_speed = 1.05;
 uniform float tree_height = 9.0;
@@ -70,7 +82,7 @@ void fragment() {
 	float moss = smoothstep(0.58, 0.84, vnoise(v_world_position.xz * 0.68 + vec2(9.0, -13.0)));
 	color = mix(color, moss_color.rgb, moss * low_trunk * 0.24);
 	ALBEDO = color;
-	EMISSION = color * 0.035;
+	EMISSION = color * 0.035 + color * ambient_floor_tint.rgb * ambient_floor;
 	ROUGHNESS = mix(0.82, 1.0, horizontal_crack);
 	SPECULAR = 0.1;
 	RIM = 0.08;

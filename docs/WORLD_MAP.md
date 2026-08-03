@@ -139,12 +139,33 @@ teaches before a single line of dialogue does.
 
 | Name | From → to | Reaches the sea? | The idea |
 |---|---|---|---|
+| **The Throughline** | west flank of Gradient Peaks (20.5, 71) → E across the continent → eastern sea at (94, 46) | yes | **The one river that crosses the whole world** (Danny, 2026-08-03). 74 km of an 86 km-wide landmass — as near end-to-end as water manages, since a river cannot begin in the ocean. |
 | **The Descent** | Peaks cirques (26, 62) → SW across Datasedge → sea at (10, 44) | yes | Water always takes the steepest path down. The continent's main river, and the one Kern grows up beside. |
 | **The Ledger** | southern downs (34, 26) → W through Parameter City → sea (13, 14) | yes | The capital runs on weights and measures; its river keeps the accounts. |
 | **The Slow** | Latent Forest south edge (47, 38) → S into Overfit Swamp | **no** — it spreads and repeats | It memorised one bend and made a hundred of it. Oxbows all identical. |
 | **The Vanishing** | Peaks east flank (38, 60) → E toward Tensor Desert | **no** — dies in sand ~8 km short | It gets weaker the further it travels from its source and arrives as nothing. The dry channel it leaves is what the Rune Rows are built along. |
 | **The Emberflow** | Slagfields (80, 80) → **uphill** to the Great Forge (83, 85) | no | Canon (WORLDBOOK §7): error-flame runs backward, from the failure back to every furnace that contributed. |
 | **The Stillwater** | Frozen Cache, (28, 88) → (33, 92) | frozen | A river stopped mid-flow, a standing wave caught in the act. Everything here is preserved exactly as it was left. |
+
+### The divide, and the two channels
+
+Adding the Throughline makes **Gradient Peaks a real continental divide**: the
+Descent runs west off the range to the western ocean, the Throughline runs east
+off the same range to the eastern one. That is how mountain ranges actually
+behave, and it costs nothing to have been true.
+
+It also does something better. The Throughline shares its corridor with **the
+Vanishing**, which dries up in the sand a few kilometres short of anywhere. Two
+channels running side by side across the same desert — one carrying the whole
+way, one fading to nothing — is the vanishing-gradient lesson lying on the
+ground where the player walks over it. Nobody has to explain it. You can stand
+in the dry bed of one and hear the other.
+
+Elevation along the Throughline descends monotonically: 700 m at the source,
+470 at (31, 67), 260 at (41, 63), 140 at (54, 60), 90 crossing Tensor Desert at
+Axis Bazaar, 35 passing the Corpus Citadel, sea at (94, 46). Water only ever
+runs downhill on this map, which the audit will start checking once the terrain
+carries real heights.
 
 **The Descent through Datasedge** (this stretch is buildable now): enters the
 core at atlas (20.5, 39.1), runs SW, is tapped by a **leat** that drives the

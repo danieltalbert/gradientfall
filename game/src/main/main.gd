@@ -56,8 +56,13 @@ func _ready() -> void:
 	# and roaming enemies. Normal play gets the combat HUD + monster spawner.
 	var shot_dir: String = _screenshot_dir()
 	var map_dir: String = _flag_value("--mapshot=")
+	var flora_dir: String = _flag_value("--florashot=")
 	if shot_dir != "":
 		_capture_screens(shot_dir)
+	elif flora_dir != "":
+		# Flora iteration loop: five angles on one copse, nothing else. The full
+		# screenshot pass is ~29 shots and too slow to tune trees against.
+		_capture_flora(flora_dir)
 	elif map_dir != "":
 		# UI shot mode: the world screenshot pass above deliberately leaves the
 		# interface out, so the map and the minimap have no way to produce
@@ -210,6 +215,49 @@ func _capture_map(dir: String) -> void:
 		_player.global_position.y, _terrain.water_level,
 	])
 	await _shoot(dir, "ui_swim_millpond")
+	get_tree().quit()
+
+
+## Photograph the trees at the five distances that decide whether they work:
+## the trunk you stand next to, the whole tree at conversation range, the
+## canopy from underneath, a copse across a field, and the treeline on the
+## horizon. A tree that only reads at one of these is not finished.
+##
+## All angles look due east (+X) at the copse seeded near (30, -60).
+func _capture_flora(dir: String) -> void:
+	var rig: Node3D = _player.get_node("CameraRig")
+	var arm: SpringArm3D = rig.get_node("SpringArm3D") as SpringArm3D
+	var kern_visual: Node3D = _player.get_node("Visual") as Node3D
+	if kern_visual != null:
+		kern_visual.visible = false
+	_bit.visible = false
+	_landmarks.visible = false
+	var cycle: SkyCycle = get_node("World/SkyCycle") as SkyCycle
+	if cycle != null:
+		cycle.paused = true
+		cycle.set_hour(9.5)   # side light: bark grooves and canopy depth both read
+	rig.set_process(false)
+	arm.spring_length = 0.0
+
+	var shots: Array[Dictionary] = [
+		{"name": "tree_trunk", "pos": Vector2(25.0, -60.0), "eye": 1.30, "pitch": -0.06},
+		{"name": "tree_whole", "pos": Vector2(19.0, -60.0), "eye": 2.20, "pitch": 0.14},
+		{"name": "tree_canopy_under", "pos": Vector2(30.0, -60.0), "eye": 1.70, "pitch": 0.80},
+		{"name": "copse_mid", "pos": Vector2(-8.0, -60.0), "eye": 2.40, "pitch": 0.03},
+		{"name": "copse_far", "pos": Vector2(-82.0, -60.0), "eye": 3.20, "pitch": 0.04},
+	]
+	for i in 100:
+		await get_tree().process_frame
+	for shot in shots:
+		var at: Vector2 = shot["pos"]
+		var ground: float = _terrain.get_height(at.x, at.y)
+		_player.global_position = Vector3(at.x, ground + 0.8, at.y)
+		rig.global_position = Vector3(at.x, ground + float(shot["eye"]), at.y)
+		rig.rotation.y = deg_to_rad(-90.0)     # due east
+		arm.rotation.x = shot["pitch"]
+		for i in 30:
+			await get_tree().process_frame
+		await _shoot(dir, String(shot["name"]))
 	get_tree().quit()
 
 

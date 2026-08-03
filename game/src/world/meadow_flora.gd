@@ -359,10 +359,18 @@ func _scatter_pebbles() -> void:
 
 
 func _plant_copses() -> void:
+	# Six variants, not three, and spread across a real height range. Three
+	# near-identical shapes planted sixty times is what made the copses read as
+	# an orchard; the trunk lean (see `_trunk_axis`) does the rest. A young
+	# 3.4 m tree beside a 7.1 m veteran is what a wild copse actually looks
+	# like, and the staggered crowns break the flat ceiling the canopy had.
 	var variants: Array[ArrayMesh] = [
-		_build_tree_mesh(4.8, 3.0, Color(0.20, 0.36, 0.10)),
-		_build_tree_mesh(5.9, 3.6, Color(0.17, 0.32, 0.085)),
+		_build_tree_mesh(3.4, 2.10, Color(0.25, 0.42, 0.12)),
 		_build_tree_mesh(4.1, 2.65, Color(0.23, 0.40, 0.11)),
+		_build_tree_mesh(4.8, 3.00, Color(0.20, 0.36, 0.10)),
+		_build_tree_mesh(5.5, 3.35, Color(0.185, 0.345, 0.095)),
+		_build_tree_mesh(5.9, 3.60, Color(0.17, 0.32, 0.085)),
+		_build_tree_mesh(7.1, 4.05, Color(0.155, 0.30, 0.08)),
 	]
 	var trunk_shape: CylinderShape3D = CylinderShape3D.new()
 	trunk_shape.radius = 0.46
@@ -401,11 +409,27 @@ func _plant_copses() -> void:
 			tree.add_child(col)
 			tree.position = Vector3(x, h - 0.15, z)
 			tree.rotation.y = _rng.randf_range(0.0, TAU)
-			var s: float = _rng.randf_range(0.78, 1.25)
-			tree.scale = Vector3(s, s, s)
+			# Non-uniform: height varies more than girth, so two instances of one
+			# variant still read as different trees, not a copy-paste.
+			var s: float = _rng.randf_range(0.80, 1.22)
+			tree.scale = Vector3(s, s * _rng.randf_range(0.86, 1.18), s)
 			trees.add_child(tree)
 			planted += 1
 	print("MeadowFlora: %d trees across %d copses." % [planted, copses.size()])
+
+
+## The current tree's lean, as a horizontal displacement in metres applied at
+## full trunk height. Set at the top of `_build_tree_mesh` and read by
+## `_trunk_axis`; it exists as a field only because GDScript has no closures and
+## every part of the crown has to agree with the trunk about where "up" went.
+var _lean: Vector3 = Vector3.ZERO
+
+
+## A point on the trunk's centre-line at normalized height `t` (0 = root,
+## 1 = top). Quadratic in `t`, so the base stays planted and the lean grows
+## toward the crown — a tree that curves, rather than a pole tipped over.
+func _trunk_axis(t: float, trunk_h: float) -> Vector3:
+	return Vector3(0.0, trunk_h * t, 0.0) + _lean * t * t
 
 
 ## Realistic-fidelity tree: tapered trunk + 4-5 angled boughs (all wearing
@@ -452,13 +476,24 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 	var st: SurfaceTool = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
-	var trunk: CylinderMesh = CylinderMesh.new()
-	trunk.top_radius = 0.24
-	trunk.bottom_radius = 0.52
-	trunk.height = trunk_h
-	trunk.radial_segments = 18
-	trunk.rings = 6
-	st.append_from(trunk, 0, Transform3D(Basis.IDENTITY, Vector3(0.0, trunk_h * 0.5, 0.0)))
+	# The trunk LEANS AND DRIFTS. It used to be one perfectly vertical cylinder,
+	# and with three variants planted sixty times that read as an orchard — every
+	# tree the same plumb-line, every crown at the same height. A tree that grew
+	# somewhere windy leans; one that reached for a gap bends. Four stacked
+	# tapered segments following a wandering axis cost almost nothing and break
+	# the plantation look at every distance.
+	# `_lean` is stored on the instance so `_trunk_axis()` can reproduce the same
+	# curve for the boughs and crown clusters. If the crown ignored the lean it
+	# would float off the top of a tilted trunk, which is worse than no lean.
+	_lean = Vector3(cos(_rng.randf_range(0.0, TAU)), 0.0, 0.0)
+	_lean = _lean.rotated(Vector3.UP, _rng.randf_range(0.0, TAU)) \
+			* _rng.randf_range(0.03, 0.16) * trunk_h
+	var trunk_segments: int = 4
+	for seg in trunk_segments:
+		var t0: float = float(seg) / float(trunk_segments)
+		var t1: float = float(seg + 1) / float(trunk_segments)
+		_append_tapered_branch(st, _trunk_axis(t0, trunk_h), _trunk_axis(t1, trunk_h),
+				lerpf(0.52, 0.24, t0), lerpf(0.52, 0.24, t1), 18)
 
 	# Buttress roots anchor the silhouette instead of letting a cylinder meet
 	# the terrain with the toy-like seam visible in the previous pass.
@@ -476,15 +511,19 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 
 	var cluster_centers: Array[Vector3] = []
 	var cluster_radii: Array[Vector3] = []
-	cluster_centers.append(Vector3(0.0, trunk_h * 0.9 + crown_r * 0.36, 0.0))
+	# Crown clusters ride the trunk's curve (see `_trunk_axis`), so a leaning
+	# tree carries its canopy over with it.
+	cluster_centers.append(_trunk_axis(0.9, trunk_h) + Vector3.UP * crown_r * 0.36)
 	cluster_radii.append(Vector3(crown_r * 0.72, crown_r * 0.56, crown_r * 0.72))
-	cluster_centers.append(Vector3(0.0, trunk_h + crown_r * 0.82, 0.0))
+	cluster_centers.append(_trunk_axis(1.0, trunk_h) + Vector3.UP * crown_r * 0.82)
 	cluster_radii.append(Vector3(crown_r * 0.48, crown_r * 0.58, crown_r * 0.48))
 
 	# A visible central leader prevents the crown from reading as a detached ball.
-	var leader_start: Vector3 = Vector3(0.0, trunk_h * 0.72, 0.0)
-	var leader_mid: Vector3 = Vector3(0.08, trunk_h + crown_r * 0.3, -0.06)
-	var leader_end: Vector3 = Vector3(-0.06, trunk_h + crown_r * 1.18, 0.1)
+	var leader_start: Vector3 = _trunk_axis(0.72, trunk_h)
+	var leader_mid: Vector3 = _trunk_axis(1.0, trunk_h) \
+			+ Vector3(0.08, crown_r * 0.3, -0.06)
+	var leader_end: Vector3 = _trunk_axis(1.0, trunk_h) \
+			+ Vector3(-0.06, crown_r * 1.18, 0.1) + _lean * 0.35
 	_append_tapered_branch(st, leader_start, leader_mid, 0.19, 0.105, 9)
 	_append_tapered_branch(st, leader_mid, leader_end, 0.105, 0.035, 7)
 	cluster_centers.append(leader_end)
@@ -498,7 +537,7 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 		var upward: float = _rng.randf_range(0.25, 0.62)
 		var primary_direction: Vector3 = Vector3(cos(yaw), upward, sin(yaw)).normalized()
 		var primary_length: float = crown_r * _rng.randf_range(0.82, 1.18)
-		var attach: Vector3 = Vector3(0.0, attach_h, 0.0)
+		var attach: Vector3 = _trunk_axis(attach_h / trunk_h, trunk_h)
 		var elbow: Vector3 = attach + primary_direction * (primary_length * 0.54)
 		elbow += Vector3.UP * _rng.randf_range(0.05, 0.22)
 		var primary_end: Vector3 = attach + primary_direction * primary_length
@@ -555,7 +594,11 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 		var weight: float = pow(radii.x * radii.y * radii.z, 0.72)
 		cluster_weights.append(weight)
 		total_weight += weight
-	var leaf_count: int = int(3200.0 + crown_r * 500.0)
+	# LEAF BUDGET: raised with the size cut below. The old leaves were 0.30-0.48 m
+	# long, which at conversation range read as coins rather than foliage.
+	# Halving them linearly quarters their area, so the count must rise or the
+	# crown goes see-through.
+	var leaf_count: int = int(12000.0 + crown_r * 1400.0)
 	var quad_order: Array[int] = [0, 1, 2, 0, 2, 3]
 	var uvs: Array[Vector2] = [
 		Vector2(0.0, 0.0), Vector2(1.0, 0.0),
@@ -583,8 +626,10 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 		var tilt_basis: Basis = Basis(Vector3.RIGHT, _rng.randf_range(-1.2, 1.2))
 		var roll_basis: Basis = Basis(Vector3.FORWARD, _rng.randf_range(-0.35, 0.35))
 		var leaf_basis: Basis = yaw_basis * tilt_basis * roll_basis
-		var half_width: float = _rng.randf_range(0.09, 0.155)
-		var leaf_length: float = _rng.randf_range(0.3, 0.48)
+		# Real broadleaf foliage is 6-14 cm across. The old 18-31 cm leaves
+		# read as dinner plates from ten metres.
+		var half_width: float = _rng.randf_range(0.035, 0.062)
+		var leaf_length: float = _rng.randf_range(0.13, 0.22)
 		var leaf_x: Vector3 = leaf_basis.x * half_width
 		var leaf_y: Vector3 = leaf_basis.y * (leaf_length * 0.5)
 		var corners: Array[Vector3] = [

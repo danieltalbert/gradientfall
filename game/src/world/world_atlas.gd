@@ -146,6 +146,25 @@ const COASTLINE_KM: Array[Vector2] = [
 ## `reaches_sea` false is a design fact, not an omission: the Slow spreads into
 ## the bog and repeats itself, and the Vanishing dies in the sand.
 const RIVERS: Array = [
+	# The one river that crosses the whole continent (Danny, 2026-08-03). It
+	# rises on the WESTERN flank of Gradient Peaks at x 20.5 and reaches the far
+	# eastern sea at x 94 — 74 km of an 86 km-wide landmass, which is as near
+	# "one end to the other" as water can manage, since a river cannot begin in
+	# the ocean.
+	#
+	# It makes the Peaks a genuine continental divide: the Descent runs west off
+	# the same range, the Throughline runs east. And it deliberately shares its
+	# corridor with the Vanishing, which dries up in the sand a few kilometres
+	# short. Two channels side by side, one carrying the whole way and one
+	# fading to nothing, is the vanishing-gradient lesson lying on the ground
+	# where the player walks over it.
+	{"id": &"the_throughline", "name": "The Throughline", "reaches_sea": true,
+		"note": "The great river. Rises on the west flank of the Peaks and crosses the continent to the eastern sea, running the same corridor as the Vanishing — which does not make it.",
+		"points": [Vector2(20.5, 71.0), Vector2(25.0, 69.5), Vector2(31.0, 67.0),
+			Vector2(37.0, 64.0), Vector2(43.0, 62.0), Vector2(49.0, 60.5),
+			Vector2(55.0, 59.5), Vector2(61.0, 58.8), Vector2(66.0, 58.0),
+			Vector2(72.0, 56.0), Vector2(79.0, 53.0), Vector2(86.0, 50.4),
+			Vector2(91.0, 48.0), Vector2(94.0, 46.0)]},
 	{"id": &"the_descent", "name": "The Descent", "reaches_sea": true,
 		"note": "Water takes the steepest path down. The continent's main river.",
 		"points": [Vector2(26.0, 62.0), Vector2(24.6, 55.0), Vector2(23.4, 47.0),
