@@ -186,8 +186,13 @@ Then Phase-2 region content (per WORLDBOOK) seeds into each core as it's built.
 
 ## 6. Open questions for Danny
 
-1. **Sequencing**: start the streaming foundation now, or finish the Phase-1
-   meadow slice (town/quests/dungeon/save) first, then pivot?
+1. ~~**Sequencing**~~ — **ANSWERED 2026-08-03: map and terrain first.** Danny:
+   "I want to build the actual terrain of the entire world first… it would help
+   me visually create the rest of the things like people, movements, and
+   direction/flow of the feel of the game." He also chose **nest over stretch**:
+   built geometry never moves, it becomes the dense heart of its core. The
+   missing placement layer that blocked all of this is now
+   `docs/WORLD_MAP.md` + `game/src/world/world_atlas.gd`.
 2. **Citadel placement**: far-east "ever-visible ending" (this draft) vs. dead-center
    "corruption heart you spiral around"?
 3. **Fast-travel generosity**: strict earned-waypoints (this draft) vs. more

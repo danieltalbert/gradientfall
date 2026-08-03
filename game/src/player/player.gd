@@ -87,6 +87,11 @@ var _land_impact: float = 0.0
 ## The radial emote picker, built on first use.
 var _emote_wheel: EmoteWheel
 
+## Water. Built here, bound to a terrain by `setup_water()` — until then it
+## simply never reports swimming, which is the right behaviour for a region
+## that has no water in it yet.
+var _swimmer: Swimmer
+
 @onready var _visual: Node3D = $Visual
 @onready var _rig: CameraRig = $CameraRig
 @onready var _health: Health = $Health
@@ -110,7 +115,22 @@ func _ready() -> void:
 	floor_max_angle = MAX_CLIMB_ANGLE
 	floor_snap_length = STEP_HEIGHT
 	floor_block_on_wall = false
+	_swimmer = Swimmer.new()
+	_swimmer.name = "Swimmer"
+	add_child(_swimmer)
 	EventBus.player_spawned.emit(self)
+
+
+## Hand the swimmer the terrain that answers "is there water here". Called by
+## main.gd once the world exists; without it Kern simply never swims.
+func setup_water(terrain: MeadowTerrain) -> void:
+	_swimmer.setup(self, terrain)
+
+
+## True while Kern is off the bottom and stroking — read by the animator and by
+## anything that must not run on land rules.
+func is_swimming() -> bool:
+	return _swimmer != null and _swimmer.is_swimming
 
 
 ## Re-announce hearts so a HUD created after us (main.gd) shows the right value.
@@ -142,6 +162,17 @@ func _physics_process(delta: float) -> void:
 	_tick_emotes()
 	_tick_timers(delta)
 	_tick_crouch(delta)
+	# Water takes over entirely when it applies: no gravity, no jump, no ground
+	# steering. Buoyancy and the stroke are the swimmer's job, and it reports
+	# whether it claimed the frame.
+	var wish: Array = _wish_vector()
+	if _swimmer != null and _swimmer.tick(delta, wish[0], wish[1]):
+		if float(wish[1]) > 0.02:
+			var swim_dir: Vector3 = wish[0]
+			_face_yaw(atan2(-swim_dir.x, -swim_dir.z), delta)
+		move_and_slide()
+		_was_on_floor = is_on_floor()
+		return
 	_apply_gravity(delta)
 	if not _combat.blocks_jump():
 		_handle_jump()
@@ -241,20 +272,9 @@ func _handle_move(delta: float) -> void:
 		velocity.z = damped.y
 		return
 
-	var input_vec: Vector2 = Input.get_vector(
-		&"move_left", &"move_right", &"move_forward", &"move_back"
-	)
-	var cam_basis: Basis = _rig.global_transform.basis
-	var forward: Vector3 = -cam_basis.z
-	forward.y = 0.0
-	forward = forward.normalized()
-	var right: Vector3 = cam_basis.x
-	right.y = 0.0
-	right = right.normalized()
-	var dir: Vector3 = right * input_vec.x - forward * input_vec.y
-	var input_strength: float = clampf(dir.length(), 0.0, 1.0)
-	if input_strength > 0.0001:
-		dir = dir / input_strength
+	var wish: Array = _wish_vector()
+	var dir: Vector3 = wish[0]
+	var input_strength: float = wish[1]
 
 	var top_speed: float = _target_speed(input_strength) * _combat.move_scale
 	top_speed *= _slope_factor(dir)
@@ -291,6 +311,30 @@ func _handle_move(delta: float) -> void:
 	elif input_strength > 0.02:
 		# Model forward is -Z (Godot convention), hence the negations.
 		_face_yaw(atan2(-dir.x, -dir.z), delta)
+
+
+## The steering the player is asking for, camera-relative, as
+## `[Vector3 direction, float strength]`.
+##
+## Extracted so the swimmer and the ground controller read the SAME intent. When
+## they each computed it, a fix to one silently left the other steering by an
+## older rule.
+func _wish_vector() -> Array:
+	var input_vec: Vector2 = Input.get_vector(
+		&"move_left", &"move_right", &"move_forward", &"move_back"
+	)
+	var cam_basis: Basis = _rig.global_transform.basis
+	var forward: Vector3 = -cam_basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var right: Vector3 = cam_basis.x
+	right.y = 0.0
+	right = right.normalized()
+	var dir: Vector3 = right * input_vec.x - forward * input_vec.y
+	var strength: float = clampf(dir.length(), 0.0, 1.0)
+	if strength > 0.0001:
+		dir = dir / strength
+	return [dir, strength]
 
 
 ## Top speed for the current input strength and modifiers.

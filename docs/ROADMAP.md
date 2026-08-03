@@ -38,7 +38,10 @@ Prove every system small, then scale outward. One region done completely.
 - [x] Dungeon 1: **the Perceptron Vault** — traverse an actual neural network; 1 boss *(built: the vault IS a 2-3-1 network laid along its own axis — two Signal Founts (input bits, struck to toggle) → three walk-in Neuron Chambers, each with two tunable Weight Stones on restricted ladders, a sum column and a room-wide threshold ring → a Junction carrying the output cell's three weights → **the Gatekeeper**, a boss with no hearts that sums what hits it and alternates polarity, so a blow landed while it refuses is a blow taken back → the output gate and the reliquary. Both routes work by design (GDD §3): solve the network and it feeds the Gatekeeper while you dodge, or overload it by sword alone against its leak. Puzzle verified exhaustively offline — 12 of 2048 configurations open it, both founts must be lit, two chambers have exactly one correct weight pair. Also: 2-3-1 sigil on facade and gate (matching `icon.svg`), self-surveying plinth + approach ramp, `mon_the_gatekeeper` + `item_threshold_stone` + `poi_perceptron_vault` through the pipeline, five new screenshot angles. The recovered build completed a clean Godot 4.7.1 parse/import and 25-second runtime smoke boot; a future live Forward+ session should still inspect the interior shots per GDD §10.)*
 - [x] Iris flowers as collectible flora + compendium v1 *(built: the 700 blooms of the western flats now carry real Iris specimen records — sepal length, petal length, petal width in cm, drawn from Fisher 1936's published per-family statistics, so the family separations, the spread, and the versicolor/virginica overlap are all true. Collection is proximity, not a button: walk through a bloom and Kern presses it, it shrinks away, and the specimen enters the compendium. `CompendiumUi` (J, or Start/Menu on a pad) shows three family columns with each pressed specimen's triplet, calls out the ones its nearest-centroid classifier gets WRONG, and keeps a boundary-bloom roll — ambiguous specimens wear their own near-white and are the collector prize. Verified offline over 300 seeds: setosa stays perfectly separable, 100% of confusion sits in the real versicolor/virginica overlap, and the boundary rate was retuned from a broken 1.7% (some meadows had none at all) to ~11%. Progress rides in `GameState.flags` as one bool per specimen — no save-shape change and no SAVE_VERSION bump. Irises moved out of `meadow_flora.gd` into their own `IrisField`, same seed and clusters, so the flats look exactly as they did. The recovered build completed a clean Godot 4.7.1 parse/import and runtime smoke boot; hands-on collection and notebook interaction remain a future live visual check.)*
 - [ ] Save/load: versioned save format, multiple slots, title screen
-- [ ] HUD: hearts, Tokens, minimap v1
+- [ ] HUD: hearts, Tokens, minimap v1 *(hearts, Tokens and the focus/damage
+  vignette shipped with combat v1; **minimap v1 done 2026-08-03** — `Minimap`,
+  top-right, north-up, reading WorldAtlas, and marked PLACEHOLDER in its own doc
+  header at Danny's request. What is left on this line is the full HUD pass.)*
 - [ ] **Character pipeline rebuild — figures authored in Blender, not GDScript** *(GDD §10 "THE FIGURE SPLIT" amendment, signed off by Danny 2026-08-02 in chat. Two locks: figures target BOTW-style **stylized** (explicitly not Assassin's Creed — no capture pipeline exists, and aiming there is what produced "kinda freaky"), while the world stays photoreal; and character/creature **meshes** move out of runtime GDScript into scripted Blender authoring — sculpt, multi-bone weights, UVs, baked normals, face shape keys — exported as committed `.glb`. Rationale is the documented ceiling, not a preference: the 2026-07-29 entry proved Kern's full-length sleeve unreachable because code-built cloth is rigidly bound to 2 bones against the body's smooth multi-bone weights. Full spec incl. the 5-test quality gate: `docs/CHARACTER_PIPELINE.md`. Build order: Kern as the proof → shared human rig + modular outfits → 13 Bootstrap NPCs → creature kit → 8 meadow species → WORLDBOOK's 80 monsters / 84 NPCs. Pre-rebuild baseline renders: `docs/progress/kern_2026-08-02_baseline/`.)*
 
 **Definition of done:** a new player can launch the game, do the opening, take quests
@@ -46,6 +49,30 @@ in Bootstrap, fight in the field, clear the Perceptron Vault, craft an item, sav
 quit, and resume — with no errors in the Godot output panel.
 
 ## Phase 2 — The Continent
+
+**Sequencing decided by Danny, 2026-08-03** (this answers `WORLD_ATLAS.md` §6.1):
+**the map and the terrain come first**, ahead of the remaining Phase-1 systems.
+His reasoning: real ground is what lets him judge people, movement, and the flow
+of the game. The **nest** model was chosen over stretch — built geometry never
+moves, it becomes the dense heart of its core.
+
+- [x] **The placement layer: `docs/WORLD_MAP.md` + `world_atlas.gd`** *(the
+  world's missing coordinate system. WORLD_ATLAS said which region sits where
+  and WORLDBOOK said what is in each — neither said where inside a region
+  anything STANDS, and only 8 of 62 named sites had coordinates. Now: all 62
+  placed, plus a re-authored coastline that actually fits the approved region
+  coordinates (the old one left Strideport 1 km out to sea), six named rivers,
+  six roads, elevation bands, sea level pinned at world Y −14 m so every
+  altitude already in the code becomes a true elevation with nothing changed,
+  and the km↔metre bridge. Guarded by `src/dev/atlas_audit.gd` — 384 headless
+  assertions, which caught four real errors on its first run.)*
+- [x] **World map screen (M) + minimap** *(both code-built, both reading the one
+  atlas file so they cannot drift from the world. Eyes-verified by render.)*
+- [x] **Swimming + the Deep** *(Kern swims; open water outside a named safe zone
+  drains hearts slowly — a soft gate made of danger, so GDD §3's "no hard gates"
+  survives having an ocean. Verified floating in the millpond at the design
+  depth with hearts untouched. **No swim animation yet**, and the Deep cannot be
+  reached by playing until the coast is real geometry.)*
 - [ ] Terrain + look for all 9 remaining regions (Corpus Citadel exterior only)
 - [ ] Region-exclusive monster rosters + variants (night/weather/golden/corrupted)
 - [ ] 1–2 world bosses per region (Gradient Wyrm, Unsupervised Hydra, Idle Colossus…)

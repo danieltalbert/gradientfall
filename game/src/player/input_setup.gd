@@ -73,6 +73,10 @@ static func ensure() -> void:
 	# Back/Select already opens the pack, so sharing it would toggle both UIs.
 	_key(&"compendium", KEY_J)
 	_pad_button(&"compendium", JOY_BUTTON_START)
+	# The world map (map lane). M for map; the pad's right d-pad chord is taken
+	# by the quiz answers and every face button is spoken for, so the map is
+	# keyboard-only until a pad player asks for it.
+	_key(&"world_map", KEY_M)
 	# Emotes (movement pass): hold to open the wheel and pick with the stick.
 	# B on keyboard; the right stick click on a pad — the d-pad is already the
 	# quiz answer keys and Back/Start are the pack and the compendium.

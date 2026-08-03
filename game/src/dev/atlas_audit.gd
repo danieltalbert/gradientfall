@@ -50,6 +50,7 @@ func _initialize() -> void:
 	_audit_roads()
 	_audit_shrines()
 	_audit_safe_water()
+	_audit_the_deep()
 	print("---")
 	if _failures == 0:
 		print("PASS: %d checks, 0 failures." % _checks)
@@ -205,6 +206,43 @@ func _audit_safe_water() -> void:
 	_check(seconds_to_empty > 25.0 and seconds_to_empty < 60.0,
 		"the Deep drains a 3-heart Kern in 25-60 s",
 		"currently %.0f s" % seconds_to_empty)
+
+
+## The swim rule's decision, checked at named points.
+##
+## This exists because the Deep cannot yet be reached by playing: the only water
+## Kern can walk into is the Old Millpond, which is safe, and the sea is still a
+## border vista rather than geometry. Without these assertions the rule would
+## ship completely unexercised.
+func _audit_the_deep() -> void:
+	print("- the Deep")
+	var cases: Array = [
+		# [label, atlas km, expect_safe]
+		["the Old Millpond", Vector2(20.095, 37.990), true],
+		["Strideport's harbour", Vector2(9.4, 46.2), true],
+		["the Kernel Reef", Vector2(6.2, 45.4), true],
+		["Longstride's shallows", Vector2(5.5, 48.0), true],
+		["open ocean west of the meadow", Vector2(4.0, 38.0), false],
+		["open ocean off the south coast", Vector2(40.0, 1.0), false],
+		["the far northern sea", Vector2(50.0, 98.0), false],
+		["the eastern deep", Vector2(98.0, 50.0), false],
+	]
+	for c in cases:
+		var safe: bool = WorldAtlas.is_safe_water(c[1])
+		_check(safe == bool(c[2]),
+			"%s is %s" % [c[0], "safe water" if c[2] else "the Deep"],
+			"is_safe_water returned %s" % safe)
+	# Naming the water matters: Bit greets the zone by name on entry, so a safe
+	# zone that cannot report its own name would greet an empty string.
+	for zone in WorldAtlas.SAFE_WATER:
+		var found: Dictionary = WorldAtlas.safe_water_at(zone["centre"])
+		_check(not found.is_empty() and String(found["name"]) != "",
+			"%s can name itself" % zone["id"])
+	# The hidden tenth island is meant to COST something to reach. If it ever
+	# lands inside a safe zone, the swim there stops being a gamble.
+	for hidden in [Vector2(4.2, 9.5)]:
+		_check(not WorldAtlas.is_safe_water(hidden),
+			"the far southwest stays unsafe water")
 
 
 ## Shortest distance from a point to the coastline polygon, in km.

@@ -160,6 +160,151 @@ next session's job.
 
 ---
 
+## 2026-08-03 (map lane) — THE CONTINENT GETS COORDINATES
+
+*Danny: "I want to build the actual terrain of the entire world first… the first
+step will be to build the cohesive map and then begin branching out from the
+meadows." Also: nest rather than stretch, a basic minimap, and a swim rule.
+The blocker turned out to be the thing nobody had written down.*
+
+**THE GAP THAT WAS FOUND**
+
+`WORLD_ATLAS.md` said which region sits where. `WORLDBOOK.md` said what is
+inside each region. **Neither said where inside a region anything stands.** An
+honest count before starting: 62 named sites, of which **8 had coordinates, all
+in Datasedge, and all of them in code rather than in any document.** Zero
+rivers, zero roads, zero elevations outside the Peaks. And
+`content/schemas/poi.schema.json` has **no position field at all** with
+`additionalProperties: false`, so an approved POI physically cannot carry a
+location — all 275 budgeted ones are placeless by construction. Terrain could
+not be built on ground nobody had placed.
+
+**DONE — `docs/WORLD_MAP.md`, the placement book**
+- **The nest rule, per Danny's call.** Built geometry never moves; it becomes
+  the dense *heart* of a *core* that grows out into the *wilds*. Its best
+  consequence: the built massif is NOT the Gradient Peaks, which sit 16 km
+  further north. It is their southern outlier — **the First Ridge** — and the
+  snow giants `border_vistas.gd` already paints behind it are the real range.
+  The code has been rendering that relationship correctly by instinct; naming it
+  makes it canon and costs nothing.
+- **Sea level = world Y −14 m.** Reverse-derived, not chosen: at that datum the
+  millpond lands 9.5 m above the sea, the north seam 38 m (which is exactly
+  `GradientPeaks.SEAM_REF`), the built massif's ceiling 534 m, and WORLDBOOK's
+  900 m Summit still far north and far higher. Every existing number becomes a
+  true elevation with **no code changed**.
+- **The km↔metre bridge**, with the `-Z` north flip written down once.
+- **A re-authored coastline.** The outline on the map artifact did not survive
+  contact with its own coordinates — fitting its axis labels back to kilometres
+  put the west coast near x 18 where the atlas puts Convolution Coast at x 8,
+  which left Strideport, a *harbour town*, ten kilometres out to sea.
+- **Six named waterways**, each named for the idea its region teaches: the
+  Descent, the Ledger, the Slow (memorised one bend and made a hundred of it),
+  the Vanishing (weakens with distance from its source and arrives as nothing —
+  the Rune Rows line the dry channel it leaves), the Emberflow (uphill, canon),
+  the Stillwater (frozen mid-flow).
+- **Six roads**, including reinterpreting the Old Boundary Stones' invisible
+  line as a **disused road** — Bit already says nobody can see the line anymore,
+  so this is existing canon given a shape, and the terrain generator's first
+  authored *linear* feature.
+- **All 62 sites placed**, plus the Shrine of First Light, which WORLDBOOK named
+  and nobody had ever positioned. It goes east of the millpond, inside the built
+  box, so it is buildable next session: Kern wakes in ruins in the northwest and
+  the prologue walks him east into the sunrise.
+
+**DONE — `game/src/world/world_atlas.gd`, one source of truth**
+Every number above as typed constants plus the coordinate maths. The map screen,
+the minimap, the swim rule and every future terrain stamper read this one file,
+so they cannot drift. 86 sites, 10 regions, 6 rivers, 6 roads, 8 safe-water
+zones, the coastline, and a documented registry of deliberately hidden places.
+
+**DONE — `src/dev/atlas_audit.gd`, and it earned its keep immediately**
+`godot --headless --script res://src/dev/atlas_audit.gd` — **384 assertions,
+all passing.** Four real errors on its first run:
+1. **Strideport was a kilometre out to open sea** (placed on its region's core
+   centre, which for an ocean region is offshore). Lighthouse Point and Window
+   Flats were wrong the same way.
+2. **The Aurora Leviathan's sky-lane had drifted over the northern ocean**, away
+   from the aurora it swims in.
+3. **The Stillwater was filed as a river that dies inland.** It does not — it
+   runs to the shore and is stopped solid the whole way. Two states were not
+   enough for a frozen river; it has its own now.
+4. **The Cinder Track branched off the Great East Road at an anonymous point.**
+   Rather than relax the check, the junction got a name: **Ashfall Turn**, the
+   last waystation before the volcano road. A machine complaining about a loose
+   end is what put it there.
+
+**DONE — the map artifact, redrawn at the same URL**
+Now a survey plate rather than a sketch: neatline, graticule ticks, trig-point
+symbols, hypsometric wash, the Deep, a full gazetteer of all 86 places with
+coordinates and elevations. Generated in JS from the same numbers as
+`world_atlas.gd`. Both themes checked by render. Chapter pips were wrong on the
+first pass (chapter 3 is three regional arcs in any order, so three stops share
+a number) and are right now.
+
+**DONE — the in-game map (M) and the minimap**
+- `WorldMapUi` — code-built, opens with M, draws the continent from WorldAtlas
+  with Kern's ring on it. Verified by render: at spawn it reads
+  `19.94, 38.06 km · local -58, -62 m` and `nearest: The Seed Vault ruins, 16 m`,
+  which is correct to the metre in both grids.
+- `Minimap` — **explicitly marked PLACEHOLDER v1 in its own doc header**, with
+  the list of what a real one wants. First pass used a 340 m window, which is
+  wider than the entire built meadow (480 m), so every landmark piled into a
+  knot at the centre; 120 m now.
+- New `--mapshot=DIR` mode, because the existing screenshot pass deliberately
+  leaves UI out and the map had no other way to produce visual evidence.
+
+**DONE — swimming, and the Deep**
+Kern can swim; there was no swim code in `player.gd` at all before today. Open
+water outside a named safe zone drains hearts slowly, the way Danny asked. Not a
+wall and not a drowning timer: a full-health Kern gets about forty seconds of
+open sea — enough to gamble on something he can see, not enough to cross to it.
+That keeps GDD §3's "no hard gates" honest; the ocean is a soft gate made of
+danger, like a high-tier monster. Safe zones come from `WorldAtlas.SAFE_WATER`,
+so adding water is one line of data.
+- Verified in the running game: dropped into the millpond he floats at exactly
+  1.30 m submersion (the design target), **hearts stay 3.00** because the pond is
+  named safe water, and Bit says his millpond line.
+- `MeadowTerrain.is_deep_water()` already existed with the comment "a future
+  swim system asks the terrain rather than hard-coding pond geometry." A past
+  session left the hook; this used it.
+
+**HALF-FORMED**
+- **There is no swim animation.** Kern floats upright in his standing pose. The
+  mechanic is real; the gait is not. `creature_animator.gd` has no water state.
+- **The Deep cannot be reached by playing.** The only water Kern can walk into
+  is the millpond, which is safe. The sea is still a border vista, not geometry,
+  so the drain is exercised by the audit rather than by hand. It will work
+  unchanged the moment the coast is built.
+- **No cold-edge vignette** for the Deep — the swimmer emits `deep_changed` and
+  nothing listens yet. One CombatHud change.
+- Region name labels on the in-game map overlap the coastline in three places.
+- The built world is still 1/6 (meadow) and ~1/29 (massif) of its atlas size.
+  Nesting means that is fine and nothing has to move, but the cores around them
+  are empty until the streamer exists.
+
+**A CAUTION FOR THE NEXT SESSION**
+A duplicate `var pond` inside one function made `main.gd` fail to parse, and the
+game then opened a window with **no script attached and simply sat there** — no
+error on stdout, no crash, a five-minute silent hang that looked like an
+infinite loop. `--headless --quit-after N` printed the parse error in one
+second. Boot headless first when a run hangs; the windowed run hides the reason.
+
+**NEXT UP**
+1. **Build the Shrine of First Light** at (20.152, 37.942). It is inside the
+   existing box, it needs no streaming, and it closes the prologue.
+2. Add an optional `position` to the POI schema — it is the single thing
+   blocking the 275-POI budget from ever being placed.
+3. Then atlas M1: floating origin + chunk streaming.
+
+**STILL NEEDS DANNY**
+- May the project bring in a **CC0 font**? The asset amendment covers texture
+  maps, HDRI and hair cards and says nothing about typefaces, so none was added
+  and the map UI is on Godot's built-in. This is the one thing between "good"
+  and "handsome" on the map screens.
+- `WORLD_ATLAS.md` §6.3 fast-travel generosity and §6.4 mounts are still open.
+
+---
+
 ## 2026-07-29 (art lane, third pass) — KERN LOOKS LIKE A PERSON
 
 *Danny: "he doesn't look connected completely and it's kinda freaky", then

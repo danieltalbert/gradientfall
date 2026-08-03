@@ -23,6 +23,8 @@ var _pack: InventoryScreen
 var _forage: MeadowForage
 var _vault: PerceptronVault
 var _compendium: CompendiumUi
+var _map: WorldMapUi
+var _minimap: Minimap
 
 
 func _ready() -> void:
@@ -42,6 +44,9 @@ func _ready() -> void:
 		push_error("ContentDB reported %d load error(s) — see above." % errors.size())
 
 	_spawn_player()
+	# The swimmer asks the terrain where the water is, so it can only be bound
+	# once the world exists.
+	_player.call(&"setup_water", _terrain)
 	_town.build(_terrain, _sky)
 	_landmarks.build(_terrain)
 	_bit.setup(_player, _terrain)
@@ -50,11 +55,31 @@ func _ready() -> void:
 	# Screenshot mode is the visual-verification tool — keep it clean of HUD
 	# and roaming enemies. Normal play gets the combat HUD + monster spawner.
 	var shot_dir: String = _screenshot_dir()
+	var map_dir: String = _flag_value("--mapshot=")
 	if shot_dir != "":
 		_capture_screens(shot_dir)
+	elif map_dir != "":
+		# UI shot mode: the world screenshot pass above deliberately leaves the
+		# interface out, so the map and the minimap have no way to produce
+		# visual evidence through it. This builds the normal-play stack and
+		# photographs the UI instead.
+		_setup_combat()
+		_setup_compendium()
+		_setup_map()
+		_capture_map(map_dir)
 	else:
 		_setup_combat()
 		_setup_compendium()
+		_setup_map()
+
+
+## The world map (M) and the top-right minimap. Normal play only — both are UI,
+## and screenshot captures stay clean of UI. Both read WorldAtlas, so neither
+## holds any geography of its own that could fall out of step with the world.
+func _setup_map() -> void:
+	_map = WorldMapUi.build(self, _player)
+	_minimap = Minimap.build(self, _player)
+	print("Map online: press M for the continent; the minimap rides the top right.")
 
 
 ## Dungeon 1 — the Perceptron Vault. Built in both modes on purpose: it is
@@ -131,10 +156,68 @@ func _spawn_player() -> void:
 
 
 func _screenshot_dir() -> String:
+	return _flag_value("--screenshot=")
+
+
+## Read a `--name=value` user argument, or "" when it was not passed.
+func _flag_value(prefix: String) -> String:
 	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--screenshot="):
+		if arg.begins_with(prefix):
 			return arg.get_slice("=", 1)
 	return ""
+
+
+## Photograph the interface: the minimap in play, then the world map open, then
+## the map again from a second standing point so the "you are here" ring and the
+## nearest-place readout can both be checked against somewhere known.
+func _capture_map(dir: String) -> void:
+	for i in 90:
+		await get_tree().process_frame
+	await _shoot(dir, "ui_minimap_at_spawn")
+
+	_map.set_open(true)
+	for i in 25:
+		await get_tree().process_frame
+	await _shoot(dir, "ui_world_map")
+
+	# Stand Kern on the millpond's edge: a named place, water in the minimap,
+	# and a different region readout line to check.
+	_map.set_open(false)
+	var pond: Vector2 = MeadowTerrain.POND_CENTER + Vector2(-30.0, 0.0)
+	_player.global_position = Vector3(pond.x, _terrain.get_height(pond.x, pond.y) + 0.8, pond.y)
+	for i in 30:
+		await get_tree().process_frame
+	await _shoot(dir, "ui_minimap_at_millpond")
+
+	_map.set_open(true)
+	for i in 25:
+		await get_tree().process_frame
+	await _shoot(dir, "ui_world_map_millpond")
+
+	# Drop Kern into the middle of the millpond from three metres up. This is
+	# the only water in the game he can actually reach, so it is the only way to
+	# photograph the swim: he should sink, bob back to the surface with his
+	# shoulders out, and take NO damage, because the pond is named safe water.
+	_map.set_open(false)
+	var drop: Vector2 = MeadowTerrain.POND_CENTER
+	_player.global_position = Vector3(drop.x, _terrain.water_level + 3.0, drop.y)
+	_player.velocity = Vector3.ZERO
+	for i in 150:
+		await get_tree().process_frame
+	print("Swim check: swimming=%s, hearts=%.2f, y=%.2f (water %.2f)" % [
+		_player.call(&"is_swimming"),
+		(_player.get_node("Health") as Health).current,
+		_player.global_position.y, _terrain.water_level,
+	])
+	await _shoot(dir, "ui_swim_millpond")
+	get_tree().quit()
+
+
+func _shoot(dir: String, shot_name: String) -> void:
+	await RenderingServer.frame_post_draw
+	var img: Image = get_viewport().get_texture().get_image()
+	var path: String = dir.path_join(shot_name + ".png")
+	print("Screenshot %s -> %s" % ["OK" if img.save_png(path) == OK else "FAILED", path])
 
 
 func _capture_screens(dir: String) -> void:
