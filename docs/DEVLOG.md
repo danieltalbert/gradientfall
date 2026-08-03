@@ -160,6 +160,95 @@ next session's job.
 
 ---
 
+## 2026-08-03 (flora lane) — BARK THAT IS WOOD, LEAVES ON BRANCHES, AND A CLIMB
+
+*Danny: "they need more detail for the wood, some sort of way to look like a
+real tree instead of different colored lines. Also the leaves need to be more
+intricately connected through branches. Kern should be able to climb some of
+them." All three were exactly right, and the first was a precise diagnosis.*
+
+**DONE — bark, rebuilt**
+"Different coloured lines" was literally what the shader drew: `sin()` ridges
+written into ALBEDO, and **NORMAL never touched**. From the renderer's point of
+view the trunk was a perfectly smooth cylinder with stripes painted on it, so
+light could not find a single ridge. Rewritten as a real surface:
+- a bark **height field** — domain-warped ridged fissures riding on broader
+  plates with fine grain over the top;
+- that height drives the shading normal through the same **Mikkelsen
+  screen-space derivative bump** `kern_skin.gdshader` already uses, so the mesh
+  stays a cheap cylinder and the light behaves as if it were carved;
+- albedo, ambient occlusion and roughness all read from **the same height**, so
+  a crease's colour agrees with its shape instead of being a second unrelated
+  pattern;
+- sampled on a ring `(cos, sin, y)` rather than `UV.x`, which has a wrap seam
+  that draws a stripe up every trunk.
+
+Two tuning passes were needed and both were caught by rendering, not reading:
+the first warp (1.7) left the fissures near-parallel and the trunk read as
+**bamboo**, and there were no **cross-cracks**, which is what actually breaks
+bark into plates rather than staves.
+
+**DONE — foliage that is attached to something**
+Leaves were scattered through ellipsoid clouds at branch tips — green cotton
+wool stuck onto a skeleton, with no leaf connected to anything. Now:
+- a third branching level (**twigs and twiglets**, a few hundred tips per tree
+  instead of ~25), each recorded as it is built;
+- leaves hang **along those twigs**, spaced by real **phyllotaxis** — the
+  137.5° golden angle, which is why foliage never sits in rows and never shades
+  itself — with a petiole so the blade starts clear of the twig, and a droop;
+- follow any leaf inward and you reach a twig, a secondary, a bough, the trunk.
+
+**Two regressions on the way, both found by looking:**
+1. Hanging leaves on lines instead of filling volumes **thinned the canopy
+   badly** — the copse came out looking like bare spring saplings. Structure
+   right, density wrong. Leaf count roughly doubled to pay for honest placement.
+2. Then leaves crowded to twig tips (I had biased them there, reasoning that new
+   growth is outermost) and the crown became **discrete pom-poms on sticks —
+   broccoli**. Uniform spread along the twig, plus longer twigs, fixed it.
+
+**DONE — Kern climbs trees**
+`TreeClimb`, a player component beside `Swimmer` and checked before it (a tree
+standing in water is a tree, not a swim). Walk up to a marked trunk, press
+interact; forward/back runs him up and down, left/right carries him **around**
+the trunk so he can reach a bough on the far side, jump lets go with a shove
+outward. Position is authored on a cylinder each frame rather than simulated —
+doing this with forces against a capsule is how climbing systems end up
+jittering.
+- **Only *some* trees**, per Danny. 119 of 181 qualify: a meadow where every
+  sapling is a ladder has no decisions in it.
+- Verified: `climbing=true`, **5.92 m gained on a 6.47 m trunk**, which is the
+  top-margin clamp exactly.
+
+**A REAL BUG THE CLIMB TEST FOUND**
+The first two attempts failed with Kern standing beside the tree doing nothing.
+The probe print said `facing dot = -0.71` — he was facing *away*. Cause: the
+player **body** carries a permanent −135° yaw set once at spawn, and every bit
+of steering since is applied to the **Visual child**. `TreeClimb` was setting
+the visual's *local* rotation as though it were global, so it landed 135° off.
+Anything that aims Kern must subtract `_player.rotation.y`. This would have been
+a silent, intermittent-looking bug in play.
+
+**HALF-FORMED**
+- **No climbing animation.** Kern slides up the trunk in his standing pose,
+  facing it. The mechanic is real; the pose is not.
+- No prompt when a climbable tree is in reach — the interact key just works.
+  Reusing `interact_target_changed` would make the dialogue box say "Talk to".
+- The distant treeline is still `border_vistas.gd`'s **black spiky cones**, and
+  now that the real trees look like trees the mismatch is worse, not better. It
+  is the most visible remaining flaw in the meadow.
+- No understory: bare grass right to the trunk, no saplings, no leaf litter, no
+  fallen branches.
+- Trunk segment joins still show a faint ring where the four tapered sections
+  meet.
+- Flora build cost rose 763 ms → ~1.9 s. Boot-time only, but worth watching.
+
+**NEXT UP**
+1. Replace the vista cones so the horizon treeline matches the real trees.
+2. Understory pass — the thing that makes a copse a *place*.
+3. Climb pose in `creature_animator.gd`.
+
+---
+
 ## 2026-08-03 (map lane) — THE CONTINENT GETS COORDINATES
 
 *Danny: "I want to build the actual terrain of the entire world first… the first

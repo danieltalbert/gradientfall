@@ -372,6 +372,13 @@ func _plant_copses() -> void:
 		_build_tree_mesh(5.9, 3.60, Color(0.17, 0.32, 0.085)),
 		_build_tree_mesh(7.1, 4.05, Color(0.155, 0.30, 0.08)),
 	]
+	# Trunk heights, parallel to `variants`. The climb needs to know how far up a
+	# given tree actually goes, and guessing from the mesh AABB would include the
+	# crown, which would send Kern climbing into thin air above the boughs.
+	var variant_trunk_h: Array[float] = [3.4, 4.1, 4.8, 5.5, 5.9, 7.1]
+	# Only trunks at least this tall (after instance scaling) are worth climbing.
+	# A meadow where every sapling is a ladder has no decisions in it.
+	var climbable_min_h: float = 4.6
 	var trunk_shape: CylinderShape3D = CylinderShape3D.new()
 	trunk_shape.radius = 0.46
 	trunk_shape.height = 5.2
@@ -387,6 +394,7 @@ func _plant_copses() -> void:
 	trees.name = "Trees"
 	add_child(trees)
 	var planted: int = 0
+	var climbable: int = 0
 	for c in copses:
 		var count: int = _rng.randi_range(9, 15)
 		for i in count:
@@ -401,7 +409,8 @@ func _plant_copses() -> void:
 				continue
 			var tree: StaticBody3D = StaticBody3D.new()
 			var mi: MeshInstance3D = MeshInstance3D.new()
-			mi.mesh = variants[_rng.randi() % variants.size()]
+			var variant_index: int = _rng.randi() % variants.size()
+			mi.mesh = variants[variant_index]
 			var col: CollisionShape3D = CollisionShape3D.new()
 			col.shape = trunk_shape
 			col.position.y = 2.6
@@ -412,10 +421,86 @@ func _plant_copses() -> void:
 			# Non-uniform: height varies more than girth, so two instances of one
 			# variant still read as different trees, not a copy-paste.
 			var s: float = _rng.randf_range(0.80, 1.22)
-			tree.scale = Vector3(s, s * _rng.randf_range(0.86, 1.18), s)
+			var height_scale: float = _rng.randf_range(0.86, 1.18)
+			tree.scale = Vector3(s, s * height_scale, s)
+			# Climbable if the scaled trunk clears the bar. The metadata is what
+			# `TreeClimb` reads: how high the trunk runs and how fat it is, both in
+			# world units after scaling, so the climb hugs the real surface.
+			var scaled_trunk: float = variant_trunk_h[variant_index] * s * height_scale
+			if scaled_trunk >= climbable_min_h:
+				tree.add_to_group(&"climbable")
+				tree.set_meta("climb_height", scaled_trunk)
+				tree.set_meta("climb_radius", 0.46 * s)
+				climbable += 1
 			trees.add_child(tree)
 			planted += 1
-	print("MeadowFlora: %d trees across %d copses." % [planted, copses.size()])
+	print("MeadowFlora: %d trees across %d copses, %d climbable." % [
+			planted, copses.size(), climbable])
+
+
+## 137.5 degrees in radians — the angle successive leaves step round a stem in
+## almost every real plant, because it is the rotation that packs leaves so none
+## sits directly above another and shades it. Free to implement and it is most
+## of why real foliage does not read as rows.
+const GOLDEN_ANGLE: float = 2.39996323
+
+
+## Every twig of the tree currently being built, as `{a, b}` endpoints in local
+## space. Leaves are hung along these, so foliage is attached to the branch that
+## carries it rather than floating in a cloud near it.
+var _twigs: Array[Dictionary] = []
+
+
+## Grow a fan of twigs off a parent branch, each with its own finer twiglets,
+## and record every one for the foliage pass.
+##
+## This is the level of branching that was missing. The old tree stopped at
+## "secondary limb, one twig" — perhaps 25 tips for the whole crown — so leaves
+## had nothing to hang from and were scattered into ellipsoids instead. Three
+## levels of twig give a few hundred tips, which is what makes the canopy read
+## as connected rather than as green wool laid over a skeleton.
+func _grow_twigs(st: SurfaceTool, parent_start: Vector3, parent_end: Vector3,
+		crown_r: float, count: int) -> void:
+	var parent_axis: Vector3 = parent_end - parent_start
+	if parent_axis.length_squared() < 0.000001:
+		return
+	parent_axis = parent_axis.normalized()
+	for twig_index in count:
+		# Spread the twigs along the outer half of the parent, spiralling round
+		# it, the same way the leaves will spiral round the twigs.
+		var along: float = 0.42 + 0.55 * (float(twig_index) + _rng.randf()) / float(count)
+		var start: Vector3 = parent_start.lerp(parent_end, along)
+		var spiral: float = float(twig_index) * GOLDEN_ANGLE + _rng.randf_range(-0.3, 0.3)
+		var frame_u: Vector3 = parent_axis.cross(Vector3.UP)
+		if frame_u.length_squared() < 0.001:
+			frame_u = parent_axis.cross(Vector3.RIGHT)
+		frame_u = frame_u.normalized()
+		var frame_v: Vector3 = parent_axis.cross(frame_u).normalized()
+		var out_dir: Vector3 = frame_u * cos(spiral) + frame_v * sin(spiral)
+		# Twigs reach outward and upward — foliage chases light.
+		var direction: Vector3 = (out_dir * 0.74 + parent_axis * 0.42
+				+ Vector3.UP * _rng.randf_range(0.12, 0.44)).normalized()
+		# Longer than the first pass. A twig's leaves can only cover the volume the
+		# twig itself sweeps, so short twigs leave holes no leaf count can fill.
+		var length: float = crown_r * _rng.randf_range(0.26, 0.44)
+		var finish: Vector3 = start + direction * length
+		_append_tapered_branch(st, start, finish, 0.022, 0.009, 5)
+		_twigs.append({"a": start, "b": finish})
+
+		# Twiglets: the last fork before leaf. Short, numerous, and the thing
+		# that actually carries most of the canopy.
+		var twiglet_count: int = _rng.randi_range(4, 6)
+		for twiglet_index in twiglet_count:
+			var t_along: float = 0.34 + 0.6 * (float(twiglet_index) + _rng.randf()) \
+					/ float(twiglet_count)
+			var t_start: Vector3 = start.lerp(finish, t_along)
+			var t_spiral: float = float(twiglet_index) * GOLDEN_ANGLE
+			var t_out: Vector3 = frame_u * cos(t_spiral) + frame_v * sin(t_spiral)
+			var t_dir: Vector3 = (t_out * 0.66 + direction * 0.52
+					+ Vector3.UP * _rng.randf_range(0.06, 0.3)).normalized()
+			var t_end: Vector3 = t_start + t_dir * crown_r * _rng.randf_range(0.15, 0.26)
+			_append_tapered_branch(st, t_start, t_end, 0.010, 0.004, 4)
+			_twigs.append({"a": t_start, "b": t_end})
 
 
 ## The current tree's lean, as a horizontal displacement in metres applied at
@@ -511,23 +596,22 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 
 	var cluster_centers: Array[Vector3] = []
 	var cluster_radii: Array[Vector3] = []
-	# Crown clusters ride the trunk's curve (see `_trunk_axis`), so a leaning
-	# tree carries its canopy over with it.
-	cluster_centers.append(_trunk_axis(0.9, trunk_h) + Vector3.UP * crown_r * 0.36)
-	cluster_radii.append(Vector3(crown_r * 0.72, crown_r * 0.56, crown_r * 0.72))
-	cluster_centers.append(_trunk_axis(1.0, trunk_h) + Vector3.UP * crown_r * 0.82)
-	cluster_radii.append(Vector3(crown_r * 0.48, crown_r * 0.58, crown_r * 0.48))
+	# Every twig and twiglet, as {a, b} in local space. LEAVES GROW ALONG THESE.
+	#
+	# The old crown was ellipsoid clouds of leaves floating at branch tips, which
+	# is why it read as green cotton wool stuck onto a skeleton: no leaf was
+	# attached to anything. Foliage now hangs off the twig that carries it, with
+	# real phyllotaxis, so following any leaf inward reaches a twig, then a
+	# secondary, then a bough, then the trunk.
+	_twigs.clear()
 
 	# A visible central leader prevents the crown from reading as a detached ball.
 	var leader_start: Vector3 = _trunk_axis(0.72, trunk_h)
-	var leader_mid: Vector3 = _trunk_axis(1.0, trunk_h) \
-			+ Vector3(0.08, crown_r * 0.3, -0.06)
-	var leader_end: Vector3 = _trunk_axis(1.0, trunk_h) \
-			+ Vector3(-0.06, crown_r * 1.18, 0.1) + _lean * 0.35
+	var leader_mid: Vector3 = _trunk_axis(1.0, trunk_h) 			+ Vector3(0.08, crown_r * 0.3, -0.06)
+	var leader_end: Vector3 = _trunk_axis(1.0, trunk_h) 			+ Vector3(-0.06, crown_r * 1.18, 0.1) + _lean * 0.35
 	_append_tapered_branch(st, leader_start, leader_mid, 0.19, 0.105, 9)
 	_append_tapered_branch(st, leader_mid, leader_end, 0.105, 0.035, 7)
-	cluster_centers.append(leader_end)
-	cluster_radii.append(Vector3(crown_r * 0.31, crown_r * 0.36, crown_r * 0.31))
+	_grow_twigs(st, leader_mid, leader_end, crown_r, 4)
 
 	var bough_count: int = _rng.randi_range(8, 10)
 	for bough_index in bough_count:
@@ -544,16 +628,10 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 		primary_end += Vector3.UP * _rng.randf_range(0.12, 0.42)
 		_append_tapered_branch(st, attach, elbow, 0.17, 0.105, 9)
 		_append_tapered_branch(st, elbow, primary_end, 0.105, 0.052, 8)
-		cluster_centers.append(primary_end)
-		cluster_radii.append(Vector3(
-			crown_r * _rng.randf_range(0.36, 0.5),
-			crown_r * _rng.randf_range(0.3, 0.43),
-			crown_r * _rng.randf_range(0.36, 0.5)
-		))
 
-		var secondary_count: int = _rng.randi_range(2, 3)
+		var secondary_count: int = _rng.randi_range(3, 4)
 		for secondary_index in secondary_count:
-			var along: float = 0.42 + 0.2 * float(secondary_index)
+			var along: float = 0.34 + 0.19 * float(secondary_index)
 			var secondary_start: Vector3 = attach.lerp(primary_end, along)
 			var side_sign: float = -1.0 if secondary_index % 2 == 0 else 1.0
 			var secondary_yaw: float = yaw + side_sign * _rng.randf_range(0.55, 1.05)
@@ -564,88 +642,110 @@ func _build_tree_mesh(trunk_h: float, crown_r: float, crown_col: Color) -> Array
 			var secondary_length: float = crown_r * _rng.randf_range(0.46, 0.72)
 			var secondary_end: Vector3 = secondary_start + secondary_direction * secondary_length
 			_append_tapered_branch(st, secondary_start, secondary_end, 0.062, 0.025, 6)
-			cluster_centers.append(secondary_end)
-			cluster_radii.append(Vector3(
-				crown_r * _rng.randf_range(0.23, 0.34),
-				crown_r * _rng.randf_range(0.2, 0.3),
-				crown_r * _rng.randf_range(0.23, 0.34)
-			))
-
-			# Fine twigs remain visible through deliberate gaps in the leaf strata.
-			var twig_start: Vector3 = secondary_start.lerp(secondary_end, 0.58)
-			var twig_yaw: float = secondary_yaw + _rng.randf_range(-0.65, 0.65)
-			var twig_direction: Vector3 = Vector3(
-				cos(twig_yaw), _rng.randf_range(0.25, 0.62), sin(twig_yaw)
-			).normalized()
-			var twig_end: Vector3 = twig_start + twig_direction * crown_r * _rng.randf_range(0.22, 0.38)
-			_append_tapered_branch(st, twig_start, twig_end, 0.028, 0.009, 5)
-			cluster_centers.append(twig_end)
-			cluster_radii.append(Vector3.ONE * crown_r * _rng.randf_range(0.14, 0.2))
+			# Three or four twigs per secondary, each carrying its own twiglets.
+			_grow_twigs(st, secondary_start, secondary_end, crown_r,
+					_rng.randi_range(3, 4))
 
 	var mesh: ArrayMesh = st.commit()
 
-	# Surface 1: dense but perforated leaf strata. Weighting cluster volume by
-	# 0.72 gives smaller branch-tip clusters enough leaves to retain branching.
+	# Surface 1: foliage, hung along the twigs collected above.
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var cluster_weights: PackedFloat32Array = PackedFloat32Array()
-	var total_weight: float = 0.0
-	for cluster_index in cluster_centers.size():
-		var radii: Vector3 = cluster_radii[cluster_index]
-		var weight: float = pow(radii.x * radii.y * radii.z, 0.72)
-		cluster_weights.append(weight)
-		total_weight += weight
-	# LEAF BUDGET: raised with the size cut below. The old leaves were 0.30-0.48 m
-	# long, which at conversation range read as coins rather than foliage.
-	# Halving them linearly quarters their area, so the count must rise or the
-	# crown goes see-through.
-	var leaf_count: int = int(12000.0 + crown_r * 1400.0)
+	# LEAF BUDGET, tuned by render across two passes.
+	#
+	# The old 0.30-0.48 m leaves read as coins from ten metres, so they were cut
+	# to real broadleaf size. Then hanging them along TWIGS instead of filling
+	# ellipsoid clouds thinned the canopy badly — leaves on a line project far
+	# less area than leaves filling a volume, and the copse came out looking like
+	# bare spring saplings. Structure was right, density was wrong.
+	#
+	# So the count roughly doubles to pay for the honest placement. This is the
+	# expensive way to build a crown and it is the one that looks like a tree.
+	var leaf_count: int = int(23000.0 + crown_r * 2600.0)
 	var quad_order: Array[int] = [0, 1, 2, 0, 2, 3]
 	var uvs: Array[Vector2] = [
 		Vector2(0.0, 0.0), Vector2(1.0, 0.0),
 		Vector2(1.0, 1.0), Vector2(0.0, 1.0),
 	]
+	var crown_top: float = trunk_h + crown_r * 1.55
+	# Longer twigs carry proportionally more leaves, so the crown thickens where
+	# the branching actually is instead of uniformly.
+	var twig_weights: PackedFloat32Array = PackedFloat32Array()
+	var total_weight: float = 0.0
+	for twig in _twigs:
+		var w: float = (twig["b"] as Vector3).distance_to(twig["a"])
+		twig_weights.append(w)
+		total_weight += w
+	if total_weight <= 0.0:
+		push_warning("MeadowFlora: tree built with no twigs; crown will be bare.")
+		total_weight = 1.0
+
 	for leaf_index in leaf_count:
 		var pick: float = _rng.randf() * total_weight
-		var chosen_index: int = 0
-		for cluster_index in cluster_centers.size():
-			pick -= cluster_weights[cluster_index]
+		var chosen: int = 0
+		for twig_index in _twigs.size():
+			pick -= twig_weights[twig_index]
 			if pick <= 0.0:
-				chosen_index = cluster_index
+				chosen = twig_index
 				break
-		var chosen_center: Vector3 = cluster_centers[chosen_index]
-		var chosen_radii: Vector3 = cluster_radii[chosen_index]
-		var radius: float = pow(_rng.randf(), 0.46)
-		var theta: float = _rng.randf_range(0.0, TAU)
-		var phi: float = acos(_rng.randf_range(-1.0, 1.0))
-		var sphere_point: Vector3 = Vector3(
-			sin(phi) * cos(theta), cos(phi), sin(phi) * sin(theta)
-		) * radius
-		var leaf_position: Vector3 = chosen_center + sphere_point * chosen_radii
+		var a: Vector3 = _twigs[chosen]["a"]
+		var b: Vector3 = _twigs[chosen]["b"]
+		var axis: Vector3 = b - a
+		if axis.length_squared() < 0.000001:
+			continue
+		axis = axis.normalized()
 
-		var yaw_basis: Basis = Basis(Vector3.UP, _rng.randf_range(0.0, TAU))
-		var tilt_basis: Basis = Basis(Vector3.RIGHT, _rng.randf_range(-1.2, 1.2))
-		var roll_basis: Basis = Basis(Vector3.FORWARD, _rng.randf_range(-0.35, 0.35))
-		var leaf_basis: Basis = yaw_basis * tilt_basis * roll_basis
-		# Real broadleaf foliage is 6-14 cm across. The old 18-31 cm leaves
-		# read as dinner plates from ten metres.
-		var half_width: float = _rng.randf_range(0.035, 0.062)
-		var leaf_length: float = _rng.randf_range(0.13, 0.22)
-		var leaf_x: Vector3 = leaf_basis.x * half_width
-		var leaf_y: Vector3 = leaf_basis.y * (leaf_length * 0.5)
+		# Spread UNIFORMLY along the twig. Biasing toward the tip (the first pass
+		# used pow(randf, 0.62), reasoning that new growth is outermost) piled every
+		# leaf into the last few centimetres, and since twiglets are short the crown
+		# came out as discrete pom-poms on sticks — broccoli, not a tree.
+		var along_t: float = _rng.randf()
+		var base: Vector3 = a.lerp(b, along_t)
+
+		# Phyllotaxis: successive leaves step round the twig by the golden angle,
+		# 137.5 degrees. It is why real foliage never shades itself in rows, and
+		# it is free — one multiply on the leaf index.
+		var spiral: float = float(leaf_index) * GOLDEN_ANGLE
+		var frame_u: Vector3 = axis.cross(Vector3.UP)
+		if frame_u.length_squared() < 0.001:
+			frame_u = axis.cross(Vector3.RIGHT)
+		frame_u = frame_u.normalized()
+		var frame_v: Vector3 = axis.cross(frame_u).normalized()
+		var out_dir: Vector3 = (frame_u * cos(spiral) + frame_v * sin(spiral)).normalized()
+
+		# The blade droops away from the twig under its own weight, and tilts a
+		# little along the twig so it is not a perfect wheel of spokes.
+		var droop: float = _rng.randf_range(0.25, 0.72)
+		var long_axis: Vector3 = (out_dir + Vector3.DOWN * droop
+				+ axis * _rng.randf_range(-0.18, 0.34)).normalized()
+		var side_axis: Vector3 = axis.cross(long_axis)
+		if side_axis.length_squared() < 0.000001:
+			side_axis = frame_u
+		side_axis = side_axis.normalized()
+
+		# Real broadleaf foliage is 6-14 cm across. Nudged up from the first
+		# pass's 3.5-6.2 cm half-width, which was accurate for a small leaf and
+		# left the crown reading thin once the leaves moved onto the twigs.
+		var half_width: float = _rng.randf_range(0.045, 0.075)
+		var leaf_length: float = _rng.randf_range(0.16, 0.26)
+		# The petiole: a short stalk, so the blade starts clear of the twig
+		# instead of intersecting it.
+		var petiole: float = _rng.randf_range(0.012, 0.03)
+		var leaf_center: Vector3 = base + long_axis * (petiole + leaf_length * 0.5)
+		var leaf_x: Vector3 = side_axis * half_width
+		var leaf_y: Vector3 = long_axis * (leaf_length * 0.5)
 		var corners: Array[Vector3] = [
-			leaf_position - leaf_x - leaf_y,
-			leaf_position + leaf_x - leaf_y,
-			leaf_position + leaf_x + leaf_y,
-			leaf_position - leaf_x + leaf_y,
+			leaf_center - leaf_x - leaf_y,
+			leaf_center + leaf_x - leaf_y,
+			leaf_center + leaf_x + leaf_y,
+			leaf_center - leaf_x + leaf_y,
 		]
 		var leaf_phase: float = _rng.randf()
-		var height_ratio: float = clampf(
-			leaf_position.y / (trunk_h + crown_r * 1.55), 0.0, 1.0
-		)
+		var height_ratio: float = clampf(leaf_center.y / crown_top, 0.0, 1.0)
+		var leaf_normal: Vector3 = side_axis.cross(long_axis).normalized()
 		for corner_index in quad_order:
 			st.set_uv(uvs[corner_index])
 			st.set_uv2(Vector2(leaf_phase, height_ratio))
-			st.set_normal(leaf_basis.z.normalized())
+			st.set_normal(leaf_normal)
 			st.add_vertex(corners[corner_index])
 	mesh = st.commit(mesh)
 

@@ -258,7 +258,83 @@ func _capture_flora(dir: String) -> void:
 		for i in 30:
 			await get_tree().process_frame
 		await _shoot(dir, String(shot["name"]))
+	await _capture_climb(dir)
 	get_tree().quit()
+
+
+## Put Kern on a trunk and photograph him up it. Input is driven synthetically
+## because there is nobody at the keyboard: press `interact` to take hold, then
+## hold `move_forward` and let the climb run.
+func _capture_climb(dir: String) -> void:
+	var trees: Array = get_tree().get_nodes_in_group(&"climbable")
+	if trees.is_empty():
+		push_warning("Climb shot skipped: no climbable trees in the meadow.")
+		return
+	# The climbable tree nearest the copse the other flora shots look at.
+	var target: Node3D = null
+	var best: float = INF
+	for node in trees:
+		var tree: Node3D = node as Node3D
+		var d: float = Vector2(tree.global_position.x, tree.global_position.z) \
+				.distance_to(Vector2(30.0, -60.0))
+		if d < best:
+			best = d
+			target = tree
+	var trunk: Vector3 = target.global_position
+	var height: float = float(target.get_meta("climb_height", 4.0))
+	var radius: float = float(target.get_meta("climb_radius", 0.46))
+
+	var rig: Node3D = _player.get_node("CameraRig")
+	var arm: SpringArm3D = rig.get_node("SpringArm3D") as SpringArm3D
+	var kern_visual: Node3D = _player.get_node("Visual") as Node3D
+	kern_visual.visible = true
+	rig.set_process(false)
+
+	# Stand him just west of the trunk, facing east into it.
+	_player.global_position = trunk + Vector3(-(radius + 0.7), 0.4, 0.0)
+	# Zero the BODY yaw first. It is set to -135 degrees at spawn and never
+	# touched again, so a visual rotation set on top of it lands 135 degrees off
+	# — which is exactly how the first climb attempt ended up facing away from
+	# the tree it was standing next to.
+	_player.rotation.y = 0.0
+	kern_visual.rotation.y = atan2(-1.0, 0.0)  # face +X, into the trunk
+	for i in 20:
+		await get_tree().process_frame
+
+	# Held for several frames, not one. `is_action_just_pressed` is polled from
+	# _physics_process, which runs on its own clock — a press and release inside
+	# a single rendered frame can fall entirely between two physics ticks, and
+	# the grab silently never happens.
+	var flat: Vector3 = trunk - _player.global_position
+	flat.y = 0.0
+	var face: Vector3 = -kern_visual.global_transform.basis.z
+	face.y = 0.0
+	print("Climb probe: gap=%.2f m (reach %.2f), facing dot=%.2f (need %.2f), kern=%s tree=%s" % [
+		flat.length() - radius, TreeClimb.REACH,
+		face.normalized().dot(flat.normalized()), TreeClimb.FACING_DOT,
+		_player.global_position, trunk,
+	])
+	Input.action_press(&"interact")
+	for i in 6:
+		await get_tree().process_frame
+	Input.action_release(&"interact")
+	Input.action_press(&"move_forward")
+	for i in 150:
+		await get_tree().process_frame
+	Input.action_release(&"move_forward")
+
+	var climbing: bool = bool(_player.get_node("TreeClimb").get(&"is_climbing"))
+	print("Climb check: climbing=%s, trunk_h=%.2f, kern_y=%.2f (base %.2f, gained %.2f m)" % [
+		climbing, height, _player.global_position.y, trunk.y,
+		_player.global_position.y - trunk.y,
+	])
+	rig.global_position = trunk + Vector3(-6.5, height * 0.7, 3.0)
+	rig.rotation.y = deg_to_rad(-115.0)
+	arm.rotation.x = 0.10
+	arm.spring_length = 0.0
+	for i in 25:
+		await get_tree().process_frame
+	await _shoot(dir, "climb_in_tree")
 
 
 func _shoot(dir: String, shot_name: String) -> void:

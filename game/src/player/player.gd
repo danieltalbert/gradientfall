@@ -92,6 +92,10 @@ var _emote_wheel: EmoteWheel
 ## that has no water in it yet.
 var _swimmer: Swimmer
 
+## Tree climbing. Checked BEFORE the swimmer — a tree standing in water is a
+## tree, not a swim.
+var _climb: TreeClimb
+
 @onready var _visual: Node3D = $Visual
 @onready var _rig: CameraRig = $CameraRig
 @onready var _health: Health = $Health
@@ -118,6 +122,10 @@ func _ready() -> void:
 	_swimmer = Swimmer.new()
 	_swimmer.name = "Swimmer"
 	add_child(_swimmer)
+	_climb = TreeClimb.new()
+	_climb.name = "TreeClimb"
+	add_child(_climb)
+	_climb.setup(self)
 	EventBus.player_spawned.emit(self)
 
 
@@ -166,6 +174,13 @@ func _physics_process(delta: float) -> void:
 	# steering. Buoyancy and the stroke are the swimmer's job, and it reports
 	# whether it claimed the frame.
 	var wish: Array = _wish_vector()
+	# Climbing first: it authors the body's position outright, so nothing else
+	# may touch velocity on a frame it claims.
+	if _climb != null:
+		var raw: Vector2 = Input.get_vector(&"move_left", &"move_right",
+				&"move_forward", &"move_back")
+		if _climb.tick(delta, -raw.y, raw.x):
+			return
 	if _swimmer != null and _swimmer.tick(delta, wish[0], wish[1]):
 		if float(wish[1]) > 0.02:
 			var swim_dir: Vector3 = wish[0]
