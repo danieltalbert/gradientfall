@@ -104,6 +104,59 @@ hand-modelling that only exists in someone's session.
 currently exports with it `False`, which is precisely why Kern has no face rig
 and cannot blink.
 
+## 2a. Garments: cut for fit, author for silhouette
+
+*Written 2026-08-03 from the first real run of this pipeline. Both halves of
+this section were paid for in renders; do not re-derive them.*
+
+**PROVEN — cut garments from the body's own surface.**
+`tools/make_kern_garments.py` duplicates body faces selected by a bone-weight
+mask, so the garment inherits the body's exact multi-bone weights. Cloth and
+limb are then driven by identical numbers and cannot separate. The full-length
+sleeve that ~40 cycles of the old runtime pipeline could not build came out
+correct on the first run, along with trousers from ankle to waist and boots
+that reach the toes. The technique also replaces the runtime `COVERED_ZONES`
+radius bands: covered skin is deleted at author time by the same mask that cut
+the garment, so the class of bug where a band deleted Kern's whole arm cannot
+occur.
+
+Region masks should be written against **bone groups**, not heights or radii —
+a sleeve ends at the wrist because `lowerarm_*` fades into `hand_*` there. Two
+supporting passes earned their keep: `relax_boundary` (a weight isoline is
+ragged at vertex resolution and renders as a torn collar) and
+`flatten_features` (general smoothing converges too slowly on dense clusters,
+so nipples read through a shirt and toenails through a boot even at 40+
+iterations; MakeHuman tags both with their own vertex groups, so press those in
+specifically rather than smoothing the whole garment flat).
+
+**DISPROVEN — a cut garment alone cannot pass the silhouette test.**
+A surface offset 10–15 mm from the body has, by construction, the body's
+silhouette. Rendered black, the first fully-clothed Kern read as *a naked
+person*: no collar, no cuff, no hem, no belt line, no boot top. It passes the
+deformation test and fails gate test 1, which section 1 ranks as the single
+highest-value property a figure has. **More clearance does not fix this** — it
+inflates the figure without adding a garment edge, and past ~20 mm it reads as
+a body stocking one size too big. This is a ceiling of the technique, in the
+same way the two-bone binding was a ceiling of the old one.
+
+**THEREFORE — every garment needs authored geometry that departs from the
+body.** The cut supplies fit and weights; silhouette has to be built:
+  - hanging pieces (tunic skirt, cloak, tabard) as **lofted rings** anchored at
+    the waist or shoulders, not cut from the body — a skirt cut from the body
+    follows two legs and renders as two flaps;
+  - **edge features** — collar band, sleeve cuffs, boot cuffs, a hem roll —
+    which is what makes cloth read as tailored rather than sprayed on;
+  - and, for anything that should hang or fold, Blender's **cloth modifier**
+    with the body as a collision object, simulated and applied, then
+    weight-transferred back from the body with a DataTransfer modifier. That
+    is the production technique for draped cloth and is where fold detail
+    comes from.
+
+Until a garment set carries authored silhouette, it is **not** an improvement
+over the blocky runtime garments it replaces and must not be wired into the
+game: the old clothes are crude but they have a readable outline, and trading
+outline for fit is a net regression at gameplay distance.
+
 ---
 
 ## 3. The shared human rig

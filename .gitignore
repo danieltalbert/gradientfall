@@ -1,3 +1,12 @@
 # Python bytecode from tools/ — generated on every validator run, never committed.
 __pycache__/
 *.py[cod]
+
+# Blender's rolling backup file.
+*.blend1
+
+# Derived authoring output: assets_src/kern.blend is the committed source, and
+# kern_dressed.blend is regenerated from it by one command (see
+# docs/CHARACTER_PIPELINE.md). Committing it would churn ~1.3 MB of binary on
+# every garment iteration for no recoverable information.
+assets_src/kern_dressed.blend

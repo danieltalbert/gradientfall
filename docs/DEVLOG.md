@@ -4,6 +4,72 @@
 
 ---
 
+## 2026-08-03 (art lane) — THE PIPELINE RUNS; THE SILHOUETTE TEST BITES
+
+*First real build on the figure-split pipeline. The mechanism works and solved
+the problem it was designed for on the first attempt. Then the quality gate
+failed it on a different axis, which is exactly what a gate is for. Nothing is
+wired into the game, deliberately — see NOT SHIPPED.*
+
+**DONE — `tools/make_kern_garments.py`, garments cut from the body itself**
+Garments are duplicated out of `KernBody`'s own faces using a bone-weight
+region mask, so they inherit the body's exact multi-bone weights. Cloth and
+limb are then driven by identical numbers and cannot separate.
+- **The full-length sleeve exists.** The garment that ~40 render-fix cycles
+  could not build under the old runtime pipeline came out correct on the first
+  run, because the failure mode — rigid two-bone cloth against smooth
+  multi-bone skin — is not expressible in this approach.
+- Trousers run ankle to waist, boots reach the toes (measured: boot z spans
+  -0.017 to 0.423 m), belt sits at the waist.
+- Covered skin is stripped **at author time** by the same mask that cut the
+  garment (5,719 verts), retiring the runtime `COVERED_ZONES` radius bands
+  whose arm band once deleted Kern's entire arm.
+- Two supporting passes each earned their place by a render: `relax_boundary`
+  (a weight isoline is ragged at vertex resolution — it renders as a torn
+  collar) and `flatten_features` (smoothing converges too slowly on dense
+  vertex clusters, so nipples read through the shirt and toenails through the
+  boots even at 40+ iterations; MakeHuman tags both with their own vertex
+  groups, so those get pressed in specifically instead of smoothing the whole
+  garment flat and losing its shape).
+
+**DONE — `tools/render_character_sheet.py`, the quality gate as a tool**
+Renders gate tests 1 and 2 (silhouette, turnaround) straight from a `.blend`
+in seconds, on Workbench so it needs no GPU context and no scene lighting.
+`--only` / `--hide` isolate objects, which settled the session's one genuinely
+ambiguous defect in a single frame: bumps on the clothed torso were the tunic
+itself, not the body poking through it, and those need opposite fixes.
+
+**DONE — the finding that matters: a cut garment cannot pass the silhouette
+test.** Rendered black, the fully-clothed Kern reads as *a naked person* — no
+collar, no cuff, no hem, no belt line, no boot top. This is structural, not a
+tuning miss: a surface offset 10–15 mm from the body has the body's silhouette
+by construction, and more clearance only inflates the figure. It is a ceiling
+of the technique in the same way two-bone binding was a ceiling of the last
+one. Evidence committed at `docs/progress/kern_2026-08-03_garment_v1/`.
+`docs/CHARACTER_PIPELINE.md` section 2a now records what is proven and what is
+disproven so no future session re-derives either.
+
+**NOT SHIPPED — and this is a deliberate call.** The new garments are NOT
+wired into the game. They fit and deform correctly, but the old blocky runtime
+clothes have a *readable outline* and these do not; trading silhouette for fit
+is a net regression at gameplay distance, and gate test 1 outranks test 3 per
+CHARACTER_PIPELINE.md section 1. Shipping it would have made the game look
+worse while ticking a box. `kern_base_model.gd` and `kern_gear_builder.gd` are
+untouched; the game runs exactly as it did.
+
+**NEXT UP — authored silhouette geometry, which is the identified fix**
+The cut supplies fit and weights; silhouette has to be built on top:
+lofted rings for hanging pieces (tunic skirt, cloak) rather than body cuts —
+a skirt cut from the body follows two legs and renders as two flaps; edge
+features (collar band, sleeve cuffs, boot cuffs, hem roll); and Blender's
+cloth modifier with the body as collider, applied then weight-transferred, for
+anything that should fold. Then re-run the gate, and only then wire it in.
+
+**STILL OPEN from the figure split:** face shape keys and `export_morph`
+(Kern still cannot blink), and hair/cloth secondary motion.
+
+---
+
 ## 2026-08-02 (direction session) — THE FIGURE SPLIT: FIGURES LEAVE GDSCRIPT
 
 *Danny, who is not a game developer, asked the right question: "I need these
