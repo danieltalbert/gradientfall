@@ -148,6 +148,9 @@ func _capture_screens(dir: String) -> void:
 	var kern_visual: Node3D = _player.get_node("Visual") as Node3D
 	if kern_visual != null:
 		kern_visual.visible = false
+	# Bit is hidden by default (he sits right on the lens for world shots) but a
+	# shot can opt back in with "show_bit" — the companion milestone has no other
+	# way to produce visual evidence, since he only exists at runtime.
 	_bit.visible = false
 	_landmarks.visible = false
 	var cycle: SkyCycle = get_node("World/SkyCycle") as SkyCycle
@@ -208,6 +211,30 @@ func _capture_screens(dir: String) -> void:
 		{"name": "detail_trample", "yaw": 0.0, "pitch": -0.42,
 			"pos": Vector2(-40.0, -76.6), "eye": 1.7, "show_kern": true,
 			"spring": 0.0, "freeze_rig": true, "player_at": Vector2(-40.0, -80.0)},
+		# The landing area — where a new player actually opens their eyes.
+		# SPAWN_POINT is (-58, -62) and Kern is turned to -135 deg (southeast,
+		# toward Bootstrap and the pond), so "behind him" is northwest: the
+		# camera offsets below are that facing reversed, 3-4 m back.
+		{"name": "spawn_over_shoulder", "yaw": deg_to_rad(-135.0), "pitch": -0.11,
+			"pos": Vector2(-60.1, -64.1), "eye": 2.0, "show_kern": true,
+			"show_bit": true, "spring": 0.0, "freeze_rig": true,
+			"player_at": Vector2(-58.0, -62.0), "face": deg_to_rad(-135.0)},
+		# Reverse angle: the camera stands southeast of Kern looking back at him,
+		# so the face the imported base mesh gave him is actually in frame.
+		{"name": "spawn_facing_kern", "yaw": deg_to_rad(45.0), "pitch": -0.09,
+			"pos": Vector2(-55.5, -59.5), "eye": 2.0, "show_kern": true,
+			"show_bit": true, "spring": 0.0, "freeze_rig": true,
+			"player_at": Vector2(-58.0, -62.0), "face": deg_to_rad(-135.0)},
+		# Bit at his own altitude. He hovers Bit.HOVER_HEIGHT = 1.78 m above
+		# Kern's origin, so the lens sits at eye 2.6 to meet him level rather
+		# than looking up at his underside.
+		{"name": "bit_closeup", "yaw": deg_to_rad(-135.0), "pitch": -0.02,
+			"pos": Vector2(-59.3, -63.3), "eye": 2.6, "show_kern": true,
+			"show_bit": true, "spring": 0.0, "freeze_rig": true,
+			"player_at": Vector2(-58.0, -62.0), "face": deg_to_rad(-135.0)},
+		# The landing area with nobody standing in it, from Kern's own eyeline.
+		{"name": "spawn_landing_wide", "yaw": deg_to_rad(-135.0), "pitch": -0.06,
+			"pos": Vector2(-58.0, -62.0), "eye": 2.45},
 		# Yaw 180° looks due south — straight down the vault's axis, which is
 		# the order a player walks it: facade, hall, chamber, junction, arena.
 		{"name": "vault_approach", "yaw": PI, "pitch": 0.10,
@@ -233,6 +260,7 @@ func _capture_screens(dir: String) -> void:
 	for shot in shots:
 		if kern_visual != null:
 			kern_visual.visible = shot.get("show_kern", false)
+		_bit.visible = shot.get("show_bit", false)
 		# The rig normally re-follows the player every frame (and forces a
 		# 1.65 m eye) — freeze it so a posed camera that looks AT Kern (e.g.
 		# the trample shot) actually stays where it's put.

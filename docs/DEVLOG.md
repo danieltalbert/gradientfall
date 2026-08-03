@@ -4,6 +4,96 @@
 
 ---
 
+## 2026-08-02 (direction session) — THE FIGURE SPLIT: FIGURES LEAVE GDSCRIPT
+
+*Danny, who is not a game developer, asked the right question: "I need these
+characters/monsters/animals to have high quality and look legit — Zelda and
+Assassin's Creed do a great job." No code was written this session. Two GDD
+pillar decisions were put to him, both were signed off, and the pipeline they
+authorise is specified. That is the whole deliverable, and it is the right
+one — the art lane has been spending sessions climbing a ceiling nobody had
+named.*
+
+**DONE — the ceiling, named**
+The 2026-07-29 entry below is the evidence. After ~40 render-fix cycles it
+concluded Kern's full-length sleeve is **unreachable**: code-built cloth is
+rigidly bound to two bones while the imported body carries MPFB's smooth
+multi-bone weights, so the deltoid swells past any clearance that does not
+also balloon the sleeve off the shoulder. That was read as a stubborn bug. It
+is not — it is the wrong tool used well. A `for` loop cannot sculpt a form,
+paint a weight gradient, or hold a shape key.
+
+Two more instances of the same ceiling, found this session:
+- `tools/export_kern_base.py:374` exports with `export_morph: False`. **Kern
+  has no face rig and cannot blink.** Nothing reads as dead faster.
+- No hair or cloth secondary motion, though `anim_math.gd` already carries
+  exact critically-damped spring integrators and `creature_animator.gd`
+  already uses them for lean, landing dip and head-look.
+
+And the scale argument: `enemy_visual.gd` is 1,607 lines for **8** monsters
+against a WORLDBOOK budget of **80**, plus 84 NPCs from one generator in
+`npc_visual.gd`.
+
+**DONE — two sign-offs from Danny, recorded in GDD §10 as "THE FIGURE SPLIT"**
+1. **Figures lock to BOTW-style stylized; the world stays photoreal.**
+   Assassin's Creed was explicitly ruled out and the reasoning is worth
+   keeping: AC's figure quality is bought with photoscanned actors, mocap
+   stages and hundreds of artists. With no capture pipeline and no clean CC0
+   human-scan library, aiming there lands in the uncanny valley — it is what
+   produced Danny's "he doesn't look connected, it's kinda freaky". BOTW's
+   quality is bought with design discipline, which a small pipeline *can*
+   execute. **This also resolves a live contradiction**: the 2026-07-20 "full
+   photorealism" amendment and the "cel/toon + silhouette-first" non-negotiable
+   have been pulling sessions in opposite directions on figures ever since.
+   Photorealism is now scoped to the world; the non-negotiable wins on figures.
+2. **Character/creature meshes move from runtime GDScript into scripted
+   Blender authoring** — sculpt, multi-bone weight painting, UVs, normals
+   baked from high-poly, face shape keys, exported as committed `.glb`. This
+   supersedes "characters' clothing and gear silhouettes" in the 2026-07-29
+   *Still generated in code* list. Shapes are still ours and still scripted;
+   downloaded models stay forbidden. **Animation and shaders stay in code** —
+   `src/anim/` is untouched and remains the project's strongest asset.
+
+**DONE — `docs/CHARACTER_PIPELINE.md`**
+The full spec: the five-property priority order sessions must optimise in
+(silhouette → animation → deformation → material → polygon density, which is
+not the order people assume); the 9-stage Blender path, extending the already
+proven headless MPFB scripting in `tools/make_kern_base.py`; one shared human
+rig with modular outfits for all 84 NPCs; a creature-parts kit with auto-rig
+and auto-weight so 80 monsters is affordable at a consistent bar; the face
+rig; secondary motion; and a **five-test quality gate Danny can enforce
+without reading code** — silhouette-in-black, turnaround, extreme-pose
+deformation, motion, and framing at real gameplay camera distance rather than
+the studio close-ups that both flatter and mislead.
+
+**DONE — baseline renders committed**
+21 renders of the current Kern (13 details + 8-frame turnaround) were sitting
+in a parallel session's scratchpad, uncommitted — the only images of him after
+the hair/hands/sleeve work, in a directory that gets cleaned up. Now at
+`docs/progress/kern_2026-08-02_baseline/`. This is the "before" the rebuild is
+measured against.
+
+**ALSO COMMITTED — another lane's in-flight capture angles**
+`main.gd` carried uncommitted work from a parallel session: four new capture
+shots (spawn over-the-shoulder, reverse angle onto Kern's face, Bit at his own
+hover altitude, empty landing area) plus per-shot `show_bit` wiring. Complete
+and coherent, so it lands here rather than being stranded (iron rule 1).
+
+**NEXT UP**
+Kern rebuilt end-to-end through the new pipeline as the proof: body, shared
+rig, real multi-bone weights, garments including the sleeve that could not be
+built, face shape keys with blink, hair with spring secondary motion. If the
+pipeline is right, the sleeve problem evaporates rather than being fought.
+Then the shared human rig → 13 Bootstrap NPCs → creature kit → 8 meadow
+species.
+
+**NOT DONE / HONEST**
+No mesh was authored this session and no image improved. Everything above is
+decision and specification. The first render that proves the pipeline is the
+next session's job.
+
+---
+
 ## 2026-07-29 (art lane, third pass) — KERN LOOKS LIKE A PERSON
 
 *Danny: "he doesn't look connected completely and it's kinda freaky", then

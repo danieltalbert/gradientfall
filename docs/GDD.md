@@ -213,6 +213,58 @@ rushed, trimmed, or marked done at 'good enough for programmer art').
     convinces and stays recognisably Gradientfall's. Where this conflicts
     with the "cel/toon shading on characters" non-negotiable below, this
     wins: rim light stays, hard cel banding goes.
+  - **Amendment (Danny, 2026-08-02, explicit sign-off in chat) — THE FIGURE
+    SPLIT.** Two questions were put to Danny directly and both were answered.
+    - **1. Characters, creatures and NPCs lock to Zelda-style stylized.**
+      The reference is *Breath of the Wild*, explicitly **not** *Assassin's
+      Creed*. AC's figure quality is bought with photoscanned actors, mocap
+      stages and hundreds of artists; with no capture pipeline and no clean
+      CC0 human-scan library, aiming there lands in the uncanny valley — it
+      is what produced Danny's "he doesn't look connected, it's kinda
+      freaky". BOTW's quality is bought with *design discipline* — simple
+      forms, exact silhouettes, exaggerated readable animation, secondary
+      motion everywhere, flat-ish materials carried by superb light — and
+      discipline is what a small pipeline can execute at a high bar.
+      - **The world stays photoreal.** Grass, terrain, water, sky and light
+        keep the 2026-07-20 target. Stylized figures standing in a photoreal
+        world is the deliberate combination, not a mismatch to fix later.
+      - **This resolves a live contradiction.** The 2026-07-20 "full
+        photorealism" amendment and the "cel/toon + rim light,
+        silhouette-first, readable in outline alone" non-negotiable below
+        have been pulling sessions in opposite directions on figures ever
+        since. For characters and creatures the non-negotiable now wins and
+        the photorealism amendment is scoped to the world.
+    - **2. Character and creature MESHES move out of GDScript into Blender.**
+      This supersedes "characters' clothing and gear silhouettes" in the
+      2026-07-29 *Still generated in code* list above.
+      - **Why.** Every figure in the game is currently assembled from
+        primitives by GDScript at *runtime* — 1,607 lines for 8 monsters in
+        `enemy_visual.gd`, one generator for 13 villagers in
+        `npc_visual.gd`, and an imported body with code-built clothes welded
+        on for Kern. The ceiling is documented in this repo, not theorised:
+        the 2026-07-29 devlog records that a full-length sleeve for Kern is
+        **unreachable** because code-built cloth is rigidly bound to two
+        bones while the imported body carries smooth multi-bone weights. Some
+        40 render-fix cycles went in before it was called. A `for` loop
+        cannot sculpt a form, paint a weight, or hold a shape key — the same
+        argument that lifted the rule for surfaces, applied to figures.
+      - **Now permitted:** character/creature/NPC meshes **authored in
+        Blender by our own scripts and sculpts** and committed as `.glb` —
+        with sculpting and subdivision, multi-bone weight painting, UV
+        layouts, normal/AO maps baked from high-poly, and **shape keys for
+        facial expression** (`export_kern_base.py` currently exports with
+        `export_morph: False`, so Kern has no face rig and cannot blink).
+      - **Still ours, still forbidden.** The shapes remain authored by this
+        project. Purchased or non-CC0 asset packs and downloaded *models*
+        stay forbidden, the hero base mesh remaining the one exception.
+        Moving authoring into a DCC package is a change of *tool*, not a
+        change of *authorship*.
+      - **Animation and shaders stay in code**, unchanged. The procedural
+        animation stack in `src/anim/` is the project's strongest asset and
+        nothing here touches it.
+      - The pipeline this authorises is specified in
+        `docs/CHARACTER_PIPELINE.md`, including the quality gate a
+        non-developer can enforce.
 - **The governing principle (Danny, 2026-07-17):** the player's *feeling* is
   the metric — it must feel as close to real life / BOTW as possible at all
   times. Raw counts don't matter; the illusion does. Spend cleverness on
