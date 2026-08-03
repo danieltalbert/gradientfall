@@ -46,6 +46,22 @@ const BODY_HEIGHT: float = 1.78
 ## around the same limb — while the two were 133 mm apart, no radius could.
 const IMPORTED_SLEEVE_SCALE: float = 1.32
 
+## Cloth standoff from the measured arm surface, metres. Tapers toward the cuff
+## inside `build_sleeve_on()` so the sleeve closes on the wrist rather than
+## flaring into a bell.
+const SLEEVE_CLEARANCE: float = 0.013
+
+## How far down the arm the sleeve runs, 0 at the shoulder and 1 at the wrist.
+##
+## Deliberately a SHORT sleeve. A full-length one was pursued across half a
+## dozen passes and does not hold: the cloth is skinned rigidly to two bones
+## while the imported body uses MPFB's smooth multi-bone weights, so under the
+## 86-degree shoulder fold the deltoid swells past any clearance that does not
+## also balloon the sleeve off the shoulder entirely. Ending it above the elbow
+## with a hem reads as a deliberate garment rather than a truncated one, and
+## the bare forearm is the same skin the hands already show.
+const SLEEVE_END: float = 0.34
+
 ## The First Model showing through: 0 = ordinary disguised traveller, 1 = fully
 ## lit. A faint rest ember, rising with the knowledge-charge meter (and, later,
 ## machinery proximity / hallucination zones). Set >= 0 to force a level
@@ -276,12 +292,32 @@ func _rebuild_sleeves_on_import() -> void:
 		# tubes out sideways at head height. And a skin from rest transforms
 		# binds the mesh as it is at REST, so pre-folding the arm down would
 		# have the animation fold it a second time.
+		var shoulder: Vector3 = _base_skeleton.get_bone_global_rest(upper).origin
+		var elbow: Vector3 = _base_skeleton.get_bone_global_rest(lower).origin
+		var wrist: Vector3 = _base_skeleton.get_bone_global_rest(hand).origin
+		# Measure the arm this sleeve has to cover, in the space the vertices
+		# live in, and build the cloth as that profile plus clearance. A single
+		# uniform scale cannot do it: sized to clothe the forearm the bicep
+		# balloons, sized for the bicep the forearm stays bare.
+		var skel_in_model: Transform3D = global_transform.affine_inverse() \
+			* _base_skeleton.global_transform
+		var model_path: Array = []
+		for i in 18:
+			var t: float = float(i) / 17.0
+			var p: Vector3 = shoulder.lerp(elbow, t * 2.0) if t < 0.5 \
+				else elbow.lerp(wrist, (t - 0.5) * 2.0)
+			model_path.append(skel_in_model * p)
+		var measured: PackedFloat32Array = BaseModel.sample_arm(_base_root,
+			model_path)
+		if OS.get_cmdline_user_args().has("--armdump") and not right:
+			var text: String = ""
+			for r in measured:
+				text += "%.3f " % r
+			print("KernVisual: measured left arm radii: ", text)
 		BodyBuilder.build_sleeve_on(_base_skeleton,
 			{"upper": upper, "lower": lower, "hand": hand},
-			_base_skeleton.get_bone_global_rest(upper).origin,
-			_base_skeleton.get_bone_global_rest(lower).origin,
-			_base_skeleton.get_bone_global_rest(hand).origin,
-			right, IMPORTED_SLEEVE_SCALE)
+			shoulder, elbow, wrist, right, IMPORTED_SLEEVE_SCALE,
+			measured, SLEEVE_CLEARANCE, SLEEVE_END)
 
 
 ## Print where the procedural arm bones sit versus the imported ones, in model

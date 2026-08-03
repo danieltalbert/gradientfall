@@ -310,24 +310,45 @@ static func _torso_weights(ring: ML.Ring, y: float, bones: Dictionary) -> void:
 ## actually visible.
 ##
 ## `bone_ids` is `{upper, lower, hand}` for the target skeleton.
+## `measured` optionally supplies the limb's own radius at each of the 18 path
+## samples; when present the cloth is built as that profile plus `clearance`,
+## which is the only way to follow an arm whose taper differs from the authored
+## one. Falls back to the authored profile scaled by `radius_scale`.
 static func build_sleeve_on(skeleton: Skeleton3D, bone_ids: Dictionary,
 		shoulder: Vector3, elbow: Vector3, wrist: Vector3,
-		right: bool, radius_scale: float = 1.0) -> MeshInstance3D:
+		right: bool, radius_scale: float = 1.0,
+		measured: PackedFloat32Array = PackedFloat32Array(),
+		clearance: float = 0.010, t_end: float = 1.0) -> MeshInstance3D:
 	var rows: int = 18
 	var path: Array[Vector3] = []
 	for i in rows:
-		var t: float = float(i) / float(rows - 1)
+		var t: float = float(i) / float(rows - 1) * t_end
 		var p: Vector3 = shoulder.lerp(elbow, t * 2.0) if t < 0.5 \
 			else elbow.lerp(wrist, (t - 0.5) * 2.0)
 		# Slight forward elbow set so the arm never reads hyper-extended.
 		p.z -= sin(t * PI) * 0.008
 		path.append(p)
 	var radii: PackedFloat32Array = PackedFloat32Array()
+	var use_measured: bool = measured.size() == rows
 	for i in rows:
-		var t: float = float(i) / float(rows - 1)
-		var r: float = _sleeve_radius(t) * radius_scale
+		var f: float = float(i) / float(rows - 1)
+		var t: float = f * t_end
+		var r: float = 0.0
+		if use_measured:
+			# Sample the measured profile at the SLEEVE's t, not its own index,
+			# so a shortened sleeve still follows the arm's real taper.
+			var at: float = t * float(rows - 1)
+			var lo: int = clampi(int(floor(at)), 0, rows - 1)
+			var hi: int = clampi(lo + 1, 0, rows - 1)
+			r = lerpf(measured[lo], measured[hi], at - float(lo)) + clearance
+		else:
+			r = _sleeve_radius(t) * radius_scale
 		if t > 0.38 and t < 0.62:
 			r += sin(t * 130.0) * 0.0022
+		# Hem: the last two rings flare a little, so a short sleeve ends in a
+		# cuff of cloth instead of a cut-off tube.
+		if f > 0.88:
+			r += 0.006 * (f - 0.88) / 0.12
 		radii.append(r)
 
 	var rings: Array = ML.tube_rings(path, radii, RING_N)
@@ -345,6 +366,7 @@ static func build_sleeve_on(skeleton: Skeleton3D, bone_ids: Dictionary,
 		# everything up to the elbow; handing the forearm bone cloth at t 0.40
 		# (still 20% above the elbow) tears the sleeve off the arm as soon as
 		# the elbow bends.
+		t *= t_end
 		if t < 0.42:
 			ring.bone_a = int(bone_ids["upper"])
 			ring.bone_b = int(bone_ids["lower"])

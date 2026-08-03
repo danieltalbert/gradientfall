@@ -105,6 +105,11 @@ func _on_body_entered(body: Node) -> void:
 
 func _pop() -> void:
 	_spent = true
-	monitoring = false
+	# Deferred: `_pop()` runs from a body_entered signal, and Godot forbids
+	# flipping `monitoring` while the physics server is mid-callback — doing it
+	# directly prints "Function blocked during in/out signal" every time a
+	# projectile lands. `_spent` already gates further hits this frame, so the
+	# deferred flip costs nothing.
+	set_deferred(&"monitoring", false)
 	DamageShards.burst(get_tree().current_scene, global_position, _color, 8, 3.5, 1.2, 0.8)
 	queue_free()

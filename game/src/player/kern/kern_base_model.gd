@@ -612,6 +612,104 @@ static func _fill_empty_cells(radius: PackedFloat32Array) -> void:
 				radius[donor * SKULL_COLS + col] * 0.65
 
 
+## Measure the imported ARM's radius along a shoulder-elbow-wrist path.
+##
+## Same idea as `sample_skull()`, and for the same reason: the sleeve's radius
+## profile was authored against the slimmer procedural arm, so a single uniform
+## scale cannot fit it to the imported one. Scaling to clothe the forearm makes
+## the bicep balloon; scaling to fit the bicep leaves the forearm bare. The arm
+## has its own taper and the cloth has to follow it.
+##
+## `path` is the polyline in MODEL space; returns one max-radius per sample
+## point. Vertices further than `SLEEVE_BAND` from the polyline are ignored, so
+## the torso and the opposite arm cannot contaminate the measurement.
+const SLEEVE_BAND: float = 0.13
+
+## Largest radial distance accepted as arm, metres. Rejects torso vertices that
+## fall inside the band near the shoulder.
+const ARM_MAX_RADIUS: float = 0.075
+
+## Sample index past which the arm profile may only narrow — roughly the elbow
+## on an 18-sample path.
+const TAPER_FROM: int = 9
+
+static func sample_arm(root: Node3D, path: Array) -> PackedFloat32Array:
+	var out: PackedFloat32Array = PackedFloat32Array()
+	out.resize(path.size())
+	out.fill(0.0)
+	if path.size() < 2:
+		return out
+	for mi in _all_mesh_instances(root):
+		if not String(mi.name).begins_with("KernBody"):
+			continue
+		var mesh: Mesh = mi.mesh
+		if mesh == null:
+			continue
+		var to_model: Transform3D = root.transform * _relative_transform(mi, root)
+		for s in mesh.get_surface_count():
+			var verts: PackedVector3Array = \
+				mesh.surface_get_arrays(s)[Mesh.ARRAY_VERTEX]
+			for v in verts:
+				var p: Vector3 = to_model * v
+				# Nearest sample point on the polyline, and the distance to it.
+				var best_i: int = -1
+				var best_d: float = INF
+				for i in path.size():
+					var d: float = p.distance_to(path[i] as Vector3)
+					if d < best_d:
+						best_d = d
+						best_i = i
+				if best_i < 0 or best_d > SLEEVE_BAND:
+					continue
+				# Radial distance from the limb's own axis at that point.
+				var axis_a: Vector3 = path[maxi(best_i - 1, 0)]
+				var axis_b: Vector3 = path[mini(best_i + 1, path.size() - 1)]
+				var axis: Vector3 = (axis_b - axis_a)
+				if axis.length_squared() < 0.000001:
+					continue
+				axis = axis.normalized()
+				var rel: Vector3 = p - (path[best_i] as Vector3)
+				var radial: float = (rel - axis * rel.dot(axis)).length()
+				# An arm is never this thick. The band alone is not enough of a
+				# filter near the shoulder, where torso vertices sit well within
+				# it and would report a 130 mm "arm".
+				if radial > ARM_MAX_RADIUS:
+					continue
+				if radial > out[best_i]:
+					out[best_i] = radial
+
+	# Fill samples no vertex reached, by carrying the nearest measured value
+	# forward and then backward. (The first version searched for a VALUE with
+	# `find()` and used the result as an index, which is meaningless and left
+	# the profile full of zeros — the tube pinched shut and rendered as spikes.)
+	var carry: float = 0.0
+	for i in out.size():
+		if out[i] > 0.0:
+			carry = out[i]
+		elif carry > 0.0:
+			out[i] = carry
+	carry = 0.0
+	for i in range(out.size() - 1, -1, -1):
+		if out[i] > 0.0:
+			carry = out[i]
+		elif carry > 0.0:
+			out[i] = carry
+
+	# Past the forearm the profile must only ever narrow. The last samples sit
+	# at the wrist, where the HAND's vertices fall inside the band and push the
+	# measurement back up — 0.030 at the wrist then 0.040 and 0.075 at the
+	# final two, which would flare the cuff into a bell around the hand.
+	for i in range(TAPER_FROM, out.size()):
+		out[i] = minf(out[i], out[i - 1])
+
+	# One smoothing pass: a max-per-bucket profile is inherently lumpy, and
+	# lumps in a sleeve read as bulges rather than as cloth.
+	var smoothed: PackedFloat32Array = out.duplicate()
+	for i in range(1, out.size() - 1):
+		smoothed[i] = (out[i - 1] + 2.0 * out[i] + out[i + 1]) * 0.25
+	return smoothed
+
+
 ## Print the sampled skull's radius profile down the front, side and back.
 ##
 ## Cylindrical (y, psi) sampling degenerates at the crown, where the true

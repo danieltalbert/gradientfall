@@ -45,11 +45,30 @@ of them were fixable by tuning the numbers I kept reaching for first.*
   REST pose (model-space coordinates hung two green tubes out sideways at head
   height; pre-folding the arm made the animation fold it twice).
 
-**HALF-FORMED**
-- Sleeves reach the upper arm and stop; Kern reads as short-sleeved. The
-  geometry is now correct and concentric, so this is finally a tuning problem
-  rather than a structural one — the radius profile and its taper were
-  measured against the slimmer procedural arm.
+**DONE — the sleeve, resolved as a short sleeve on purpose**
+- `sample_arm()` now measures the imported arm's own radius profile the same
+  way `sample_skull()` measures the head, and the cloth is built as that
+  profile plus clearance. A single uniform scale could never work: sized to
+  clothe the forearm the bicep balloons, sized for the bicep the forearm stays
+  bare. Measured profile runs 0.075 m at the shoulder to 0.028 at the wrist.
+- Two sampling traps worth remembering. Torso vertices fall inside the search
+  band near the shoulder and report a 130 mm "arm", so radial distance is
+  capped. And the HAND's vertices sit inside the band at the wrist and flared
+  the cuff into a bell, so the profile is forced to narrow monotonically past
+  the elbow.
+- **The full-length sleeve was pursued across half a dozen passes and does not
+  hold.** The cloth is skinned rigidly to two bones while the imported body
+  uses MPFB's smooth multi-bone weights, so under the 86-degree shoulder fold
+  the deltoid swells past any clearance that does not also balloon the sleeve
+  off the shoulder entirely. Ending it above the elbow with a flared hem reads
+  as a deliberate garment instead of a truncated one, and the bare forearm is
+  the same skin the hands already show. `SLEEVE_END` is the knob if a future
+  pass wants to revisit it with proper multi-bone weighting.
+
+**FIXED IN PASSING**
+- `projectile.gd` flipped `monitoring` from inside a `body_entered` callback,
+  which Godot forbids — every projectile impact printed "Function blocked
+  during in/out signal". Deferred.
 - The tunic's shoulder yoke still reads as two flat angular planes.
 - Brown bands across the sleeves, cause still open (they render identically on
   the procedural body, so they are the sleeve's own shading — most likely a
