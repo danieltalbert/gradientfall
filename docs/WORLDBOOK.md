@@ -128,7 +128,11 @@ Citadel exterior.
 - **Sites:** Seed Vault ruins · Bootstrap · the Mill & millpond · Hivewise
   Apiary · Whispering Well · Old Boundary Stones · Shrine of First Light.
 - **Town:** **Bootstrap** — 13 NPCs approved (Mayor Maxwell Pool + 12
-  townsfolk). Complete; extend only via side quests.
+  townsfolk). The *cast* is complete; extend only via side quests. The *place*
+  is not: Danny 2026-08-03, Bootstrap grows from ~50 m across to **~150 m with
+  ~24 structures** — buildings, barns and outbuildings, not more residents. See
+  `docs/STRUCTURE_PIPELINE.md` §11 for the measurements and why 150 m is the
+  ceiling until the meadow heart itself grows.
 - **Campaign:** Prologue + Ch.2 launch.
 - **Dungeon:** **the Perceptron Vault** — route glowing signals through
   weight-doors so the output gate fires; mini-boss **the Gatekeeper** (sums

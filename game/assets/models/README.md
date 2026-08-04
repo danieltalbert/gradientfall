@@ -185,3 +185,21 @@ rather than reasoning about it:
   open; it is not a base-mesh issue.
 
 `--no-kern-base` forces the procedural body back on, as an escape hatch.
+
+## town/kit_datasedge.glb
+
+The Datasedge cob-and-thatch building kit — 17 parts, 4,484 tris.
+
+- **Made by** `tools/blender/build_town_kit.py`, Blender 5.2, 2026-08-03.
+- **Authorised by** GDD §10 Amendment 2026-08-03 (the structure split);
+  specified by `docs/STRUCTURE_PIPELINE.md`.
+- **Licence:** ours. Nothing downloaded, nothing purchased.
+- **Regenerate** with `blender -b --python tools/blender/build_town_kit.py`.
+  The script is the source; the `.glb` is a versioned build artifact.
+- **Quality-gate renders** live in `town/preview/`, produced by
+  `tools/blender/preview_town_kit.py` (STRUCTURE_PIPELINE.md §9).
+- **Known defects, 2026-08-03:** wall panels do not yet join cleanly at
+  building corners — a corner post or mitred panel is needed. Preview renders
+  come out white because the preview assigns legacy `diffuse_color` materials
+  which EEVEE ignores without nodes; the exported `.glb` deliberately carries
+  no materials at all, since the game's look lives in `assets/shaders/`.

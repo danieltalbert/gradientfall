@@ -250,7 +250,7 @@ Local origin = atlas (20.000, 38.000). Built heart = the 480 m box, atlas
 
 | Site | Kind | Local (x, z) m | Atlas km | Elev |
 |---|---|---|---|---|
-| **Bootstrap** | town | (0, 30) | (20.000, 37.970) | *as built* |
+| **Bootstrap** | town, ~150 m | (0, 30) | (20.000, 37.970) | *as built* |
 | **The Mill** | building | (78.4, 4.0) | (20.078, 37.996) | *as built* |
 | **The Old Millpond** | water, r 24 | (95, 10) | (20.095, 37.990) | 9.5 |
 | **Seed Vault ruins** | ruin | (−72, −70) | (19.928, 38.070) | *as built* |

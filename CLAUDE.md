@@ -107,14 +107,26 @@ Known clones, both real checkouts of
 ## Conventions
 - **Engine:** Godot 4.x, GDScript, statically typed everywhere (`var x: int`,
   typed funcs).
-- **Assets — shapes in code, surfaces from maps** (GDD §10 amendment,
-  2026-07-29). Geometry, terrain, flora, buildings, clothing, shaders and
-  animation are all still generated in code. **Texture maps** (albedo, normal,
-  roughness, metallic, AO, height), **HDRI probes** and **hair cards** may now
-  be CC0-licensed or baked locally in Blender — photorealism was never
-  reachable without them. Purchased/non-CC0 packs and downloaded models stay
-  forbidden (the hero base mesh is the one standing exception). Record
-  provenance + licence for anything brought in.
+- **Assets — designed things in Blender, grown things in code.** Two GDD §10
+  amendments moved this line; the current state is:
+  - **Authored in Blender**, committed as `.glb`, placed by GDScript:
+    **characters, creatures and NPCs** (§10 amendment 2026-08-02,
+    `docs/CHARACTER_PIPELINE.md`) and **buildings, structures, dungeon
+    architecture and designed props** (§10 amendment 2026-08-03,
+    `docs/STRUCTURE_PIPELINE.md`).
+  - **Generated in code**, deliberately and permanently: **terrain, flora,
+    grass, water, clouds, sky, particles, all shaders, all animation.** These
+    are procedural by nature — noise-driven, data-driven, instanced in the
+    millions, or varying per frame.
+  - **The deciding question:** *would a human artist opening this file and
+    nudging it make it better?* Yes → Blender. Defined by a rule or a dataset
+    → code.
+  - **Texture maps** (albedo, normal, roughness, metallic, AO, height),
+    **HDRI probes** and **hair cards** may be CC0-licensed or baked locally
+    (§10 amendment 2026-07-29).
+  - **Still forbidden:** purchased/non-CC0 asset packs and downloaded models
+    (the hero base mesh is the one standing exception). Record provenance +
+    licence for anything brought in.
 - **Game project root:** `game/`.
 - **Documentation:** GDScript doc comments (`##`) for script headers and
   members; `//` headers in shaders; docstrings in Python tools. See

@@ -265,6 +265,42 @@ rushed, trimmed, or marked done at 'good enough for programmer art').
       - The pipeline this authorises is specified in
         `docs/CHARACTER_PIPELINE.md`, including the quality gate a
         non-developer can enforce.
+  - **Amendment (Danny, 2026-08-03, explicit sign-off in chat) — THE STRUCTURE
+    SPLIT.** Danny asked whether houses, structures and "everything that needs
+    design" would be better built in Blender. They would. This extends the
+    2026-08-02 figure split to the built world and supersedes "buildings" in the
+    2026-07-29 *Still generated in code* list.
+    - **Now authored in Blender:** buildings, towns, bridges, gates, walls,
+      docks, dungeon architecture, furniture, signage, carts, and any prop whose
+      shape is a **design decision** rather than a natural form. Committed as
+      `.glb` under `game/assets/models/`, assembled and placed by GDScript.
+    - **Still generated in code, deliberately:** terrain, flora, grass, water,
+      clouds, sky, particles, all shaders, and all animation. These are
+      *procedural by nature* — driven by noise, data, wind or a height field,
+      instanced in the millions, or varying per frame. A `.glb` cannot be 2.8
+      million wind-swayed blades, and Blender has nothing to offer a height
+      field. The recent tree pass is the proof of the line: bark and foliage
+      got dramatically better **in code**, because they are grown, not designed.
+    - **The deciding question** for anything new: *would a human artist opening
+      this file and nudging it make it better?* If yes it belongs in Blender.
+      If the thing is defined by a rule or a dataset, it belongs in code.
+    - **Why this is the real argument.** Not "Blender has bevels" — though it
+      does, along with booleans, arrays, solidify, proper UVs and custom
+      normals, none of which GDScript has. The argument is that **a `.blend`
+      can be opened and improved by hand and a GDScript mesh cannot.** Every
+      building in Bootstrap today is a runtime `for` loop; nobody can ever sit
+      down and make one *nicer*. That is the ceiling, and it is the same
+      ceiling the figure split named.
+    - **Honest limit, recorded so no session over-claims.** An autonomous
+      session cannot model by hand; it scripts Blender through its Python API.
+      That is a genuine step up — real modifiers, real UVs, real export — but it
+      is **not** an artist's eye. Buildings authored this way are a *base* that
+      Danny or any artist can open and refine, which is precisely the point.
+    - **Still ours, still forbidden.** Purchased or non-CC0 asset packs and
+      downloaded models stay forbidden. Moving authoring into a DCC package is
+      a change of tool, not of authorship.
+    - The pipeline this authorises is specified in
+      `docs/STRUCTURE_PIPELINE.md`.
 - **The governing principle (Danny, 2026-07-17):** the player's *feeling* is
   the metric — it must feel as close to real life / BOTW as possible at all
   times. Raw counts don't matter; the illusion does. Spend cleverness on
