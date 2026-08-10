@@ -289,10 +289,57 @@ nine-metre wall. Noise costs nothing and never seams.
 
 ### 7. What it cost, as a unit for the other 23
 
-One building: **123,000 triangles** (the entire previous 17-part town kit was
-4,484), 11 material groups, ~40 build-and-look iterations. It boots in the same
-frame budget and lights correctly at night. That is the number to plan against
-— not the old kit's.
+One building: **~150,000 triangles** (the entire previous 17-part town kit was
+4,484), 12 material groups, ~55 build-and-look iterations across two passes.
+It boots in the same frame budget and lights correctly at night. That is the
+number to plan against — not the old kit's.
+
+### 8. ROUNDNESS — the second verdict, and the primitives that answer it
+
+*Danny, reviewing the finished v1: "everything you do is geometrically
+perfect… there's not a lot of uniqueness or specialness that comes from uneven
+shapes or roundness." He was right, and the cause was structural, not taste:
+v1 was built entirely from boxes, and a box has eight vertices — `jitter` can
+shear one but nothing can ever CURVE one. Roundness cannot be sprinkled on at
+the end; it has to be in the primitives.*
+
+`bkit` now carries organic primitives, and the deciding question for every
+element is: **did this thing grow, settle, or get made by hand?** If any of
+those, it cannot be a straight box:
+
+| Primitive | What it makes | Where it shows |
+|---|---|---|
+| `grid_box` + `warp` | Subdivided surface, noise-bellied, corner-pinned | Cob walls bulge between their bones |
+| `organic_beam` | Rings along a bowed line, waney edges, taper | Every visible timber; no member is die-straight |
+| `stone` | Deformed icosphere | Plinth, chimney, quoins — no flat faces, no right angles |
+| `lathe` | Surface of revolution, wobbled | Pots, chimney pots, cartwheel, stump stools |
+| `Noise3` field | One smooth settle shared by tiles + ridge + verges | The roof undulates as one surface, not per-tile chaos |
+
+And the composition rules found by iterating on the first building:
+
+- **Break the twins.** Two identical dormers read as a copy-paste even when
+  everything else is organic. Differ them in width, height, position and
+  window; nudge every window a few cm off its grid; stand the door off-centre.
+- **Add one landmark round form.** The bread-oven bulge on the back wall does
+  more for "a real place" than any amount of jitter — it is a shape a box
+  toolkit simply cannot emit, and the eye knows it.
+- **Round filler earns its place.** Cartwheel, thrown pots, rope coil, stump
+  stools: the yard furniture of a real inn, all revolved forms.
+- **Stones stay TUCKED.** Centre them barely proud of the wall plane with
+  most of their volume inside, radius across the face capped (~0.24 m), and
+  tumble limited to ~20° — the rotation composes before the non-uniform
+  scale, so a free tumble stands flat slabs on their rims like menhirs.
+- **Smooth angle follows the geometry.** The default 32° auto-smooth is
+  tighter than an 11-segment lathe's face angle; round parts pass ~46° or
+  they render faceted.
+
+**The boolean lesson, paid for twice:** never cut openings through a merged
+shell of overlapping slabs. The exact solver answers self-intersecting input
+by silently deleting entire walls — v2's first build lost the whole
+ground-floor back wall to one door cut, and the camera saw in the front door
+and out through the back of the house. Cut each slab as its own object against
+only its own openings, then merge. (And `--highlight` found it in one frame,
+after three reasoned guesses were all wrong.)
 
 ---
 

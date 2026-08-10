@@ -4,6 +4,49 @@
 
 ---
 
+## 2026-08-09 (structure lane, later) — ROUNDNESS: THE INN STOPS BEING BOXES
+
+*Danny reviewed the finished v1 inn: "everything you do is geometrically
+perfect… make it special, random, and details that are round, unique, odd but
+fitting." The diagnosis was structural: v1 was built entirely from boxes, and
+a box has eight vertices — `jitter` can shear one but nothing can ever CURVE
+one. Roundness has to live in the primitives, so v2 replaced the primitives.*
+
+**DONE — organic primitives in `bkit.py`**
+`Noise3` (seeded smooth value noise), `grid_box` (subdivided so faces can
+curve), `warp` (corner-pinned noise displacement — the bulge-maker),
+`organic_beam` (rings along a bowed line: bow, waney edges, taper), `stone`
+(deformed icosphere), `lathe` (revolved profiles, wobbled). Composition rules
+and failure modes are recorded in STRUCTURE_PIPELINE.md §6a.8.
+
+**DONE — the Warm Start Inn v2, ~150k tris**
+Walls belly like cob. Every visible timber bows a little, differently. The
+plinth and chimney are round rubble, tucked into courses. The roof settles on
+one noise field — tiles, ridge rolls and verges undulating together. The
+dormer twins are gone (different widths, heights, positions, windows), the
+windows stray off their grid, the door stands off-centre. And the round
+furniture of a real yard: a bread-oven bulge on the back wall with a stone
+skirt and cap, a leaning cartwheel, hand-thrown pots, stump stools and a slab
+table, a rope coil, thrown chimney pots — one tilted.
+
+**DONE — two bugs paid for and recorded**
+- The exact boolean, given a merged shell of overlapping slabs, answered a
+  single door cut by silently deleting the entire ground-floor back wall —
+  the camera saw in the front door and out the back of the house. Three
+  reasoned guesses at the cause were all wrong; `--highlight` identified it
+  in one frame. Openings are now cut per-slab before merging.
+- `stone`'s free tumble composed before its non-uniform scale, standing flat
+  slabs on their rims — white menhirs in front of the inn door. Tumble is
+  now limited to ~20 degrees.
+
+**HALF-FORMED** — the same three gaps as v1: twelve buildings still boxy, the
+bare town pad untouched, no chimney smoke.
+
+**NEXT UP** — unchanged priority: pad grass, then forge + mayor's hall on
+this pipeline (with §6a.8 primitives from the start), then smoke.
+
+---
+
 ## 2026-08-09 (structure lane) — ONE BUILDING, FINISHED, AND THE METHOD THAT DID IT
 
 *Danny, on the survey below: "the level of detail is just really bad… what

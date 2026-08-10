@@ -92,6 +92,13 @@ const SURFACES: Dictionary = {
 		"rough": 0.86, "scale": 0.9, "bump": 0.6, "variation": 0.20,
 		"grime": 0.18,
 	},
+	# Hand-thrown clay: pots by the inn door, tipped crock by the bench.
+	# Plaster pattern (soft mottle), terracotta colour, a little smoother.
+	"pottery": {
+		"kind": Kind.PLASTER, "color": Color(0.560, 0.330, 0.210),
+		"rough": 0.68, "scale": 1.8, "bump": 0.35, "variation": 0.14,
+		"grime": 0.20,
+	},
 }
 
 ## Longest key first, so "signiron" wins over "iron" and "chimney" over the

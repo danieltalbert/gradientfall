@@ -70,8 +70,15 @@ class Part:
         self.name = name
         self.bm = bmesh.new()
 
-    def build(self, bevel=BEVEL_WIDTH, segments=2, smooth=True):
-        """Close the bmesh into a real object and run the modifier stack."""
+    def build(self, bevel=BEVEL_WIDTH, segments=2, smooth=True,
+              smooth_angle=SMOOTH_ANGLE):
+        """Close the bmesh into a real object and run the modifier stack.
+
+        ``smooth_angle`` matters for revolved and spherical geometry: the
+        default 32 degrees is tighter than the face angle of an 11-segment
+        lathe (32.7 degrees), so pots and stumps came out visibly faceted.
+        Parts that carry round geometry pass ~46 degrees.
+        """
         obj = new_object(self.name)
         self.bm.to_mesh(obj.data)
         self.bm.free()
@@ -80,7 +87,7 @@ class Part:
         if bevel > 0.0:
             bevel_edges(obj, bevel, segments)
         if smooth:
-            shade_auto_smooth(obj)
+            shade_auto_smooth(obj, smooth_angle)
         return obj
 
 
@@ -636,3 +643,227 @@ def _pick_engine():
 def rng_for(seed_text):
     """A named, deterministic RNG, so a rebuild reproduces the same building."""
     return random.Random(hash(seed_text) & 0xFFFFFFFF)
+
+
+# --- Organic form -----------------------------------------------------------
+#
+# Added 2026-08-09, after Danny's review of the first finished building:
+# "everything you do is geometrically perfect… make it special, random, round,
+# odd but fitting." The diagnosis is structural: `jitter` moves the corners of
+# a box, and a box only HAS eight corners — it can shear but never curve. No
+# amount of corner-nudging produces a bellied wall, a bowed beam or a rounded
+# stone. These primitives are curved by construction: subdivided surfaces
+# displaced by smooth noise, members built from rings along a curve, and
+# revolved profiles. `jitter` roughens; THESE shape.
+
+class Noise3:
+    """Seeded smooth value noise over 3D points.
+
+    Pure arithmetic — deterministic across runs and machines, which matters
+    because a committed .glb must be reproducible from its script. Sampled per
+    VERTEX on subdivided geometry: neighbouring vertices get similar offsets,
+    which is what turns displacement into a bulge instead of fuzz.
+    """
+
+    def __init__(self, seed):
+        self.seed = float(seed & 0xFFFF)
+
+    def _hash(self, ix, iy, iz):
+        h = math.sin(ix * 127.1 + iy * 311.7 + iz * 74.7 + self.seed * 269.5)
+        return (h * 43758.5453) % 1.0
+
+    def sample(self, x, y, z):
+        """Smooth noise in [0, 1]."""
+        ix, iy, iz = math.floor(x), math.floor(y), math.floor(z)
+        fx, fy, fz = x - ix, y - iy, z - iz
+        fx = fx * fx * (3.0 - 2.0 * fx)
+        fy = fy * fy * (3.0 - 2.0 * fy)
+        fz = fz * fz * (3.0 - 2.0 * fz)
+        result = 0.0
+        for dz in (0, 1):
+            wz = fz if dz else 1.0 - fz
+            for dy in (0, 1):
+                wy = fy if dy else 1.0 - fy
+                for dx in (0, 1):
+                    wx = fx if dx else 1.0 - fx
+                    result += self._hash(ix + dx, iy + dy, iz + dz) * wx * wy * wz
+        return result
+
+    def signed(self, x, y, z):
+        """Smooth noise in [-1, 1]."""
+        return self.sample(x, y, z) * 2.0 - 1.0
+
+
+def grid_box(bm, centre, size, cuts=6):
+    """A box subdivided into a grid, so displacement can CURVE its faces.
+
+    The plain :func:`box` is right for anything meant to stay flat; this is
+    for anything meant to belly, lean or undulate. ``cuts`` is the number of
+    interior cuts per edge — 6 gives a 7x7 grid per face, enough for a bulge
+    with a wavelength of a metre or two.
+    """
+    # Built in an isolated bmesh and merged, because subdivide_edges
+    # invalidates the vert references create_cube handed back — transforming
+    # them afterwards throws "BMVert has been removed".
+    tmp = bmesh.new()
+    bmesh.ops.create_cube(tmp, size=1.0)
+    bmesh.ops.subdivide_edges(tmp, edges=list(tmp.edges), cuts=cuts,
+                              use_grid_fill=True)
+    matrix = Matrix.Translation(Vector(centre)) @ Matrix.Diagonal(Vector(size).to_4d())
+    bmesh.ops.transform(tmp, matrix=matrix, verts=list(tmp.verts))
+    tmp_mesh = bpy.data.meshes.new("_grid_tmp")
+    tmp.to_mesh(tmp_mesh)
+    tmp.free()
+    before = len(bm.verts)
+    bm.from_mesh(tmp_mesh)
+    bpy.data.meshes.remove(tmp_mesh)
+    bm.verts.ensure_lookup_table()
+    return [bm.verts[i] for i in range(before, len(bm.verts))]
+
+
+def warp(verts, amount, scale, noise, axis=None, pin_axes=()):
+    """Displace vertices along smooth noise — the bulge-maker.
+
+    ``axis`` restricts displacement to one world axis (a wall bellies along its
+    normal); ``None`` displaces in all three. ``pin_axes`` lists axes along
+    which the displacement fades to zero at the vertex group's own extremes —
+    pin a wall's length and height so its corners stay married to the walls
+    they meet while its middle bellies. Without pinning, warped slabs open
+    cracks at every corner of the building.
+    """
+    if not verts:
+        return
+    lo = [min(v.co[i] for v in verts) for i in range(3)]
+    hi = [max(v.co[i] for v in verts) for i in range(3)]
+    for v in verts:
+        envelope = 1.0
+        for ax in pin_axes:
+            span = hi[ax] - lo[ax]
+            if span < 1e-6:
+                continue
+            t = (v.co[ax] - lo[ax]) / span
+            envelope *= math.sin(math.pi * min(max(t, 0.0), 1.0))
+        p = v.co * scale
+        if axis is None:
+            v.co.x += noise.signed(p.x, p.y, p.z) * amount * envelope
+            v.co.y += noise.signed(p.x + 31.7, p.y, p.z) * amount * envelope
+            v.co.z += noise.signed(p.x, p.y + 57.3, p.z) * amount * envelope
+        else:
+            v.co[axis] += noise.signed(p.x, p.y, p.z) * amount * envelope
+
+
+def organic_beam(bm, start, end, width, height, rng, segments=6,
+                 bow=0.015, waney=0.006, taper=1.0):
+    """A timber that behaves like a tree once did: bowed, waney, tapered.
+
+    Built as rings along the run instead of one stretched box, so the member
+    curves along its length. ``bow`` is how far the middle drifts off the
+    straight line (in a deterministic random direction perpendicular to the
+    run), ``waney`` roughens each ring's corners — the not-quite-square edge
+    of a hand-hewn timber — and ``taper`` scales the far end, because a trunk
+    was thicker at the butt.
+    """
+    p0, p1 = Vector(start), Vector(end)
+    run = p1 - p0
+    length = run.length
+    if length < 1e-6:
+        return []
+    tangent = run / length
+    side = tangent.cross(Vector((0.0, 0.0, 1.0)))
+    if side.length < 1e-4:
+        side = tangent.cross(Vector((0.0, 1.0, 0.0)))
+    side.normalize()
+    normal = side.cross(tangent).normalized()
+    bow_dir = (side * rng.uniform(-1.0, 1.0)
+               + normal * rng.uniform(-1.0, 1.0))
+    bow_dir = bow_dir.normalized() if bow_dir.length > 1e-4 else normal
+    phase = rng.uniform(0.0, 100.0)
+    rings = []
+    for i in range(segments + 1):
+        t = i / float(segments)
+        centre = p0 + run * t + bow_dir * (bow * math.sin(math.pi * t))
+        s = 1.0 + (taper - 1.0) * t
+        hw, hh = width * 0.5 * s, height * 0.5 * s
+        ring = []
+        for cx, cz in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
+            w_off = 1.0 + waney * 40.0 * (math.sin(phase + t * 9.7 + cx * 2.1 + cz) * 0.5)
+            ring.append(bm.verts.new(centre + side * (hw * cx * w_off)
+                                     + normal * (hh * cz * w_off)))
+        rings.append(ring)
+    for a, b in zip(rings, rings[1:]):
+        for k in range(4):
+            bm.faces.new((a[k], a[(k + 1) % 4], b[(k + 1) % 4], b[k]))
+    bm.faces.new(rings[0][::-1])
+    bm.faces.new(rings[-1])
+    return [v for ring in rings for v in ring]
+
+
+def stone(bm, centre, radii, rng):
+    """An actual rounded stone: a deformed icosphere, not a box.
+
+    The single loudest geometric lie in the first finished building was rubble
+    masonry made of rectangles. Real fieldstone has no flat faces and no right
+    angles. ~80 triangles each, so a plinth of them costs about what the box
+    version did.
+    """
+    # Tumble is limited to ~20 degrees. The rotation composes BEFORE the
+    # non-uniform scale, so a free rotation lets a flat slab stand on its rim
+    # — which planted white standing-stones in front of the inn's door.
+    matrix = (Matrix.Translation(Vector(centre))
+              @ Euler((rng.uniform(-0.35, 0.35), rng.uniform(-0.35, 0.35),
+                       rng.uniform(0.0, math.pi))).to_matrix().to_4x4()
+              @ Matrix.Diagonal(Vector(radii).to_4d()))
+    ret = bmesh.ops.create_icosphere(bm, subdivisions=2, radius=1.0, matrix=matrix)
+    verts = ret["verts"]
+    # Gentle per-vertex swell/sink. ±0.10 made spiky rocks; a stone in a wall
+    # has been chosen and knocked roughly fair by the mason.
+    for v in verts:
+        v.co += (v.co - Vector(centre)) * rng.uniform(-0.06, 0.06)
+    return verts
+
+
+def lathe(bm, at, profile, segments=14, closed=False, wobble=0.0, rng=None):
+    """A surface of revolution about Z — pots, chimney pots, wheels, finials.
+
+    ``profile`` is a list of ``(radius, z)`` pairs from bottom to top; a radius
+    of ~0 makes a pole. ``closed`` joins the last ring back to the first (a
+    wheel rim's rectangular section). ``wobble`` scales each ring unevenly so
+    a pot reads hand-thrown rather than machined.
+    """
+    at = Vector(at)
+    rings = []
+    for radius, z in profile:
+        s = 1.0 + (rng.uniform(-wobble, wobble) if (rng and wobble) else 0.0)
+        if radius < 0.004:
+            rings.append(bm.verts.new(at + Vector((0.0, 0.0, z))))
+            continue
+        ring = []
+        for i in range(segments):
+            a = i * math.tau / segments
+            ring.append(bm.verts.new(at + Vector((math.cos(a) * radius * s,
+                                                  math.sin(a) * radius * s, z))))
+        rings.append(ring)
+    pairs = list(zip(rings, rings[1:]))
+    if closed:
+        pairs.append((rings[-1], rings[0]))
+    for a, b in pairs:
+        if isinstance(a, bmesh.types.BMVert) and isinstance(b, list):
+            for k in range(segments):
+                bm.faces.new((a, b[k], b[(k + 1) % segments]))
+        elif isinstance(b, bmesh.types.BMVert) and isinstance(a, list):
+            for k in range(segments):
+                bm.faces.new((a[(k + 1) % segments], a[k], b))
+        elif isinstance(a, list) and isinstance(b, list):
+            for k in range(segments):
+                bm.faces.new((a[k], a[(k + 1) % segments],
+                              b[(k + 1) % segments], b[k]))
+    if not closed:
+        first, last = rings[0], rings[-1]
+        if isinstance(first, list):
+            bm.faces.new(first[::-1])
+        if isinstance(last, list):
+            bm.faces.new(last)
+    flat = []
+    for ring in rings:
+        flat.extend(ring if isinstance(ring, list) else [ring])
+    return flat

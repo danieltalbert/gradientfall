@@ -189,7 +189,9 @@ rather than reasoning about it:
 ## town/warm_start_inn.glb
 
 The Warm Start Inn — Bootstrap's hero building, and the first structure taken
-to a finished standard. **11 parts, 123,328 tris.**
+to a finished standard. **12 parts, ~150k tris** (v2, the roundness pass:
+bellied cob walls, bowed timbers, round rubble, revolved yard props, a
+bread-oven bulge; see STRUCTURE_PIPELINE.md §6a.8).
 
 - **Made by** `tools/blender/build_warm_start_inn.py` (+ `tools/blender/bkit.py`),
   Blender 5.2, 2026-08-09.
@@ -206,8 +208,9 @@ to a finished standard. **11 parts, 123,328 tris.**
   substring; the `.glb` carries geometry and UVs only.
 - **Part names** are the material contract: `inn_plaster`, `inn_timber`,
   `inn_joinery`, `inn_roof`, `inn_stone`, `inn_chimney`, `inn_glass`,
-  `inn_iron`, `inn_sign`, `inn_signiron`, `inn_dressing`. Renaming one without
-  updating `StructureAsset.SURFACES` leaves it unshaded (and warns).
+  `inn_iron`, `inn_sign`, `inn_signiron`, `inn_dressing`, `inn_pottery`.
+  Renaming one without updating `StructureAsset.SURFACES` leaves it unshaded
+  (and warns).
 - **Not in the `.glb`, by design:** the door lantern's light and the
   signboard's lettering. Both are runtime state — the sky cycle drives the
   first, the second is translatable content — and both are placed by
