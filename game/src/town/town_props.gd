@@ -142,9 +142,15 @@ static func fingerpost(directions: Array[Dictionary]) -> StaticBody3D:
 			label.modulate = Color(0.25, 0.17, 0.1)
 			label.outline_size = 0
 			label.position = Vector3(0.0, 0.0, 0.05 * sz)
-			label.rotation.y = 0.0 if sz < 0 else PI
 			# Back-to-back pair: each face draws only its own side, or the far
-			# label bleeds through and the sign reads mirrored.
+			# label bleeds through and the sign reads mirrored. A Label3D's
+			# text faces its own +Z, so the leaf sitting on the board's -Z side
+			# is the one that needs turning. These two values were the wrong way
+			# round from the day this was written, which aimed BOTH labels into
+			# the plank they hang on: the fingerpost has been four blank yellow
+			# arms ever since, and it is the only thing in the square that tells
+			# a new player where the world is.
+			label.rotation.y = PI if sz < 0 else 0.0
 			label.double_sided = false
 			board.add_child(label)
 		i += 1

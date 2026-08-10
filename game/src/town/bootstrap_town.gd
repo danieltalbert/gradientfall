@@ -84,10 +84,22 @@ func _build_buildings() -> int:
 		{"key": "bell_tower", "style": "tower", "pos": Vector2(10.5, -20.5),
 			"face": Vector2(0.0, 0.0), "size": Vector3(2.8, 7.0, 2.8),
 			"wall": plaster, "roof": slate_roof, "opts": {}},
-		# The Warm Start keeps the west side, its sign over the road.
+		# The Warm Start keeps the west side, its sign over the road. It is the
+		# first building to leave GDScript for the Blender pipeline (§10
+		# amendment 2026-08-03): `asset` swaps the runtime primitive assembly
+		# for an authored .glb. Everything else in this table still builds the
+		# old way, and both kinds sit in the same square without a seam.
 		{"key": "warm_start_inn", "style": "inn", "pos": Vector2(-16.0, -4.0),
 			"face": Vector2(0.0, -4.0), "size": Vector3(11.0, 5.8, 8.0),
 			"wall": plaster, "roof": tile_roof,
+			"asset": "res://assets/models/town/warm_start_inn.glb",
+			"asset_footprint": Vector3(9.9, 5.2, 6.9),
+			"asset_lights": [Vector3(1.12, 2.28, -3.30)] as Array[Vector3],
+			# The signboard the 2026-08-09 survey found buried in the jetty.
+			# The .glb hangs it clear; this is the lettering that goes on it.
+			"asset_labels": [{"text": "The Warm Start",
+				"at": Vector3(-2.55, 2.90, -4.75),
+				"offset": Vector3(0.0, 0.0, 0.075), "yaw": 0.0}],
 			"opts": {"sign": "The Warm Start", "chimney": true, "smoke": true,
 				"lantern": true}},
 		# Branna's forge faces the square across the east road, open-fronted.
@@ -124,6 +136,25 @@ func _build_buildings() -> int:
 
 	for plot: Dictionary in plots:
 		var pos: Vector2 = plot["pos"]
+		if plot.has("asset"):
+			# Authored in Blender: the .glb already contains its own frame,
+			# roof, joinery, sign and dressing, so nothing from TownBuilding
+			# applies — only the map position and facing do.
+			var authored: Node3D = StructureAsset.spawn(self, str(plot["asset"]),
+				"Building_" + str(plot["key"]), plot["asset_footprint"])
+			if authored != null:
+				# Lights are runtime state the sky cycle drives, so they stay in
+				# code even though their housings are modelled in the .glb. The
+				# build script prints these coordinates already converted to
+				# Godot's axes; never re-derive them by hand.
+				for at: Vector3 in plot.get("asset_lights", [] as Array[Vector3]):
+					TownKit.lantern(authored, "DoorLantern", at, 8.0)
+				for board: Dictionary in plot.get("asset_labels", []):
+					_sign_text(authored, board)
+				_place(authored, pos, _yaw_to(pos, plot["face"]))
+				continue
+			push_warning("BootstrapTown: %s asset missing — falling back to code."
+				% str(plot["key"]))
 		var building: TownBuilding = TownBuilding.new()
 		building.name = "Building_" + str(plot["key"])
 		add_child(building)
@@ -134,6 +165,48 @@ func _build_buildings() -> int:
 
 	_build_mill()
 	return plots.size() + 1
+
+
+## Paint a signboard modelled in a `.glb` with its lettering.
+##
+## Text is not exported with the mesh: it is content, it may need translating,
+## and a `.glb` cannot carry a Label3D. `board` gives the board's centre in the
+## structure's local space, the offset from that centre out to each painted
+## face, and the words.
+##
+## A back-to-back pair, each leaf drawing only outward. Note the rotations —
+## this is the same pairing that was inverted in `TownProps.fingerpost` and
+## `TownBuilding._hanging_sign`, aiming both leaves into the plank.
+func _sign_text(parent: Node3D, board: Dictionary) -> void:
+	var at: Vector3 = board["at"]
+	var offset: Vector3 = board.get("offset", Vector3(0.0, 0.0, 0.055))
+	var facing: float = float(board.get("yaw", 0.0))
+	for side: int in [-1, 1]:
+		var label: Label3D = Label3D.new()
+		label.name = "SignText%d" % side
+		label.text = str(board["text"])
+		# Sized to the board, not to taste: 48 px at 0.0042 m/px is a 0.20 m
+		# line, and a 250 px wrap is 1.05 m, so "The Warm Start" breaks into two
+		# lines that both sit inside a 1.30 x 0.80 m board. At the first setting
+		# the text was half a metre wider than the board it was painted on.
+		# Sized to the board's RAISED PANEL, not the board: the moulded border
+		# stands 11 mm proud and is 1.14 x 0.64 m, so anything larger than that
+		# is either occluded by the moulding or hanging off the sign in mid-air.
+		label.font_size = 52
+		label.pixel_size = 0.0040
+		# Cream on a dark board. Dark-on-dark is the obvious "painted wood"
+		# choice and it is unreadable: at twenty metres the lettering has to
+		# survive on VALUE contrast alone, and brown text on a brown board has
+		# none. Real inn signs are painted light-on-dark for exactly this reason.
+		label.modulate = Color(0.94, 0.90, 0.78)
+		label.outline_size = 0
+		label.double_sided = false
+		label.width = 275.0
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		label.position = at + offset * float(side)
+		label.rotation.y = facing if side > 0 else facing + PI
+		parent.add_child(label)
+	print("BootstrapTown: signboard '%s' lettered at %s." % [str(board["text"]), at])
 
 
 ## Where a miller would actually build: walk in from the pond's northwestern
@@ -380,11 +453,17 @@ func _night_factor() -> float:
 
 func _apply_night(night: float) -> void:
 	for mi: MeshInstance3D in _windows:
+		# Two kinds of window now share this group: the code-built ones carry a
+		# StandardMaterial3D, and Blender-authored buildings carry
+		# structure.gdshader. Both light at dusk; only the parameter names differ.
 		var mat: StandardMaterial3D = mi.material_override as StandardMaterial3D
-		if mat == null:
+		if mat != null:
+			mat.albedo_color = TownKit.GLASS_DAY.lerp(TownKit.GLASS_NIGHT, night)
+			mat.emission_energy_multiplier = night * NIGHT_WINDOW_ENERGY
 			continue
-		mat.albedo_color = TownKit.GLASS_DAY.lerp(TownKit.GLASS_NIGHT, night)
-		mat.emission_energy_multiplier = night * NIGHT_WINDOW_ENERGY
+		var shaded: ShaderMaterial = mi.material_override as ShaderMaterial
+		if shaded != null:
+			shaded.set_shader_parameter("window_glow", night * NIGHT_WINDOW_ENERGY)
 	for flame: MeshInstance3D in _lamp_flames:
 		var fmat: StandardMaterial3D = flame.material_override as StandardMaterial3D
 		if fmat != null:

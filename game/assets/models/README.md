@@ -186,6 +186,36 @@ rather than reasoning about it:
 
 `--no-kern-base` forces the procedural body back on, as an escape hatch.
 
+## town/warm_start_inn.glb
+
+The Warm Start Inn — Bootstrap's hero building, and the first structure taken
+to a finished standard. **11 parts, 123,328 tris.**
+
+- **Made by** `tools/blender/build_warm_start_inn.py` (+ `tools/blender/bkit.py`),
+  Blender 5.2, 2026-08-09.
+- **Authorised by** GDD §10 Amendment 2026-08-03 (the structure split);
+  method recorded in `docs/STRUCTURE_PIPELINE.md` §6a.
+- **Licence:** ours. Nothing downloaded, nothing purchased, no texture files —
+  all surface detail is procedural in `assets/shaders/structure.gdshader`.
+- **Regenerate** with `blender -b --python tools/blender/build_warm_start_inn.py`.
+  Add `-- --render C:/dir` for the eight quality-gate angles, or
+  `-- --render C:/dir --highlight inn_plaster` to isolate one material group.
+  The script is the source; the `.glb` is a versioned build artifact.
+- **In-game** via `StructureAsset.spawn`, wired from the `asset` key on the
+  inn's plot in `bootstrap_town.gd`. Materials are assigned by node-name
+  substring; the `.glb` carries geometry and UVs only.
+- **Part names** are the material contract: `inn_plaster`, `inn_timber`,
+  `inn_joinery`, `inn_roof`, `inn_stone`, `inn_chimney`, `inn_glass`,
+  `inn_iron`, `inn_sign`, `inn_signiron`, `inn_dressing`. Renaming one without
+  updating `StructureAsset.SURFACES` leaves it unshaded (and warns).
+- **Not in the `.glb`, by design:** the door lantern's light and the
+  signboard's lettering. Both are runtime state — the sky cycle drives the
+  first, the second is translatable content — and both are placed by
+  `bootstrap_town.gd` from coordinates the build script prints already
+  converted to Godot's axes.
+- **Known gaps, 2026-08-09:** no chimney smoke (the code-built inn had it), and
+  the ground floor has no interior — the door is a closed plank door.
+
 ## town/kit_datasedge.glb
 
 The Datasedge cob-and-thatch building kit — 17 parts, 4,484 tris.

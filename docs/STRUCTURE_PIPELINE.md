@@ -178,6 +178,124 @@ cottage is a waste of a physics frame.
 
 ---
 
+## 6a. How to actually get detail — the method, proven 2026-08-09
+
+*Written after building the Warm Start Inn, the first structure taken to a
+finished standard. Sections 4–6 say what a good building has; this says how a
+session that cannot see, cannot sculpt and cannot nudge a vertex gets there
+anyway. Everything below is a conclusion from a failure that happened.*
+
+### The diagnosis this answers
+
+Danny's verdict on Bootstrap was "the level of detail is just really bad", and
+the measurement agreed: every surface in the town was one flat colour on an
+unbevelled `BoxMesh`, with no texture, no wear and no asymmetry anywhere. The
+useful question was not "how do we model better" but **why does a session
+produce that**, and the answer had five parts. Each has a countermeasure.
+
+| Why detail comes out thin | What fixes it |
+|---|---|
+| Completion is judged as a **checklist** — walls, roof, door, chimney, done | Judge **visual events per square metre**, not parts present |
+| **Iteration count is ~1000× too low** — write 400 lines, render once | A build-and-look loop measured in *seconds* (below) |
+| Text is a **lossy medium for visual judgement**; every number comes from reasoning, not from seeing | Render after every change and fix what the render says, not what the arithmetic says |
+| **Volume pressure** (80 monsters, 24 structures) pushes toward generators, and a generator makes variations of one idea | Take ONE thing to finished first, and treat its cost as the unit |
+| **Nothing gates it** — a cream box with a red roof satisfies the brief | The gate in §9, applied at 3 m, not at 30 m |
+
+### 1. Build the loop before the building
+
+`blender -b --python tools/blender/build_<name>.py -- --render C:/dir` builds
+the structure **and renders eight authored angles** in about fifteen seconds.
+That single command is the most important thing in this pipeline. Detail is
+accumulated by iteration; the loop is the iteration.
+
+`bkit.render_views` takes named viewpoints with their own target and lens.
+Frame them deliberately — with a 52 mm lens on 16:9 the vertical field is only
+~22°, so an eight-metre building needs close to **thirty metres** of standoff,
+roughly twice what intuition suggests. Three of the eight are the gate: whole
+building three-quarter, eye level at 1.7 m, and conversation range at a door.
+
+`--highlight <part>` paints one material group magenta and everything else
+grey. When a stray surface appears in a render, **ask the renderer which part
+it is** rather than reasoning about it. Every time that rule was broken on the
+inn, the guess was wrong.
+
+### 2. Detail comes from five specific kinds, not from "more"
+
+1. **Unit geometry.** The plinth is stones, the roof is *tiles*, the chimney is
+   courses — ~3,700 individual tiles on one roof. This is the single biggest
+   change and most of the triangle count. A roof is the largest unbroken
+   surface on any building; a flat plane there is what made every Bootstrap
+   building read as cardboard.
+2. **Real joinery.** Posts, sill, bressumer, wall plate, close studding, curved
+   braces meeting where a carpenter would join them, and pegs at the joints.
+   The frame is structure, not stripes painted on plaster.
+3. **Depth at every opening.** Walls a real 0.28 m thick with openings
+   booleaned through, so each window has a reveal that catches a shadow.
+4. **Curves.** `bkit.sweep` along `bkit.arc` — corbel brackets, the wrought
+   sign bracket. A curve is the clearest signal a person shaped a thing, and it
+   is unreachable from an axis-aligned box at any quantity.
+5. **Imperfection.** `bkit.jitter` (3–15 mm) and `bkit.sag`. Dead-straight
+   geometry reads as new construction; a village centuries old must not.
+
+### 3. Author sub-assemblies in local space
+
+`bkit.stamp_group(bm, matrix, build)` builds at the origin and places with one
+transform. Without it a shutter is loose parts whose positions are written in
+world space, so opening the leaf rotates each plank about its own centre and
+the assembly fans apart — which is exactly how the inn's first shutters came
+out. With it, one window description serves eight windows on four elevations,
+which is why the side and back can afford the same quality as the front.
+
+### 4. Value separation decides whether it reads
+
+A facade is read at twenty metres as **light panels between dark bones**. Set
+the material values for separation in brightness first and hue second. Keep
+grime low everywhere except the plinth: at 0.22–0.34 the inn came out visibly
+sootier than every building around it, which reads as a different art style
+rather than as weathering.
+
+### 5. Surfaces are procedural, and that is deliberate
+
+`assets/shaders/structure.gdshader` generates plaster tooth, oak grain, per-tile
+clay variation and per-stone rubble from noise, with the normal perturbed from
+the *same* height field that breaks up the albedo — so the light and the colour
+agree about where the surface is low, which is most of what sells a material.
+
+No texture files. This project has none anywhere (see `toon.gdshader`), imported
+maps would need provenance tracking, and a tiling map visibly repeats on a
+nine-metre wall. Noise costs nothing and never seams.
+
+### 6. Failure modes found on the first building, so nobody re-finds them
+
+- **Derive ridge height from the span AT THE WALL**, never from the eaves span.
+  One wrong term there produced four separate visible faults: ridge tiles
+  floating in the sky, gable infill striping both verges, and barge boards at
+  the wrong pitch.
+- **A tile's pitch rotation is `-sy * PITCH`.** The other sign stands every tile
+  on end as a fin you can see daylight between.
+- **Put a solid deck under the tiles**, ~85 mm below them. Plain tiling has a
+  7% gap between neighbours and with nothing behind it the roof is a lattice —
+  but set the deck too high and it swallows the tiles instead.
+- **Drop gable infill ~90 mm clear of the roof plane.** Built flush, sag and
+  tile jitter push the plaster through the tiles.
+- **Clip repeating patterns to their panel** (`bkit.clip_segment`). Unclipped
+  leaded cames threw diagonal bars metres out across the plaster.
+- **Check what a camera is standing inside.** Rotated footprints are not the
+  box the plot table reads like: the forge is 9 m wide along *Z*, not *X*.
+- **A signboard is painted, so shade it as plaster.** Given oak grain, a small
+  flat panel reads as basketwork.
+- **Sign lettering is sized to the raised panel**, not the board, and painted
+  light-on-dark — at twenty metres it survives on value contrast alone.
+
+### 7. What it cost, as a unit for the other 23
+
+One building: **123,000 triangles** (the entire previous 17-part town kit was
+4,484), 11 material groups, ~40 build-and-look iterations. It boots in the same
+frame budget and lights correctly at night. That is the number to plan against
+— not the old kit's.
+
+---
+
 ## 7. Export
 
 - **Format `.glb`**, +Y up, −Z forward, **metres, scale 1.0**, apply all

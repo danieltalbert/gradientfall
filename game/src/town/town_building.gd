@@ -448,7 +448,10 @@ func _hanging_sign(text: String, local: Vector3, side: float) -> void:
 		label.modulate = Color(0.24, 0.16, 0.1)
 		label.outline_size = 0
 		label.position = Vector3(0.0, 0.0, 0.07 * sz)
-		label.rotation.y = 0.0 if sz < 0 else PI
+		# Inverted since this was written — see TownProps.fingerpost for the
+		# full note. Both labels faced into the board, so the mill's signboard
+		# has always been blank.
+		label.rotation.y = PI if sz < 0 else 0.0
 		label.double_sided = false  # back-to-back pair; see TownProps.fingerpost
 		label.width = 260.0
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

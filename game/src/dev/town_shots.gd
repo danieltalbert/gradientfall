@@ -49,7 +49,7 @@ const REFRAME_FRAMES: int = 36
 ## otherwise sit directly on the lens.
 func capture(main: Node3D, player: CharacterBody3D, terrain: MeadowTerrain,
 		town: BootstrapTown, cycle: SkyCycle, landmarks: Node3D, bit: Node3D,
-		dir: String) -> void:
+		dir: String, hour: float = SHOT_HOUR) -> void:
 	var rig: Node3D = player.get_node("CameraRig")
 	var arm: SpringArm3D = rig.get_node("SpringArm3D") as SpringArm3D
 	var camera: Camera3D = arm.get_node("Camera3D") as Camera3D
@@ -65,7 +65,7 @@ func capture(main: Node3D, player: CharacterBody3D, terrain: MeadowTerrain,
 		bit.visible = false
 	if cycle != null:
 		cycle.paused = true
-		cycle.set_hour(SHOT_HOUR)
+		cycle.set_hour(hour)
 
 	var shots: Array[Dictionary] = _shot_list(town)
 	for i in SETTLE_FRAMES:
@@ -159,8 +159,13 @@ func _shot_list(town: BootstrapTown) -> Array[Dictionary]:
 		#     square-corner lamp posts stand almost exactly on the head-on
 		#     sightline. NOTE: the "The Warm Start" signboard is NOT in this
 		#     frame and cannot be — it is built inside the jetty. See DEVLOG.
-		{"name": "05_warm_start_inn", "pos": Vector2(-2.0, 2.0), "eye": 2.00,
-			"aim": Vector2(-10.6, -3.5), "aim_up": 3.4, "fov": 48.0},
+		#     Reframed for the Blender-authored inn (2026-08-09): the building
+		#     is now 7.7 m to the ridge instead of 5.8, and the old standing
+		#     point cropped its roof off.
+		#     Approached from the south-east so the notice board, which stands
+		#     one metre off the straight-on line, stays out of the lens.
+		{"name": "05_warm_start_inn", "pos": Vector2(-1.5, -10.0), "eye": 2.05,
+			"aim": Vector2(-12.0, -5.0), "aim_up": 3.9, "fov": 52.0},
 		# 6 — Mara Mallow outside her own door.
 		{"name": "06_mara_at_the_inn", "pos": Vector2(-7.2, -6.0), "eye": 1.60,
 			"aim": Vector2(-10.0, -4.0), "aim_up": 1.45, "fov": 42.0},

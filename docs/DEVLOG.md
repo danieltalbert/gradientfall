@@ -4,6 +4,87 @@
 
 ---
 
+## 2026-08-09 (structure lane) — ONE BUILDING, FINISHED, AND THE METHOD THAT DID IT
+
+*Danny, on the survey below: "the level of detail is just really bad… what
+would you hypothesise is the reason?" The hypothesis was that quality is
+accumulated by iteration and this project's iteration count was three orders of
+magnitude too low, so the test was to take ONE building to a finished standard
+and see whether the ceiling was capability or process. It was process. The
+Warm Start Inn is in the game.*
+
+**DONE — the loop, built before the building**
+`tools/blender/bkit.py` + `--render`: one command builds the structure and
+renders eight authored angles in ~15 seconds. Roughly **40 build-and-look
+cycles** went into the inn, against the 1–2 a Godot-boot loop would have
+allowed. Nearly every fix below came from a render, not from reasoning —
+including four faults that all turned out to be one wrong term in the ridge
+height. `--highlight <part>` paints one material group magenta so a stray
+surface is *identified* rather than guessed at; every guess made about the
+inn's strays was wrong.
+
+**DONE — `bkit.py`, primitives that produce detail per call**
+`beam` (joinery between two points), `sweep`+`arc` (curved brackets and wrought
+scrolls), `wedge`, `half_round`, `jitter`, `sag`, `clip_segment`, and the one
+that mattered most: **`stamp_group`**, which authors a sub-assembly in local
+space and places it with a single transform. Without it a shutter's planks each
+rotate about their own centre and the leaf fans apart — which is exactly how
+v1's shutters came out. With it, one window description serves eight windows on
+four elevations, which is why the sides and back of this building are as good
+as its front.
+
+**DONE — the Warm Start Inn: 123,000 tris, 11 material groups**
+The entire previous 17-part town kit was 4,484 triangles. Individual roof tiles
+(~3,700 of them), rubble plinth and chimney laid in courses, a real timber
+frame with close studding and curved corner braces, jettied upper storey on
+swept corbels, two dormers, leaded lights, plank-and-batten door with strap
+hinges, bench, barrels, firewood. Bevels on every edge. Ridge sags, timbers
+warp, tiles sit at slightly different angles.
+
+**DONE — `structure.gdshader` + `structure_asset.gd`, the runtime half**
+Procedural plaster tooth, oak grain, per-tile clay and per-stone rubble, with
+the normal perturbed from the *same* height field that breaks up the albedo.
+**No texture files** — this project has none anywhere, imported maps would need
+provenance tracking and would visibly tile on a nine-metre wall. `.glb` carries
+geometry and UVs only; `structure_asset.gd` assigns materials by node-name
+substring and generates one clean box collider instead of a trimesh of 3,700
+tiles. Authored and code-built buildings now stand in the same square.
+
+**DONE — the two sign bugs the survey found, both fixed and both visible**
+`TownProps.fingerpost` and `TownBuilding._hanging_sign` had their back-to-back
+Label3D rotations inverted, aiming every label into the plank it hung on. Two
+values swapped. **The crossroads fingerpost now reads** *Seed Vault ruins /
+Gradient Peaks / The Old Millpond / Whispering Well* — the only thing in the
+square that tells a new player where the world is, blank until today. And the
+Warm Start's signboard, which the survey found built *inside* the jetty, now
+hangs a metre clear of it on a wrought bracket and carries its name.
+
+**DONE — no regressions at dusk.** An authored `.glb` must not opt out of the
+town's behaviour. Its glass joins `GROUP_WINDOW`, `_apply_night` learned to
+drive a ShaderMaterial as well as a StandardMaterial3D, and the door lantern is
+placed from code at a point the build script prints already converted to
+Godot's axes. Verified with `--townhour=21.2`: every window lights, dormers
+included, and the leaded came lattice reads against the glow.
+
+**HALF-FORMED — what this does NOT fix**
+- **Twelve buildings still look like the old ones.** The inn now sits beside
+  them and the contrast is stark. That is the point of doing one first, but the
+  town is currently inconsistent and will stay that way until the rest follow.
+- **The bare town pad is still the worst thing in Bootstrap** and is unaffected
+  by any of this — it is flora, not structure.
+- Chimney smoke did not survive the swap; the old inn had it, the authored one
+  does not yet.
+
+**NEXT UP**
+1. Grass on the town pad. Still the single biggest visual win available, and
+   now the only thing letting the inn down in a wide shot.
+2. The forge and the mayor's hall on this pipeline — the two other buildings
+   that face the square. `docs/STRUCTURE_PIPELINE.md` §6a is the method, and
+   §6a.7 gives the cost to plan against: ~120k tris and ~40 iterations each.
+3. Chimney smoke back on the inn.
+
+---
+
 ## 2026-08-09 (survey lane) — BOOTSTRAP, PHOTOGRAPHED FROM INSIDE IT
 
 *Danny asked how Bootstrap looks and wanted fifteen close frames, not another

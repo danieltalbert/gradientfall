@@ -73,8 +73,13 @@ func _ready() -> void:
 		# Held in a member: the capture is a coroutine, and a RefCounted with no
 		# surviving reference is not something to gamble a 15-shot pass on.
 		_town_shots = TownShots.new()
+		# `--townhour=21` re-shoots the same standing points after dark, which
+		# is the only way to check that lit windows, lamps and the day/night
+		# crossfade actually reach an authored building.
+		var hour_flag: String = _flag_value("--townhour=")
 		_town_shots.capture(self, _player, _terrain, _town, _sky,
-			_landmarks, _bit, town_dir)
+			_landmarks, _bit, town_dir,
+			float(hour_flag) if hour_flag != "" else TownShots.SHOT_HOUR)
 	elif flora_dir != "":
 		# Flora iteration loop: five angles on one copse, nothing else. The full
 		# screenshot pass is ~29 shots and too slow to tune trees against.
