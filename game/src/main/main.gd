@@ -7,6 +7,11 @@ extends Node3D
 ## the world to settle, captures a few angles from Kern's camera, saves PNGs
 ## to that directory, and quits. Used by live sessions to attach visual
 ## evidence to the devlog; harmless in normal play.
+##
+## Three narrower capture modes exist for lanes the broad pass cannot judge:
+## `--florashot=` (five distances on one copse), `--mapshot=` (the UI, which the
+## world pass deliberately hides), and `--townshot=` (fifteen close standing
+## points inside Bootstrap). All of them skip the HUD and the monster spawner.
 
 @onready var _player: CharacterBody3D = $Player
 @onready var _terrain: MeadowTerrain = $World/Terrain
@@ -25,6 +30,7 @@ var _vault: PerceptronVault
 var _compendium: CompendiumUi
 var _map: WorldMapUi
 var _minimap: Minimap
+var _town_shots: TownShots
 
 
 func _ready() -> void:
@@ -57,8 +63,18 @@ func _ready() -> void:
 	var shot_dir: String = _screenshot_dir()
 	var map_dir: String = _flag_value("--mapshot=")
 	var flora_dir: String = _flag_value("--florashot=")
+	var town_dir: String = _flag_value("--townshot=")
 	if shot_dir != "":
 		_capture_screens(shot_dir)
+	elif town_dir != "":
+		# Bootstrap iteration loop: the full pass gives the town three frames
+		# from tens of metres out, which cannot judge a door, a sign or a face.
+		# TownShots stands in the streets instead — see src/dev/town_shots.gd.
+		# Held in a member: the capture is a coroutine, and a RefCounted with no
+		# surviving reference is not something to gamble a 15-shot pass on.
+		_town_shots = TownShots.new()
+		_town_shots.capture(self, _player, _terrain, _town, _sky,
+			_landmarks, _bit, town_dir)
 	elif flora_dir != "":
 		# Flora iteration loop: five angles on one copse, nothing else. The full
 		# screenshot pass is ~29 shots and too slow to tune trees against.

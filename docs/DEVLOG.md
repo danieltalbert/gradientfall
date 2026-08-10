@@ -4,6 +4,82 @@
 
 ---
 
+## 2026-08-09 (survey lane) — BOOTSTRAP, PHOTOGRAPHED FROM INSIDE IT
+
+*Danny asked how Bootstrap looks and wanted fifteen close frames, not another
+set of establishing shots. Getting them required a tool, and the tool
+immediately found two bugs that eleven months of far-away screenshots could
+not have found. That is the whole lesson of this entry: **the town had never
+been photographed at eye level.***
+
+**DONE — `--townshot=`, a close-range photographer for the town**
+`src/dev/town_shots.gd` + one branch in `main.gd`. Fifteen authored standing
+points inside Bootstrap at conversation range, in the order a visitor walks
+them: in from the south road, round the square, out through the east gate to
+the mill. Design notes worth keeping:
+- It drives **the player's own CameraRig**, not a private camera, so every
+  frame comes through the game's real WorldEnvironment and post stack.
+  `peaks_shots.gd` carries its own Environment for reasons that were true
+  during sky surgery and are not true now; a shot taken through a private
+  camera can flatter geometry the player will never see that way.
+- Aim is authored as a **look-at target**, not yaw/pitch, because a close shot
+  is framed around a *thing* and the angle that frames it moves when it does.
+- Positions are town-local, matching `bootstrap_town.gd`'s own frame.
+- Shots are **not** committed as PNGs. The rig is deterministic and takes 40
+  seconds; 16 MB of output per survey is not worth carrying in git.
+
+**DONE — bug found: every signboard in Bootstrap renders blank.**
+`TownProps.fingerpost` (four arms) and `TownBuilding._hanging_sign` (the Warm
+Start, Bootstrap Mill) both build a back-to-back Label3D pair with
+`label.rotation.y = 0.0 if sz < 0 else PI`. That is inverted. The `sz = -1`
+label sits at z = -0.05 facing **+Z**, i.e. into the board; the `sz = +1` label
+sits at z = +0.05 facing **-Z**, also into the board. Both are occluded by the
+plank they are parented to, from every angle. The comment above the line
+states the correct intent — only the two branch values are swapped. So the
+crossroads fingerpost, whose entire job is naming the four places a new player
+can walk to, has been showing four blank yellow planks; and the town's one
+scripted joke ("The Warm Start") has never been on screen.
+
+**DONE — bug found: the inn's sign is built inside the inn.**
+Independent of the text bug. `_hanging_sign` hangs the board at
+`z = -d*0.5 - 0.06` = **-4.26 m**, but `_build_inn`'s jettied upper storey is
+`up_d = d + 0.7` wide, so its front face is at **-4.35 m** and the jetty band
+at **-4.45 m**. The signboard is 0.09–0.19 m *inside* the overhang, at
+y = 3.52 m, which is squarely in the upper-storey block. Fixing the label
+orientation alone will not reveal it; the sign has to clear the jetty.
+
+**HALF-FORMED — what the survey says about how Bootstrap looks**
+Recorded here so the next session does not have to re-photograph it:
+- **The ground is the biggest problem.** The terrain flattens a pad under the
+  town and the grass field thins to near-nothing on it, so twelve buildings and
+  a market stand on bare brown dirt with scattered single blades, while dense
+  photoreal sward starts abruptly at the pad edge. At eye level this reads as
+  an unfinished construction site, and it is the first thing that would strike
+  a player. Nothing else in these frames is as damaging.
+- **The kit itself holds up better than expected up close.** Shutters have real
+  thickness, windows are mullioned with flower boxes, the forge's coal glow
+  lights its own interior, the hall's portico and banner read, the water wheel
+  genuinely breaks the pond surface, and the sheepfold is legible as a place.
+- **Scale is right.** Measured against NPCs and Kern, doorways, storey heights
+  and the market counter all sit where they should.
+- **Bootstrap is still 100% GDScript.** `assets/models/town/kit_datasedge.glb`
+  exists and **nothing under `src/` references it** — consistent with the
+  2026-08-03 commit's own "Bootstrap is NOT yet reassembled". The buildings in
+  these frames are `town_building.gd`'s primitives.
+- **Every villager wears a floating name label at all times**, which is a
+  deliberate feature but dominates close frames.
+
+**NEXT UP — in priority order, all cheap relative to their effect**
+1. Swap the two `rotation.y` branch values in `TownProps.fingerpost` and
+   `TownBuilding._hanging_sign`. Two lines; restores every sign in the town.
+2. Push the hanging sign clear of the jetty (`-up_d * 0.5 - 0.06`, or hang it
+   from the jetty beam), then re-shoot shot 5.
+3. **Grass on the town pad.** Whatever `meadow_flora.gd` does to the flattened
+   pad, it should leave trodden-but-present ground cover, not bare dirt.
+4. Then, and only then, the Blender kit swap the structure split authorised.
+
+---
+
 ## 2026-08-03 (art lane) — THE PIPELINE RUNS; THE SILHOUETTE TEST BITES
 
 *First real build on the figure-split pipeline. The mechanism works and solved
